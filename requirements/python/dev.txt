@@ -1,0 +1,10 @@
+# AquaCreds v2 — developer tooling (lint, types, tests). Python 3.12.
+pytest~=9.1
+pytest-asyncio~=1.4
+pytest-cov~=7.1
+testcontainers[postgres,redis]~=4.15
+ruff~=0.17.1
+mypy~=2.4
+pre-commit~=4.7
+pip-audit~=2.10
+pyinstrument~=5.1

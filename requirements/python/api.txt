@@ -1,0 +1,46 @@
+# AquaCreds v2 — API service (FastAPI). Python 3.12.
+# Pins use compatible-release (~=) so patch updates are allowed.
+# Once code exists, uv.lock is the exact source of truth; these files are for sharing/setup.
+
+# Web framework
+fastapi~=0.146.0
+uvicorn[standard]~=0.54.0
+gunicorn~=26.2
+python-multipart~=0.0.32
+orjson~=3.13
+slowapi~=0.1.10
+
+# Settings & validation
+pydantic~=2.14
+pydantic-settings~=2.16
+geojson-pydantic~=2.2
+
+# Database (PostgreSQL + PostGIS)
+sqlalchemy[asyncio]~=2.1
+asyncpg~=0.32.0
+psycopg[binary]~=3.3
+alembic~=1.20
+geoalchemy2~=0.20.0
+shapely~=2.2
+pyproj~=3.8
+
+# Auth & security
+argon2-cffi~=25.1
+pyjwt[crypto]~=2.15
+
+# Jobs, cache, storage, HTTP
+celery[redis]~=5.6
+redis~=8.1
+boto3~=1.43
+httpx~=0.28.1
+tenacity~=9.2
+
+# Blockchain (hash anchoring, SIWE verification, event reads)
+web3~=8.0
+eth-account~=0.14.0
+rfc8785~=0.1.4
+
+# Observability
+structlog~=26.1
+sentry-sdk[fastapi]~=2.72
+prometheus-fastapi-instrumentator~=8.1

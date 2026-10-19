@@ -1,0 +1,38 @@
+# AquaCreds v2 — Celery worker (geo pipeline, ML inference, chain relayer, reports). Python 3.12.
+# Production inference only: no PyTorch here (models are served as ONNX / LightGBM).
+-r api.txt
+
+# Geospatial stack (rasterio wheels bundle GDAL; no system GDAL needed)
+numpy~=2.5
+pandas~=3.0
+xarray~=2026.9
+dask[array]~=2026.8
+rasterio~=1.5
+rioxarray~=0.23.0
+rio-cogeo~=7.0
+geopandas~=1.2
+pyogrio~=0.13.0
+pystac~=1.15
+pystac-client~=0.9.0
+odc-stac~=0.5.3
+planetary-computer~=1.0
+h3~=4.5
+scipy~=1.18
+
+# ML inference
+scikit-learn~=1.9
+lightgbm~=4.7
+onnxruntime~=1.31
+joblib~=1.6
+
+# Evidence checks (EXIF, perceptual-hash duplicates)
+pillow~=13.0
+exifread~=3.5
+imagehash~=4.3
+
+# Reports (WeasyPrint needs system libs: pango, harfbuzz; see requirements/README.md)
+weasyprint~=70.0
+jinja2~=3.1
+
+# Ops
+flower~=2.2

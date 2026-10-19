@@ -1,0 +1,37 @@
+# AquaCreds v2 — ML research & training environment (laptop / Kaggle / Colab). Python 3.12.
+# CPU-only PyTorch on Linux (much smaller download):
+#   uv pip install -r requirements/python/ml-training.txt --extra-index-url https://download.pytorch.org/whl/cpu
+-r worker.txt
+
+# Data access & versioning
+earthaccess~=0.19.0
+dvc[s3]~=3.67
+pyarrow>=21,<26   # mlflow 3.17 requires <26
+s2cloudless~=1.7
+huggingface-hub~=2.2
+
+# Tabular models, tuning, uncertainty, explainability
+xgboost~=3.4
+optuna~=5.0
+mapie~=1.5
+shap~=0.54.0
+statsmodels~=0.15.0
+
+# Deep learning (photo verifier + U-Net stretch goal)
+torch~=2.14
+torchvision~=0.29.0
+timm~=1.0
+open-clip-torch~=3.3
+pybioclip~=2.1
+segmentation-models-pytorch~=0.5.0
+torchgeo~=0.10.0
+lightning~=2.6
+onnx~=1.23
+
+# Experiment tracking & notebooks
+mlflow~=3.17
+jupyterlab~=4.6
+ipykernel~=7.4
+matplotlib~=3.11
+seaborn~=0.13.2
+tqdm~=4.70

@@ -1,0 +1,62 @@
+# --- Legacy SIH 2025 prototype (local reference only, never pushed) ---
+_legacy/
+
+# --- Editor / agent local config ---
+.agents/
+.cursor/
+.vscode/
+.idea/
+.DS_Store
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.ipynb_checkpoints/
+
+# --- Node ---
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+.expo/
+*.tsbuildinfo
+
+# --- Contracts ---
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/31337/
+
+# --- Data & models (tracked by DVC, not git) ---
+data/raw/
+data/interim/
+data/processed/
+ml/artifacts/
+mlruns/
+*.tif
+*.tiff
+*.jp2
+*.SAFE/
+*.onnx
+*.pkl
+*.h5
+*.pt
+*.ckpt
+
+# --- Runtime ---
+uploads/
+logs/
+*.log
