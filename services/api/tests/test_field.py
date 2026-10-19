@@ -134,9 +134,10 @@ async def test_genuine_capture_scores_full_trust(
 async def test_reused_photo_is_rejected_as_duplicate(
     field: Field, storage: FakeStorage, database_url: str
 ) -> None:
-    first = (await _submit(field, storage, _photo(2))).json()["id"]
+    photo = _photo(2)  # built once: EXIF embeds the current second, so two builds can differ
+    first = (await _submit(field, storage, photo)).json()["id"]
     await _check(database_url, storage, first)
-    again = (await _submit(field, storage, _photo(2))).json()["id"]  # same bytes, new upload
+    again = (await _submit(field, storage, photo)).json()["id"]  # same bytes, new upload
     result = await _check(database_url, storage, again)
     assert result["status"] == "rejected"
     assert result["trust_score"] == 0

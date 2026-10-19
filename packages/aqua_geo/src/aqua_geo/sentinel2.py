@@ -103,8 +103,12 @@ def search(
     provider: Provider = PLANETARY_COMPUTER,
     max_cloud: float = 70.0,
     limit: int = 500,
+    sign: bool = True,
 ) -> list[pystac.Item]:
-    """Scenes intersecting `geometry` (WGS84) in [start, end], sorted by acquisition time."""
+    """Scenes intersecting `geometry` (WGS84) in [start, end], sorted by acquisition time.
+
+    Pass `sign=False` for long jobs and call `provider.sign(item)` right before each read:
+    Planetary Computer SAS tokens expire after ~45 minutes."""
     client = Client.open(provider.stac_url, timeout=STAC_TIMEOUT_S)
     found = client.search(
         collections=[provider.collection],
@@ -114,7 +118,7 @@ def search(
         max_items=limit,
     )
     items = sorted(found.items(), key=lambda it: it.datetime or it.properties["datetime"])
-    return [provider.sign(item) for item in items]
+    return [provider.sign(item) for item in items] if sign else items
 
 
 def scale_and_mask(
@@ -187,8 +191,9 @@ def load(
     return clip_to_geometry(ds, geometry, epsg)
 
 
-def clip_to_geometry(ds: xr.Dataset, geometry: BaseGeometry, epsg: int) -> xr.Dataset:
-    """Set pixels outside the polygon to NaN / False (keeps the rectangular grid)."""
+def polygon_mask(template: xr.DataArray, geometry: BaseGeometry, epsg: int) -> xr.DataArray:
+    """Boolean (y, x) mask of the pixels of `template`'s grid whose centres fall inside
+    `geometry` (WGS84). `template` must have y/x coordinates in EPSG:`epsg`."""
     import rioxarray  # noqa: F401  (registers the .rio accessor)
     import shapely
     from pyproj import Transformer
@@ -197,14 +202,25 @@ def clip_to_geometry(ds: xr.Dataset, geometry: BaseGeometry, epsg: int) -> xr.Da
     local = shapely.transform(
         geometry, lambda xy: np.column_stack(to_utm.transform(xy[:, 0], xy[:, 1]))
     )
-    ds = ds.rio.write_crs(f"EPSG:{epsg}")
-    inside = (
-        xr.ones_like(ds["clear"].isel(time=0), dtype="uint8")
+    grid = template.isel(time=0) if "time" in template.dims else template
+    # float32 template: rioxarray fills outside pixels with NaN (an integer template would cast
+    # NaN to an undefined integer value).
+    mask: xr.DataArray = (
+        xr.ones_like(grid, dtype="float32")
         .rio.write_crs(f"EPSG:{epsg}")
         .rio.clip([mapping(local)], drop=False, all_touched=False)
         .fillna(0)
-        .astype(bool)
+        > 0
     )
+    return mask
+
+
+def clip_to_geometry(ds: xr.Dataset, geometry: BaseGeometry, epsg: int) -> xr.Dataset:
+    """Set pixels outside the polygon to NaN / False (keeps the rectangular grid)."""
+    import rioxarray  # noqa: F401  (registers the .rio accessor)
+
+    ds = ds.rio.write_crs(f"EPSG:{epsg}")
+    inside = polygon_mask(ds["clear"], geometry, epsg)
     out = ds.where(inside)
     out["clear"] = ds["clear"] & inside
     out.attrs["epsg"] = epsg

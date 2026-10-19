@@ -67,6 +67,10 @@ class ObjectStorage(Protocol):
         """Object contents (raises ValueError if larger than max_bytes)."""
         ...
 
+    def put_bytes(self, key: str, data: bytes, content_type: str) -> str:
+        """Upload `data` (server-side workers only). Returns its SHA-256."""
+        ...
+
 
 class S3ObjectStorage:
     def __init__(self, settings: Settings) -> None:
@@ -108,3 +112,14 @@ class S3ObjectStorage:
         if len(data) > max_bytes:
             raise ValueError(f"{key} exceeds {max_bytes} bytes")
         return data
+
+    def put_bytes(self, key: str, data: bytes, content_type: str) -> str:
+        digest = hashlib.sha256(data).hexdigest()
+        self._client.put_object(
+            Bucket=self._settings.s3_bucket,
+            Key=key,
+            Body=data,
+            ContentType=content_type,
+            Metadata={"sha256": digest},
+        )
+        return digest

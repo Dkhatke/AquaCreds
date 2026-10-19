@@ -1,5 +1,6 @@
 """Typed runtime configuration, read from environment variables (and `.env` in development)."""
 
+from datetime import date
 from functools import lru_cache
 from typing import Annotated, Literal
 
@@ -39,6 +40,12 @@ class Settings(BaseSettings):
     project_max_area_ha: float = 5000.0
     # Minimum shared area (ha) for two boundaries to count as overlapping (ignores edge-touching).
     project_overlap_tolerance_ha: float = 0.01
+
+    # Satellite pipeline (worker `geo` queue; see IMPLEMENTATION_PLAN Phase 4 / RESEARCH_NOTES Q2)
+    geo_backfill_start: date = date(2017, 1, 1)  # Sentinel-2 L2A coverage of India starts ~2017
+    geo_nightly_hour_utc: int = Field(default=20, ge=0, le=23)  # 20:00 UTC = 01:30 IST
+    geo_max_scene_cloud_pct: float = Field(default=80.0, gt=0, le=100)  # tile-level pre-filter
+    geo_composite_max_cloud_pct: float = Field(default=40.0, gt=0, le=100)
 
     @field_validator("cors_origins", mode="before")
     @classmethod

@@ -1,7 +1,12 @@
 """ORM models. Importing this package registers every table on `aqua_core.db.Base.metadata`."""
 
+from aqua_core.models.analysis import Alert, AnalysisRun, SceneObservation
 from aqua_core.models.audit import AuditLog
 from aqua_core.models.enums import (
+    AlertKind,
+    AlertSeverity,
+    AnalysisKind,
+    AnalysisStatus,
     DocumentKind,
     Ecosystem,
     Methodology,
@@ -26,6 +31,12 @@ from aqua_core.models.identity import Membership, Organization, RefreshToken, Us
 from aqua_core.models.project import Project, TenureDocument
 
 __all__ = [
+    "Alert",
+    "AlertKind",
+    "AlertSeverity",
+    "AnalysisKind",
+    "AnalysisRun",
+    "AnalysisStatus",
     "AuditLog",
     "CaptureNonce",
     "DocumentKind",
@@ -45,6 +56,7 @@ __all__ = [
     "Project",
     "ProjectStatus",
     "RefreshToken",
+    "SceneObservation",
     "SubmissionKind",
     "SubmissionStatus",
     "TenureDocument",

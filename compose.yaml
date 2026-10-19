@@ -110,7 +110,22 @@ services:
       - celery -A aqua_worker.celery_app worker --loglevel INFO -Q default,geo,ml,chain,reports --concurrency 2
       - /src/services/worker/src
       - /src/packages/aqua_core/src
+      - /src/packages/aqua_geo/src
     environment: *python-env
+    volumes: *python-volumes
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      valkey: { condition: service_healthy }
+
+  beat:
+    # Celery beat: schedules the nightly satellite ingestion (GEO_NIGHTLY_HOUR_UTC, default 20 =
+    # 01:30 IST). Run exactly ONE beat process, or jobs are scheduled twice.
+    image: aquacreds-python-dev:local
+    pull_policy: never
+    command: ["celery", "-A", "aqua_worker.celery_app", "beat", "--loglevel", "INFO", "--schedule", "/tmp/celerybeat-schedule"]
+    environment:
+      <<: *python-env
+      GEO_NIGHTLY_HOUR_UTC: ${GEO_NIGHTLY_HOUR_UTC:-20}
     volumes: *python-volumes
     depends_on:
       migrate: { condition: service_completed_successfully }

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from aqua_api import __version__
 from aqua_api.queue import enqueue
-from aqua_api.routers import audit, auth, field, health, orgs, projects, system
+from aqua_api.routers import analysis, audit, auth, field, health, orgs, projects, system
 from aqua_core.db import create_engine, session_factory
 from aqua_core.logging import configure_logging, get_logger
 from aqua_core.settings import Settings, get_settings
@@ -53,7 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     app.include_router(health.router)
-    for module in (auth, orgs, projects, field, audit, system):
+    for module in (auth, orgs, projects, field, analysis, audit, system):
         app.include_router(module.router, prefix="/api/v1")
     return app
 
