@@ -60,3 +60,9 @@ mlruns/
 uploads/
 logs/
 *.log
+
+# Test coverage data
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
