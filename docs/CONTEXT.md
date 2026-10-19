@@ -33,6 +33,7 @@ satellite), loyalty for long-term stewardship, reverse auction (forward funding)
 | `docs/IMPLEMENTATION_PLAN.md` | Phase-wise plan, architecture, science design, deployment, risks |
 | `docs/TECH_STACK.md` | Every tech choice with alternatives (incl. MobileNetV2 + Random Forest evaluation) |
 | `docs/DATASETS.md` | Every dataset: use, source, licence, verification status |
+| `docs/RESEARCH_NOTES.md` | Tenure, satellite timing, monitoring cadence, carbon calculation (BM FR05.001 + AR-TOOL14), worked example, plan changes R1–R9 |
 | `requirements/` | Shareable requirement files + prerequisites (README) |
 | `_legacy/aquacreds-system/` | Old SIH prototype (reference only; do not port its ML/carbon math) |
 
@@ -63,6 +64,12 @@ satellite), loyalty for long-term stewardship, reverse auction (forward funding)
 | D9 | Object storage: R2 (prod) / SeaweedFS (dev); no MinIO | 2026-10-19 | MinIO community images discontinued Oct 2025 |
 | D10 | Postgres image `imresamu/postgis:17-3.6` | 2026-10-19 | Official image is amd64 only; Oracle VM is ARM |
 | D11 | Mangroves credited in v2.0; salt marsh mapped only; seagrass research layer only | 2026-10-19 | Data/method availability |
+| D13 | Field sample plots are mandatory for crediting; ML = stratification + model-assisted estimation + area/survival + no-decrease + fraud. Satellite AGB never issues credits alone | 2026-10-19 | AR-TOOL14: ex-post biomass from plots, RS only "in conjunction with" plots |
+| D14 | CCTS profile uses tCCC/lCCC with expiry and reversal replacement (no buffer pool); uncertainty-discount table; CF 0.47; SOC default 0.50 tC/ha/yr × 20 yr | 2026-10-19 | BM FR05.001 Eq. 1–8 |
+| D15 | Tenure & authorisation evidence pack (forest/revenue/port/panchayat/private + FPIC + CRZ + carbon-rights agreement) replaces "land registry check" | 2026-10-19 | Intertidal land has no ordinary registry; mostly state-controlled |
+| D16 | Cadence: nightly ingestion + alerts; photo points 6-monthly; annual internal report; verification/issuance every 2–5 yr (first at yr 3–5) | 2026-10-19 | Ex-post credits; saplings invisible at 10 m for years |
+| D17 | Git workflow: never commit to `main`; feature branch + PR, user merges | 2026-10-19 | User instruction |
+| D18 | Local dev env = uv-managed `.venv` (Python 3.12) at repo root with ml-training + dev requirements; services run in Docker | 2026-10-19 | Isolated from system Python 3.9; reproducible |
 | D12 | Methodology profiles: India CCTS `BM FR05.001` + Verra `VM0033 v2.1`; label outputs "estimated, pending accredited verification" | 2026-10-19 | Regulatory honesty |
 
 ## Environment facts
@@ -78,11 +85,13 @@ satellite), loyalty for long-term stewardship, reverse auction (forward funding)
 
 ## Open questions for the user
 1. Confirm D8 (custodial NGO wallets).
-2. New GitHub repo name/visibility (public repo = free Actions minutes incl. arm64 runners).
-3. Team size / timeline (plan assumes 2–3 devs, ~12–14 weeks with parallel tracks).
+2. Team size / timeline (plan assumes 2–3 devs, ~12–14 weeks with parallel tracks).
 
 ## Open verification tasks
-- Komiyama 2005 coefficients against the original paper.
+- CCTS Detailed Procedure v1: tenure-document checklist, crediting-period length, verification frequency.
+- BM-T-AR-0004 text (assumed = AR-TOOL14 v04.1; BEE site blocks automated download).
+- Mangrove root-shoot ratios for project trees (AR-AM0014 / IPCC Wetlands Supplement).
+- Komiyama 2005 BGB coefficients (AGB 0.251·ρ·D^2.46 confirmed via secondary source).
 - GMW v4.0 official download host; coastTrain and Worthington data repositories.
 - GEDI L4A current version; ESA CCI Biomass latest version.
 - IPCC Wetlands Supplement Tier-1 mangrove factors (page refs) for methodology profiles.
@@ -92,4 +101,6 @@ satellite), loyalty for long-term stewardship, reverse auction (forward funding)
 ## Status log
 | Date | What happened |
 |---|---|
-| 2026-10-19 | Audited legacy repo; researched datasets/stack; created new repo scaffold with docs (plan, stack, datasets, context) and `requirements/`. Nothing committed yet; awaiting the user's go-ahead to commit + create the GitHub remote. Next: Phase 0. |
+| 2026-10-19 | Audited legacy repo; researched datasets/stack; created new repo scaffold with docs (plan, stack, datasets, context) and `requirements/`. Nothing committed yet. |
+| 2026-10-19 | Pushed initial scaffold to new **public** repo `github.com/Dkhatke/AquaCreds` (`origin`, branch `main`, commit e3a3bd8). Repo-local git identity: `Dkhatke <khatkednyaneshwari06@gmail.com>` (no global git identity on this Mac; don't use the "Mahi Mahalle" identity from the home repo). Next: Phase 0. |
+| 2026-10-19 | Branch `docs/research-verification`: deep research on tenure, satellite timing, monitoring cadence, carbon calculation → `docs/RESEARCH_NOTES.md`; plan revised (R1–R9, decisions D13–D18). Installed uv + pango via Homebrew; created `.venv` (Python 3.12.15, 427 pkgs from ml-training + dev; 2.1 GB; torch MPS available; all key imports OK). Next: merge PR, then Phase 0 on `feat/phase-0-foundations`. |
