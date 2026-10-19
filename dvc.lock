@@ -5,8 +5,8 @@ stages:
     deps:
     - path: ml/pipelines/download.py
       hash: md5
-      md5: 596be6d134d6d9e8ddd7bd89d6486553
-      size: 6979
+      md5: 182685520228644b69482cbff2da3c87
+      size: 8481
     outs:
     - path: data/raw/coasttrain
       hash: md5
@@ -39,3 +39,49 @@ stages:
       md5: 218d012c7182d025c77bb0498723f4fd.dir
       size: 68511266
       nfiles: 1
+  labels_coasttrain:
+    cmd: uv run python ml/pipelines/labels_coasttrain.py
+    deps:
+    - path: data/raw/coasttrain
+      hash: md5
+      md5: 2c43e4530eb7325beef1630c2596f257.dir
+      size: 7252777
+      nfiles: 1
+    - path: ml/pipelines/labels_coasttrain.py
+      hash: md5
+      md5: f2a3f46c0c8835205544cc879796977c
+      size: 2437
+    outs:
+    - path: data/interim/labels/coasttrain_aoi.parquet
+      hash: md5
+      md5: fd328571863515ae485451c68e6cf202
+      size: 572944
+  labels_build:
+    cmd: uv run python -u ml/pipelines/labels_build.py
+    deps:
+    - path: data/interim/labels/coasttrain_aoi.parquet
+      hash: md5
+      md5: fd328571863515ae485451c68e6cf202
+      size: 572944
+    - path: data/raw/gmw_v4
+      hash: md5
+      md5: b6fea63d3ea29477e9671fe7417edd1d.dir
+      size: 180055707
+      nfiles: 1
+    - path: ml/pipelines/labels_build.py
+      hash: md5
+      md5: a5aac47144eb16494a8cd1e088568482
+      size: 11158
+    - path: ml/pipelines/splits.py
+      hash: md5
+      md5: b3af964bc30893aeb063c54832735ce1
+      size: 2822
+    outs:
+    - path: data/processed/labels.parquet
+      hash: md5
+      md5: 594f8e9a7fd7d5cc52c7f0db7fb308b2
+      size: 309483
+    - path: data/processed/labels_summary.json
+      hash: md5
+      md5: db826752b3ac86f9d8dfbfbf39998418
+      size: 1731

@@ -17,6 +17,7 @@ import json
 import math
 import zipfile
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import geopandas as gpd
@@ -85,6 +86,46 @@ class GmwIndex:
         return result
 
 
+TILE_ATTEMPTS = 3
+TILE_WORKERS = 4  # parallel tile reads; each holds ~3 MB windows
+WINDOW_DECIMATION = 1  # full 10 m resolution: 100% agreement with per-point reads (40 m gave 90%)
+
+
+def _sample_tile(href: str, pts: pd.DataFrame) -> np.ndarray:
+    """Class values at `pts` (lon/lat/cell) using one decimated window read per H3 cell."""
+    from affine import Affine
+    from rasterio.enums import Resampling
+    from rasterio.transform import rowcol
+    from rasterio.windows import Window, from_bounds
+
+    out = np.full(len(pts), -1, dtype=int)
+    with rasterio_env(), rasterio.open(href) as ds:
+        full = Window(0, 0, ds.width, ds.height)
+        for _, grp in pts.groupby("cell"):
+            pad = 0.002
+            win = (
+                from_bounds(
+                    grp.lon.min() - pad,
+                    grp.lat.min() - pad,
+                    grp.lon.max() + pad,
+                    grp.lat.max() + pad,
+                    ds.transform,
+                )
+                .round_offsets()
+                .round_lengths()
+                .intersection(full)
+            )
+            h = max(1, int(win.height) // WINDOW_DECIMATION)
+            w = max(1, int(win.width) // WINDOW_DECIMATION)
+            arr = ds.read(1, window=win, out_shape=(h, w), resampling=Resampling.nearest)
+            t = ds.window_transform(win) * Affine.scale(win.width / w, win.height / h)
+            rows, cols = rowcol(t, grp.lon.to_numpy(), grp.lat.to_numpy())
+            rows = np.clip(np.asarray(rows), 0, h - 1)
+            cols = np.clip(np.asarray(cols), 0, w - 1)
+            out[pts.index.get_indexer(grp.index)] = arr[rows, cols]
+    return out
+
+
 def worldcover_negatives(cells: list[str], per_cell: int, seed: int) -> pd.DataFrame:
     """Random points inside each H3 cell, labelled from ESA WorldCover 2021 (point reads)."""
     import planetary_computer
@@ -105,10 +146,10 @@ def worldcover_negatives(cells: list[str], per_cell: int, seed: int) -> pd.DataF
             )
     df = pd.DataFrame(pts, columns=["lon", "lat", "cell"])
 
+    # Search unsigned; sign each asset URL right before reading. Planetary Computer SAS tokens
+    # expire (~45 min), so URLs signed at the start of a long run fail later.
     catalog = Client.open(
-        "https://planetarycomputer.microsoft.com/api/stac/v1",
-        modifier=planetary_computer.sign_inplace,
-        timeout=STAC_TIMEOUT_S,
+        "https://planetarycomputer.microsoft.com/api/stac/v1", timeout=STAC_TIMEOUT_S
     )
     lon0, lat0, lon1, lat1 = df.lon.min(), df.lat.min(), df.lon.max(), df.lat.max()
     items = list(
@@ -119,32 +160,49 @@ def worldcover_negatives(cells: list[str], per_cell: int, seed: int) -> pd.DataF
         ).items()
     )
     print(f"WorldCover tiles: {len(items)} for {len(df)} candidate points", flush=True)
-    values = np.full(len(df), -1, dtype=int)
-    for n, item in enumerate(items, 1):
+
+    # Assign every point to exactly one tile (tiles share edges).
+    owner = np.full(len(df), -1, dtype=int)
+    for t, item in enumerate(items):
         x0, y0, x1, y1 = item.bbox
-        inside = np.where(
-            (df.lon >= x0) & (df.lon < x1) & (df.lat > y0) & (df.lat <= y1) & (values < 0)
-        )[0]
-        if len(inside) == 0:
-            continue
-        try:
-            with rasterio_env(), rasterio.open(item.assets["map"].href) as ds:
-                sampled = [
-                    v[0]
-                    for v in ds.sample(
-                        list(zip(df.lon.iloc[inside], df.lat.iloc[inside], strict=True))
-                    )
-                ]
-        except RasterioIOError as exc:
-            raise SystemExit(f"WorldCover read failed for {item.id}: {exc}") from exc
-        values[inside] = sampled
-        print(f"  [{n}/{len(items)}] {item.id}: {len(inside)} points", flush=True)
+        hit = (df.lon >= x0) & (df.lon < x1) & (df.lat > y0) & (df.lat <= y1) & (owner < 0)
+        owner[hit.to_numpy()] = t
+    jobs = [(t, np.where(owner == t)[0]) for t in range(len(items)) if (owner == t).any()]
+
+    def read_tile(t: int, idx: np.ndarray) -> np.ndarray:
+        last: Exception | None = None
+        for _ in range(TILE_ATTEMPTS):
+            try:
+                href = planetary_computer.sign(items[t].assets["map"].href)  # fresh token
+                return _sample_tile(href, df.iloc[idx])
+            except RasterioIOError as exc:
+                last = exc
+        raise RuntimeError(f"{items[t].id}: {last}")
+
+    values = np.full(len(df), -1, dtype=int)
+    failed: list[str] = []
+    with ThreadPoolExecutor(max_workers=TILE_WORKERS) as pool:
+        futures = {pool.submit(read_tile, t, idx): (t, idx) for t, idx in jobs}
+        for done, fut in enumerate(as_completed(futures), 1):
+            t, idx = futures[fut]
+            try:
+                values[idx] = fut.result()
+                print(f"  [{done}/{len(jobs)}] {items[t].id}: {len(idx)} points", flush=True)
+            except RuntimeError as exc:
+                failed.append(items[t].id)  # reported in the summary; points stay unlabelled
+                print(f"  [{done}/{len(jobs)}] FAILED {exc}", flush=True)
+    if failed:
+        print(
+            f"WARNING: {len(failed)} WorldCover tile(s) unreadable, points skipped: {failed}",
+            flush=True,
+        )
     df["worldcover"] = values
     df["label"] = df.worldcover.map(WORLDCOVER_MAP)
     df = df.dropna(subset=["label"]).copy()
     df["source"] = "esa_worldcover_2021"
     df["ref_year"] = 2021
     df["map_derived"] = True
+    df.attrs["failed_tiles"] = failed
     return df[["lon", "lat", "label", "source", "ref_year", "map_derived"]]
 
 
@@ -198,8 +256,11 @@ def main() -> None:
         .unstack(fill_value=0)
         .to_dict(),
         "params": vars(args),
+        "worldcover_failed_tiles": neg.attrs.get("failed_tiles", []),
     }
-    (OUT.parent / "labels_summary.json").write_text(json.dumps(summary, indent=2, default=int))
+    (OUT.parent / "labels_summary.json").write_text(
+        json.dumps(summary, indent=2, default=int) + "\n"
+    )
     print(
         json.dumps(
             {k: summary[k] for k in ("total", "by_label", "by_split")}, indent=2, default=int

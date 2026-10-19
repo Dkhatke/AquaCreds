@@ -21,3 +21,24 @@ stages:
       - ml/pipelines/download.py
     outs:
       - data/raw/gmw_v3
+
+  labels_coasttrain:
+    cmd: uv run python ml/pipelines/labels_coasttrain.py
+    deps:
+      - ml/pipelines/labels_coasttrain.py
+      - data/raw/coasttrain
+    outs:
+      - data/interim/labels/coasttrain_aoi.parquet
+
+  labels_build:
+    cmd: uv run python -u ml/pipelines/labels_build.py
+    deps:
+      - ml/pipelines/labels_build.py
+      - ml/pipelines/splits.py
+      - data/interim/labels/coasttrain_aoi.parquet
+      - data/raw/gmw_v4
+    outs:
+      - data/processed/labels.parquet
+    metrics:
+      - data/processed/labels_summary.json:
+          cache: false

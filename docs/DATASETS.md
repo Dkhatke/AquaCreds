@@ -65,6 +65,15 @@ Verified Zenodo records: coastTrain v1.0.0 = **7080756** (7.3 MB); GMW v4.0.19 2
 **12756047** (180 MB GeoTIFF zip); GMW v3 = **6894273**; Maxwell SOC = **7729491** (4.8 GB of
 tiles, deferred: above the 500 MB download guard).
 
+**Built training labels (`ml/pipelines/labels_build.py`, run 2026-10-19, 48 s, 0.62 GB RAM):**
+14,129 points: mangrove 4,801 · water 4,763 · terrestrial_other 2,662 · cropland_aquaculture 1,396
+· tidal_flat 282 · built_bare 210 · salt_marsh 15 (not trained in v2.0). Only 55 of the 17,169
+1996-sampled mangrove points were absent from GMW 2020. That is far fewer than expected loss, and
+likely because coastTrain sampled stable mangrove cores; to be spot-checked on imagery. Splits:
+5 spatial folds of ~2,600 points each + 1,133 held out (Gulf of Kutch). WorldCover negatives
+are read as full-resolution windows per H3 cell (100% agreement with per-point reads), with
+Planetary Computer URLs re-signed per tile (tokens expire after ~45 min).
+
 **Label construction:**
 1. Merge sources.
 2. Erode polygons 30 m before sampling (avoids mixed pixels).
