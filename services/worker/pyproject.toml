@@ -7,6 +7,9 @@ dependencies = [
     "aqua-core",
     "celery[redis]~=5.6",
     "watchfiles~=1.1",
+    "pillow~=13.0",
+    "imagehash~=4.3",
+    "shapely~=2.2",
 ]
 
 [tool.uv.sources]

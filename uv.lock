@@ -275,6 +275,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "redis" },
+    { name = "rfc8785" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
 ]
@@ -287,6 +288,7 @@ requires-dist = [
     { name = "pydantic", specifier = "~=2.14" },
     { name = "pydantic-settings", specifier = "~=2.16" },
     { name = "redis", specifier = "~=8.1" },
+    { name = "rfc8785", specifier = "~=0.1.4" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = "~=2.1" },
     { name = "structlog", specifier = "~=26.1" },
 ]
@@ -331,6 +333,9 @@ source = { editable = "services/worker" }
 dependencies = [
     { name = "aqua-core" },
     { name = "celery", extra = ["redis"] },
+    { name = "imagehash" },
+    { name = "pillow" },
+    { name = "shapely" },
     { name = "watchfiles" },
 ]
 
@@ -338,6 +343,9 @@ dependencies = [
 requires-dist = [
     { name = "aqua-core", editable = "packages/aqua_core" },
     { name = "celery", extras = ["redis"], specifier = "~=5.6" },
+    { name = "imagehash", specifier = "~=4.3" },
+    { name = "pillow", specifier = "~=13.0" },
+    { name = "shapely", specifier = "~=2.2" },
     { name = "watchfiles", specifier = "~=1.1" },
 ]
 

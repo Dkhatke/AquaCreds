@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from aqua_api import __version__
-from aqua_api.routers import audit, auth, health, orgs, projects, system
+from aqua_api.queue import enqueue
+from aqua_api.routers import audit, auth, field, health, orgs, projects, system
 from aqua_core.db import create_engine, session_factory
 from aqua_core.logging import configure_logging, get_logger
 from aqua_core.settings import Settings, get_settings
@@ -40,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = create_engine(settings.database_url)
     app.state.sessionmaker = session_factory(app.state.engine)
     app.state.storage = S3ObjectStorage(settings)
+    app.state.enqueue = enqueue  # replaced by a recorder in tests
 
     if settings.cors_origins:
         app.add_middleware(
@@ -51,7 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     app.include_router(health.router)
-    for module in (auth, orgs, projects, audit, system):
+    for module in (auth, orgs, projects, field, audit, system):
         app.include_router(module.router, prefix="/api/v1")
     return app
 

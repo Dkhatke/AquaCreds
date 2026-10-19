@@ -85,3 +85,29 @@ REQUIRED_TENURE_DOCUMENTS: dict[TenureType, frozenset[DocumentKind]] = {
 ALWAYS_REQUIRED_DOCUMENTS: frozenset[DocumentKind] = frozenset(
     {DocumentKind.CRZ_CLEARANCE, DocumentKind.CARBON_RIGHTS_AGREEMENT}
 )
+
+
+class PeriodKind(StrEnum):
+    BASELINE = "baseline"
+    MONITORING = "monitoring"
+
+
+class PeriodStatus(StrEnum):
+    OPEN = "open"  # collecting field evidence
+    ANALYSING = "analysing"
+    UNDER_REVIEW = "under_review"
+    CHANGES_REQUESTED = "changes_requested"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class SubmissionKind(StrEnum):
+    PLOT_CENTRE = "plot_centre"  # photo at a sample-plot marker
+    PHOTO_POINT = "photo_point"  # fixed photo-monitoring point
+    GENERAL = "general"
+
+
+class SubmissionStatus(StrEnum):
+    PENDING_CHECKS = "pending_checks"
+    CHECKED = "checked"  # all automatic checks ran; verifier decides
+    REJECTED = "rejected"  # a hard check failed (outside boundary, duplicate, bad nonce)

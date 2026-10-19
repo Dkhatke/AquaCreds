@@ -63,6 +63,10 @@ class ObjectStorage(Protocol):
         """Size, content type and SHA-256 of an object, or None if it does not exist."""
         ...
 
+    def get_bytes(self, key: str, max_bytes: int) -> bytes:
+        """Object contents (raises ValueError if larger than max_bytes)."""
+        ...
+
 
 class S3ObjectStorage:
     def __init__(self, settings: Settings) -> None:
@@ -95,3 +99,12 @@ class S3ObjectStorage:
             content_type=str(obj.get("ContentType", "application/octet-stream")),
             sha256=digest.hexdigest(),
         )
+
+    def get_bytes(self, key: str, max_bytes: int) -> bytes:
+        obj = self._client.get_object(Bucket=self._settings.s3_bucket, Key=key)
+        if int(obj.get("ContentLength", 0)) > max_bytes:
+            raise ValueError(f"{key} exceeds {max_bytes} bytes")
+        data: bytes = obj["Body"].read(max_bytes + 1)
+        if len(data) > max_bytes:
+            raise ValueError(f"{key} exceeds {max_bytes} bytes")
+        return data

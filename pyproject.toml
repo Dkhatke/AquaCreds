@@ -136,7 +136,7 @@ mypy_path = [
 exclude = ["/migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "scipy.*", "planetary_computer.*", "rasterio.*"]
+module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "scipy.*", "planetary_computer.*", "rasterio.*", "imagehash.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -148,7 +148,7 @@ disallow_any_unimported = false
 [tool.pytest.ini_options]
 testpaths = ["packages", "services", "ml/tests"]
 addopts = "--import-mode=importlib -ra"
-pythonpath = ["services/api/tests", "ml/pipelines"]
+pythonpath = ["services/api/tests", "ml/pipelines", "services/worker/tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
