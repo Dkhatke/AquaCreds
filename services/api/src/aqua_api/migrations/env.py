@@ -3,19 +3,35 @@
 import asyncio
 
 from alembic import context
+from geoalchemy2 import alembic_helpers
 from sqlalchemy.engine import Connection
 
+import aqua_core.models  # noqa: F401  (registers all tables on Base.metadata)
 from aqua_core.db import Base, create_engine
 
 config = context.config
 target_metadata = Base.metadata
 
+# Tables created by the PostGIS extension itself are not ours to manage.
+_POSTGIS_TABLES = {"spatial_ref_sys", "geometry_columns", "geography_columns"}
+
 
 def _include_object(
     obj: object, name: str | None, type_: str, reflected: bool, compare_to: object
 ) -> bool:
-    # PostGIS/tiger tables created by the extension are not ours to manage.
-    return not (type_ == "table" and reflected and compare_to is None)
+    if type_ == "table" and (name in _POSTGIS_TABLES or (reflected and compare_to is None)):
+        # Never drop tables we don't model (PostGIS / tiger geocoder / topology internals).
+        return False
+    table = getattr(obj, "table", None)
+    if (
+        type_ == "index"
+        and reflected
+        and compare_to is None
+        and table is not None
+        and table.name not in target_metadata.tables
+    ):
+        return False
+    return bool(alembic_helpers.include_object(obj, name, type_, reflected, compare_to))
 
 
 def do_run_migrations(connection: Connection) -> None:
@@ -23,6 +39,8 @@ def do_run_migrations(connection: Connection) -> None:
         connection=connection,
         target_metadata=target_metadata,
         include_object=_include_object,
+        process_revision_directives=alembic_helpers.writer,
+        render_item=alembic_helpers.render_item,
         compare_type=True,
     )
     with context.begin_transaction():

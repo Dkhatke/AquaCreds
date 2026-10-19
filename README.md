@@ -38,6 +38,17 @@ make test lint                # tests, ruff, mypy
 Workflow: never commit to `main`; use a feature branch and open a PR. `pre-commit install` enables the
 lint/format/secret-scan hooks.
 
+## API (current)
+Swagger UI at http://localhost:8000/docs. Implemented so far:
+- **Auth:** `POST /api/v1/auth/{register,login,refresh,logout}`, `GET /api/v1/auth/me`
+- **Organisations:** `POST/GET /api/v1/orgs`, `GET /api/v1/orgs/{id}`, `GET/POST /api/v1/orgs/{id}/members`
+- **Projects:** `POST/GET /api/v1/projects`, `GET/PATCH /api/v1/projects/{id}`,
+  `POST /api/v1/projects/{id}/documents/upload-url`, `POST /api/v1/projects/{id}/documents`,
+  `POST /api/v1/projects/{id}/submit`
+- **Audit (registry admin):** `GET /api/v1/audit`, `GET /api/v1/audit/verify`
+
+Create the first registry admin: `docker compose exec api aqua-api create-user --email you@example.org`
+
 ## Repository layout
 ```
 packages/aqua_core   shared settings, logging, DB + storage helpers

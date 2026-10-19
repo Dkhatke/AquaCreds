@@ -27,7 +27,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
-      - run: uv run pytest --cov=aqua_core --cov=aqua_api --cov=aqua_worker --cov-report=term-missing
+      - run: uv run pytest --cov --cov-report=term --cov-fail-under=80
 
   stack-smoke:
     name: Compose stack smoke test

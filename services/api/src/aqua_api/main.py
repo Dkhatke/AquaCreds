@@ -7,10 +7,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from aqua_api import __version__
-from aqua_api.routers import health, system
-from aqua_core.db import create_engine
+from aqua_api.routers import audit, auth, health, orgs, projects, system
+from aqua_core.db import create_engine, session_factory
 from aqua_core.logging import configure_logging, get_logger
 from aqua_core.settings import Settings, get_settings
+from aqua_core.storage import S3ObjectStorage
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -21,7 +22,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        app.state.engine = create_engine(settings.database_url)
         log.info("api.startup", env=settings.app_env, version=__version__)
         try:
             yield
@@ -35,7 +35,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
         docs_url="/docs" if settings.app_env != "production" else None,
     )
+    # Engine creation does not connect; connections are opened lazily on first use.
     app.state.settings = settings
+    app.state.engine = create_engine(settings.database_url)
+    app.state.sessionmaker = session_factory(app.state.engine)
+    app.state.storage = S3ObjectStorage(settings)
 
     if settings.cors_origins:
         app.add_middleware(
@@ -47,7 +51,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     app.include_router(health.router)
-    app.include_router(system.router, prefix="/api/v1")
+    for module in (auth, orgs, projects, audit, system):
+        app.include_router(module.router, prefix="/api/v1")
     return app
 
 
