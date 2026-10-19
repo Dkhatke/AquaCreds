@@ -193,6 +193,10 @@ Total: about **18–24 weeks** sequentially, or **12–14 weeks** with the paral
 **Exit criteria:** `docker compose up` gives a healthy `/healthz` on the API, a worker that processes a
 ping task, and green CI.
 
+> **Implementation note (2026-10-19):** the dev stack lives in the root `compose.yaml` (production
+> compose stays in `infra/compose/`, Phase 9). pnpm/Turborepo setup moves to the first phase that adds a
+> JS app, because there is nothing to configure before then.
+
 ---
 
 ### Phase 1 — Data acquisition + ML research (4–5 weeks, parallel)

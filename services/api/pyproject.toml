@@ -1,0 +1,23 @@
+[project]
+name = "aqua-api"
+version = "0.1.0"
+description = "AquaCreds HTTP API (FastAPI)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "aqua-core",
+    "fastapi~=0.146.0",
+    "uvicorn[standard]~=0.54.0",
+    "alembic~=1.20",
+    "celery[redis]~=5.6",
+    "orjson~=3.13",
+]
+
+[project.scripts]
+aqua-api = "aqua_api.cli:main"
+
+[tool.uv.sources]
+aqua-core = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
