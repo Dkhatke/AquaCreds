@@ -1,0 +1,303 @@
+# AquaCreds — PRODUCTION stack for one Oracle Cloud Always Free Ampere A1 VM
+# (Ubuntu 24.04 ARM64, planned for 2 OCPU / 12 GB RAM). Runbook: docs/DEPLOYMENT.md
+#
+#   Normal use:  infra/scripts/deploy.sh <image-tag>        (pull, migrate, up, wait for /readyz, roll back)
+#   Validate:    docker compose -f infra/compose/compose.prod.yaml --env-file .env.prod.example config
+#
+# Secrets come ONLY from the git-ignored env file passed with `--env-file` (see .env.prod.example).
+# Each service receives just the variables it needs; nothing here is a usable default.
+#
+# Resource budget (hard memory limits; see docs/DEPLOYMENT.md "Capacity"):
+#   caddy 128M, api 768M, worker-default 1.5G, worker-geo 3G, worker-chain 384M, beat 192M,
+#   db 2.5G, valkey 384M  => 8.84 GB always-on   (+ migrate 512M one-shot, + uptime-kuma 256M optional)
+#   leaving ~3 GB for the kernel, Docker and the page cache, plus a 4 GB swap file as a safety net.
+# CPU: `cpus` values are per-service ceilings (each <= the VM's 2 OCPUs); they deliberately overlap so
+# idle capacity is not wasted. Under contention `cpu_shares` gives the API, database and proxy priority
+# over batch workers, so a geo job can't starve user-facing requests.
+name: aquacreds-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-hardening: &hardening
+  restart: unless-stopped
+  logging: *logging
+  security_opt: ["no-new-privileges:true"]
+
+# Python services run as uid 10001 (see infra/docker/python.Dockerfile) and need no Linux capabilities.
+x-python-hardening: &python-hardening
+  <<: *hardening
+  cap_drop: [ALL]
+
+x-app-env: &app-env
+  APP_ENV: production  # makes Settings.assert_production_safe() refuse development secrets
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_JSON: "true"
+  # Use URL-safe passwords (e.g. `openssl rand -hex 24`); they are embedded in URLs below.
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:?set POSTGRES_USER}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:?set POSTGRES_DB}
+  REDIS_URL: redis://:${VALKEY_PASSWORD:?set VALKEY_PASSWORD}@valkey:6379/0
+  S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:?set S3_ENDPOINT_URL (Cloudflare R2 S3 endpoint)}
+  S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-}
+  S3_REGION: ${S3_REGION:-auto}
+  S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY}
+  JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (>= 32 random chars)}
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+  # Later phases (empty until used; unknown variables are ignored by the settings loader).
+  AMOY_RPC_URL: ${AMOY_RPC_URL:-}
+  CHAIN_ID: ${CHAIN_ID:-80002}
+  PINATA_JWT: ${PINATA_JWT:-}
+  PC_SDK_SUBSCRIPTION_KEY: ${PC_SDK_SUBSCRIPTION_KEY:-}
+  EARTHDATA_USERNAME: ${EARTHDATA_USERNAME:-}
+  EARTHDATA_PASSWORD: ${EARTHDATA_PASSWORD:-}
+
+x-api-image: &api-image ${API_IMAGE:-ghcr.io/dkhatke/aquacreds-api}:${IMAGE_TAG:?set IMAGE_TAG (e.g. sha-1a2b3c4 or main)}
+x-worker-image: &worker-image ${WORKER_IMAGE:-ghcr.io/dkhatke/aquacreds-worker}:${IMAGE_TAG:?set IMAGE_TAG}
+
+x-worker: &worker
+  <<: *python-hardening
+  image: *worker-image
+  environment: *app-env
+  networks: [data, egress]
+  depends_on:
+    migrate: { condition: service_completed_successfully }
+    valkey: { condition: service_healthy }
+  stop_grace_period: 60s  # let a running task finish (acks_late re-queues it otherwise)
+  healthcheck:
+    test: ["CMD-SHELL", "celery -A aqua_worker.celery_app inspect ping -d celery@$$HOSTNAME --timeout 10 || exit 1"]
+    interval: 60s
+    timeout: 20s
+    start_period: 30s
+    retries: 3
+
+services:
+  # ------------------------------------------------------------------ edge
+  caddy:
+    <<: *hardening
+    image: caddy:2.10-alpine
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"  # HTTP/3
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN (e.g. aquacreds.duckdns.org)}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL (Let's Encrypt expiry notices)}
+      EXPOSE_API_DOCS: ${EXPOSE_API_DOCS:-false}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # certificates + ACME account: must persist (rate limits!)
+      - caddy_config:/config
+    networks: [edge]
+    depends_on:
+      api: { condition: service_healthy }
+    mem_limit: 128m
+    cpus: 0.5
+    cpu_shares: 1024
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ------------------------------------------------------------------ application
+  migrate:
+    # One-shot: apply Alembic migrations, then make sure the bucket exists. `api` waits for success.
+    <<: *python-hardening
+    image: *api-image
+    command: ["sh", "-c", "aqua-api migrate && aqua-api bootstrap"]
+    restart: "no"
+    environment: *app-env
+    networks: [data, egress]
+    depends_on:
+      db: { condition: service_healthy }
+    mem_limit: 512m
+    cpus: 1.0
+    healthcheck:
+      disable: true  # exits when done; success is checked via service_completed_successfully
+
+  api:
+    <<: *python-hardening
+    image: *api-image
+    # Same as the image default (2 uvicorn workers behind Caddy), stated explicitly for clarity.
+    command: ["uvicorn", "aqua_api.main:app", "--host", "0.0.0.0", "--port", "8000",
+              "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*",
+              "--no-server-header"]
+    environment: *app-env
+    networks: [edge, data, egress]
+    expose: ["8000"]  # reachable only through Caddy; never published on the host
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      db: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+    mem_limit: 768m
+    cpus: 1.5
+    cpu_shares: 1024
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  worker-default:
+    <<: *worker
+    command: ["celery", "-A", "aqua_worker.celery_app", "worker", "--loglevel", "INFO",
+              "-Q", "default,ml,reports", "--concurrency", "2", "--max-tasks-per-child", "50"]
+    mem_limit: 1536m
+    cpus: 1.0
+    cpu_shares: 512
+
+  worker-geo:
+    # Raster work is memory-heavy: one task at a time, recycled after each task to return memory.
+    <<: *worker
+    command: ["celery", "-A", "aqua_worker.celery_app", "worker", "--loglevel", "INFO",
+              "-Q", "geo", "--concurrency", "1", "--max-tasks-per-child", "1"]
+    mem_limit: 3g
+    cpus: 1.5
+    cpu_shares: 256
+
+  worker-chain:
+    # MUST stay at concurrency 1 (and a single replica): the relayer relies on strict nonce ordering.
+    <<: *worker
+    command: ["celery", "-A", "aqua_worker.celery_app", "worker", "--loglevel", "INFO",
+              "-Q", "chain", "--concurrency", "1"]
+    mem_limit: 384m
+    cpus: 0.5
+    cpu_shares: 512
+
+  beat:
+    # Periodic-task scheduler. Exactly one instance. Its state file only records last-run times, so
+    # it lives in a tmpfs (the image runs as uid 10001 and can't write a root-owned named volume).
+    <<: *worker
+    command: ["celery", "-A", "aqua_worker.celery_app", "beat", "--loglevel", "INFO",
+              "--schedule", "/tmp/celerybeat/schedule"]
+    tmpfs:
+      - /tmp/celerybeat:uid=10001,gid=10001,mode=0700,size=16m
+    stop_grace_period: 10s
+    mem_limit: 192m
+    cpus: 0.25
+    cpu_shares: 256
+    healthcheck:
+      # beat has no ping endpoint; check it can still reach its broker.
+      test: ["CMD", "python", "-c", "import os,redis; redis.Redis.from_url(os.environ['REDIS_URL'], socket_timeout=3).ping()"]
+      interval: 60s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+  # ------------------------------------------------------------------ data (internal network only)
+  db:
+    <<: *hardening
+    # Multi-arch PostGIS (the official postgis/postgis image is amd64-only).
+    image: imresamu/postgis:17-3.6
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    # Tuned for a 2.5 GB container on a 12 GB host (SSD block volume). No `ports:`: never on the host.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=640MB
+      - -c
+      - effective_cache_size=1792MB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=100
+      - -c
+      - wal_buffers=16MB
+      - -c
+      - max_wal_size=2GB
+      - -c
+      - min_wal_size=256MB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=100
+      - -c
+      - max_worker_processes=4
+      - -c
+      - max_parallel_workers=2
+      - -c
+      - max_parallel_workers_per_gather=1
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - password_encryption=scram-sha-256
+    shm_size: 256m
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks: [data]
+    mem_limit: 2560m
+    cpus: 1.5
+    cpu_shares: 1024
+    stop_grace_period: 60s
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 10
+
+  valkey:
+    <<: *hardening
+    image: valkey/valkey:8.1-alpine
+    # The broker must never silently drop tasks, so no eviction: writes fail loudly when full.
+    command: ["sh", "-c", "exec valkey-server --appendonly yes --appendfsync everysec --maxmemory 256mb --maxmemory-policy noeviction --requirepass \"$$VALKEY_PASSWORD\""]
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:?set VALKEY_PASSWORD}
+    volumes: [valkeydata:/data]
+    networks: [data]
+    mem_limit: 384m
+    cpus: 0.5
+    cpu_shares: 512
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$VALKEY_PASSWORD\" valkey-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # ------------------------------------------------------------------ optional monitoring
+  uptime-kuma:
+    # `docker compose --profile monitoring up -d uptime-kuma`. Bound to 127.0.0.1 only:
+    # open it through an SSH tunnel (ssh -L 3001:127.0.0.1:3001 deploy@vm). See docs/DEPLOYMENT.md.
+    <<: *hardening
+    image: louislam/uptime-kuma:1
+    profiles: [monitoring]
+    ports: ["127.0.0.1:${UPTIME_KUMA_PORT:-3001}:3001"]
+    volumes: [uptimekuma:/app/data]
+    networks: [edge, egress]
+    mem_limit: 256m
+    cpus: 0.25
+    cpu_shares: 256
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3001',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 60s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+networks:
+  edge: {}            # caddy <-> api (and uptime-kuma)
+  data:
+    internal: true    # db + valkey: no route to or from the internet
+  egress: {}          # outbound internet for app containers (R2, STAC, RPC, Sentry)
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pgdata:
+  valkeydata:
+  uptimekuma:

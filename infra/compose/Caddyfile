@@ -1,0 +1,70 @@
+# AquaCreds production edge: automatic HTTPS (Let's Encrypt / ZeroSSL) + reverse proxy to the API.
+# Environment (set by compose from .env.prod):
+#   API_DOMAIN        public hostname, e.g. aquacreds.duckdns.org ("localhost" => Caddy's internal CA)
+#   ACME_EMAIL        contact address for certificate expiry notices
+#   EXPOSE_API_DOCS   "true" to serve /openapi.json, /docs and /redoc publicly (default: blocked)
+# Validate: docker run --rm -e API_DOMAIN=example.org -e ACME_EMAIL=ops@example.org \
+#   -v "$PWD/infra/compose/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.10-alpine \
+#   caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+{
+	email {$ACME_EMAIL}
+	# Only relevant to the internal CA (localhost smoke tests); never touch the container trust store.
+	skip_install_trust
+	# Admin API stays on loopback inside the container (used by the healthcheck only).
+	admin localhost:2019
+	servers {
+		# Slowloris / idle-connection protection.
+		timeouts {
+			read_header 10s
+			idle 2m
+		}
+	}
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		# The API only returns JSON: nothing on this origin should ever load or frame anything.
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-site"
+		-Server
+		-X-Powered-By
+	}
+
+	# API schema / interactive docs are off in production unless explicitly enabled.
+	@docs {
+		path /docs /docs/* /redoc /redoc/* /openapi.json
+		not expression `{env.EXPOSE_API_DOCS} == "true"`
+	}
+	respond @docs "Not Found" 404
+
+	# Health probes pass straight through (used by deploy.sh, Uptime Kuma, CI) without access-log noise.
+	@health path /healthz /readyz
+	log_skip @health
+
+	# JSON bodies only (file uploads go straight to object storage via presigned URLs).
+	request_body {
+		max_size 10MB
+	}
+
+	reverse_proxy api:8000 {
+		header_down -Server
+		# Fail fast with 502/503 instead of hanging if the API container is restarting.
+		lb_try_duration 5s
+		health_uri /healthz
+		health_interval 15s
+		health_timeout 3s
+	}
+}

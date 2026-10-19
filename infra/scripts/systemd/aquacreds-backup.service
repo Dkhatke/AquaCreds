@@ -1,0 +1,21 @@
+# Nightly PostgreSQL backup to Cloudflare R2. Install (as root on the VM):
+#   cp /opt/aquacreds/infra/scripts/systemd/aquacreds-backup.* /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now aquacreds-backup.timer
+#   systemctl start aquacreds-backup.service     # run once now; then: journalctl -u aquacreds-backup
+[Unit]
+Description=AquaCreds PostgreSQL backup (pg_dump -> R2)
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+WorkingDirectory=/opt/aquacreds
+ExecStart=/opt/aquacreds/infra/scripts/backup.sh
+# A dump of a small MVP database takes seconds; anything near this limit needs investigating.
+TimeoutStartSec=45min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
