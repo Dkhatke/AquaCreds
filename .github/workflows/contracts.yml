@@ -1,0 +1,51 @@
+name: Contracts
+
+on:
+  pull_request:
+    paths: ["contracts/**", ".github/workflows/contracts.yml"]
+  push:
+    branches: [main]
+    paths: ["contracts/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  foundry:
+    name: Build, test (fuzz + invariant), coverage
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v7
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.7.0
+      - run: forge soldeer install
+      - run: forge fmt --check
+      - run: forge build --deny warnings
+      - run: forge test -vv
+        env:
+          FOUNDRY_PROFILE: ci
+      - name: Coverage must be 100% for src/
+        run: |
+          forge coverage --no-match-coverage "(test|script)/" | tee coverage.txt
+          grep -E '^\| Total' coverage.txt | grep -qE '100\.00% \([0-9]+/[0-9]+\) +\| 100\.00%' || { echo "coverage below 100%"; exit 1; }
+      - run: forge script script/Deploy.s.sol
+
+  slither:
+    name: Slither static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.7.0
+      - run: forge soldeer install
+        working-directory: contracts
+      - uses: crytic/slither-action@v0.4.2
+        with:
+          target: contracts
+          slither-args: --filter-paths "dependencies|test|script" --exclude-informational
+          fail-on: medium

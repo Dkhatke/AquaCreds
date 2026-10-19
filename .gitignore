@@ -68,3 +68,6 @@ coverage.xml
 htmlcov/
 # Local git worktrees for parallel branches
 .worktrees/
+
+# Foundry dependencies (Soldeer)
+contracts/dependencies/
