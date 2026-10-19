@@ -1,2 +1,4 @@
 dataset,source,file,md5,licence,citation,purpose,downloaded_utc
 coasttrain_v1,https://zenodo.org/records/7080756,nick-murray/coastTrain-v1.0.0.zip,45fd44b8b6c32db4e3278959ac1b0ad1,see record (other-open),"Murray et al. 2022, coastTrain, Remote Sensing 14:5766, doi:10.3390/rs14225766",Labelled coastal-ecosystem occurrence points (classifier training labels),2026-10-19
+gmw_v3_1996,https://zenodo.org/records/6894273,gmw_v3_1996_gtiff.zip,7bc81d3aa514d3db5da61e20a36670ca,CC-BY-4.0,"Bunting et al. 2022, Global Mangrove Watch v3.0, Zenodo 6894273",1996 mangrove extent (historical presence for 'degraded mangrove habitat' check),2026-10-19
+gmw_v4_2020,https://zenodo.org/records/12756047,gmw_mng_2020_v4019_gtiff.zip,a94b1600d891cda0e1ea0f17b312990b,CC-BY-4.0,"Global Mangrove Watch v4.0.19 (2024), Zenodo 12756047","2020 mangrove extent at 10 m (positive samples, reference map)",2026-10-19

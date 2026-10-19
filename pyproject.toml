@@ -133,7 +133,7 @@ mypy_path = [
 exclude = ["/migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "scipy.*", "planetary_computer.*"]
+module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "scipy.*", "planetary_computer.*", "rasterio.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

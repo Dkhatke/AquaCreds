@@ -1,0 +1,41 @@
+schema: '2.0'
+stages:
+  download_coasttrain:
+    cmd: uv run python ml/pipelines/download.py coasttrain_v1
+    deps:
+    - path: ml/pipelines/download.py
+      hash: md5
+      md5: 596be6d134d6d9e8ddd7bd89d6486553
+      size: 6979
+    outs:
+    - path: data/raw/coasttrain
+      hash: md5
+      md5: 2c43e4530eb7325beef1630c2596f257.dir
+      size: 7252777
+      nfiles: 1
+  download_gmw_v4_2020:
+    cmd: uv run python ml/pipelines/download.py gmw_v4_2020
+    deps:
+    - path: ml/pipelines/download.py
+      hash: md5
+      md5: 182685520228644b69482cbff2da3c87
+      size: 8481
+    outs:
+    - path: data/raw/gmw_v4
+      hash: md5
+      md5: b6fea63d3ea29477e9671fe7417edd1d.dir
+      size: 180055707
+      nfiles: 1
+  download_gmw_v3_1996:
+    cmd: uv run python ml/pipelines/download.py gmw_v3_1996
+    deps:
+    - path: ml/pipelines/download.py
+      hash: md5
+      md5: 182685520228644b69482cbff2da3c87
+      size: 8481
+    outs:
+    - path: data/raw/gmw_v3
+      hash: md5
+      md5: 218d012c7182d025c77bb0498723f4fd.dir
+      size: 68511266
+      nfiles: 1

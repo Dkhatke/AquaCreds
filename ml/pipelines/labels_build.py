@@ -14,6 +14,7 @@ tiles (block reads), never loaded whole.
 
 import argparse
 import json
+import math
 import zipfile
 from collections import defaultdict
 from pathlib import Path
@@ -25,6 +26,8 @@ import pandas as pd
 import rasterio
 from rasterio.errors import RasterioIOError
 from splits import assign_splits, cap_per_cell
+
+from aqua_geo.network import STAC_TIMEOUT_S, rasterio_env
 
 ROOT = Path(__file__).resolve().parents[2]
 COASTTRAIN = ROOT / "data/interim/labels/coasttrain_aoi.parquet"
@@ -44,33 +47,39 @@ WORLDCOVER_MAP = {
 }
 
 
+def gmw_tile_name(lon: float, lat: float) -> str:
+    """GMW v4 tiles are 1°×1°, named by their top-left corner, e.g. GMW_N21E086 = 20–21°N, 86–87°E."""
+    top = math.floor(lat) + 1
+    left = math.floor(lon)
+    ns = "N" if top >= 0 else "S"
+    ew = "E" if left >= 0 else "W"
+    return f"GMW_{ns}{abs(top):02d}{ew}{abs(left):03d}_v4019_mng.tif"
+
+
 class GmwIndex:
-    """Point lookup into the GMW v4 tile zip (reads tile headers once, then single pixels)."""
+    """Point lookup into the GMW v4 tile zip: tile chosen by name, single pixels read per point."""
 
     def __init__(self, zip_path: Path) -> None:
         if not zip_path.exists():
             raise SystemExit(f"Missing {zip_path}; run `uv run dvc repro download_gmw_v4_2020`")
         with zipfile.ZipFile(zip_path) as zf:
-            members = [m for m in zf.namelist() if m.lower().endswith((".tif", ".tiff"))]
-        self.tiles: list[tuple[str, tuple[float, float, float, float]]] = []
-        for m in members:
-            path = f"/vsizip/{zip_path}/{m}"
-            with rasterio.open(path) as ds:
-                b = ds.bounds
-                self.tiles.append((path, (b.left, b.bottom, b.right, b.top)))
-        print(f"GMW index: {len(self.tiles)} tiles")
+            self.members = {
+                Path(m).name: m for m in zf.namelist() if m.lower().endswith((".tif", ".tiff"))
+            }
+        self.zip_path = zip_path
+        print(f"GMW v4: {len(self.members)} tiles available")
 
     def is_mangrove(self, lons: np.ndarray, lats: np.ndarray) -> np.ndarray:
-        """True where GMW 2020 marks mangrove; points outside every tile → False."""
+        """True where GMW 2020 marks mangrove. A point whose tile does not exist lies outside the
+        mangrove range entirely, so it is False."""
         result = np.zeros(len(lons), dtype=bool)
         by_tile: dict[str, list[int]] = defaultdict(list)
         for i, (x, y) in enumerate(zip(lons, lats, strict=True)):
-            for path, (x0, y0, x1, y1) in self.tiles:
-                if x0 <= x < x1 and y0 < y <= y1:
-                    by_tile[path].append(i)
-                    break
-        for path, idx in by_tile.items():
-            with rasterio.open(path) as ds:
+            name = gmw_tile_name(float(x), float(y))
+            if name in self.members:
+                by_tile[name].append(i)
+        for name, idx in by_tile.items():
+            with rasterio.open(f"/vsizip/{self.zip_path}/{self.members[name]}") as ds:
                 values = [v[0] for v in ds.sample([(lons[i], lats[i]) for i in idx])]
             result[idx] = np.asarray(values) == 1
         return result
@@ -99,6 +108,7 @@ def worldcover_negatives(cells: list[str], per_cell: int, seed: int) -> pd.DataF
     catalog = Client.open(
         "https://planetarycomputer.microsoft.com/api/stac/v1",
         modifier=planetary_computer.sign_inplace,
+        timeout=STAC_TIMEOUT_S,
     )
     lon0, lat0, lon1, lat1 = df.lon.min(), df.lat.min(), df.lon.max(), df.lat.max()
     items = list(
@@ -108,9 +118,9 @@ def worldcover_negatives(cells: list[str], per_cell: int, seed: int) -> pd.DataF
             query={"esa_worldcover:product_version": {"eq": "2.0.0"}},
         ).items()
     )
-    print(f"WorldCover tiles: {len(items)}")
+    print(f"WorldCover tiles: {len(items)} for {len(df)} candidate points", flush=True)
     values = np.full(len(df), -1, dtype=int)
-    for item in items:
+    for n, item in enumerate(items, 1):
         x0, y0, x1, y1 = item.bbox
         inside = np.where(
             (df.lon >= x0) & (df.lon < x1) & (df.lat > y0) & (df.lat <= y1) & (values < 0)
@@ -118,7 +128,7 @@ def worldcover_negatives(cells: list[str], per_cell: int, seed: int) -> pd.DataF
         if len(inside) == 0:
             continue
         try:
-            with rasterio.open(item.assets["map"].href) as ds:
+            with rasterio_env(), rasterio.open(item.assets["map"].href) as ds:
                 sampled = [
                     v[0]
                     for v in ds.sample(
@@ -128,6 +138,7 @@ def worldcover_negatives(cells: list[str], per_cell: int, seed: int) -> pd.DataF
         except RasterioIOError as exc:
             raise SystemExit(f"WorldCover read failed for {item.id}: {exc}") from exc
         values[inside] = sampled
+        print(f"  [{n}/{len(items)}] {item.id}: {len(inside)} points", flush=True)
     df["worldcover"] = values
     df["label"] = df.worldcover.map(WORLDCOVER_MAP)
     df = df.dropna(subset=["label"]).copy()

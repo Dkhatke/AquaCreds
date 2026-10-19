@@ -20,6 +20,8 @@ from pystac_client import Client
 from shapely.geometry import mapping
 from shapely.geometry.base import BaseGeometry
 
+from aqua_geo.network import STAC_TIMEOUT_S, configure_odc_stac
+
 # pipeline name → Sentinel-2 band id
 BANDS: dict[str, str] = {
     "blue": "B02",
@@ -103,7 +105,7 @@ def search(
     limit: int = 500,
 ) -> list[pystac.Item]:
     """Scenes intersecting `geometry` (WGS84) in [start, end], sorted by acquisition time."""
-    client = Client.open(provider.stac_url)
+    client = Client.open(provider.stac_url, timeout=STAC_TIMEOUT_S)
     found = client.search(
         collections=[provider.collection],
         intersects=mapping(geometry),
@@ -155,6 +157,7 @@ def load(
 
     if not items:
         raise ValueError("no items to load")
+    configure_odc_stac()
     centroid = geometry.centroid
     epsg = utm_epsg(centroid.x, centroid.y)
     asset_keys = [provider.asset_names[b] for b in (*bands, "scl")]
