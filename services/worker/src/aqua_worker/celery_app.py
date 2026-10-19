@@ -7,7 +7,10 @@
 - reports : PDF/CSV generation
 """
 
+from typing import Any
+
 from celery import Celery
+from celery.schedules import crontab
 from celery.signals import setup_logging
 from kombu.entity import Queue
 
@@ -15,6 +18,17 @@ from aqua_core.logging import configure_logging
 from aqua_core.settings import get_settings
 
 QUEUES = ("default", "geo", "ml", "chain", "reports")
+
+
+def beat_schedule(nightly_hour_utc: int) -> dict[str, Any]:
+    """Periodic jobs run by `celery -A aqua_worker.celery_app beat` (one beat process only)."""
+    return {
+        "geo-nightly-ingest": {
+            "task": "aqua.geo.ingest_new_scenes",
+            "schedule": crontab(hour=nightly_hour_utc, minute=0),
+            "options": {"queue": "geo", "expires": 20 * 3600},  # skip if a whole day late
+        },
+    }
 
 
 def create_celery() -> Celery:
@@ -35,6 +49,10 @@ def create_celery() -> Celery:
         broker_connection_retry_on_startup=True,
         timezone="UTC",
         enable_utc=True,
+        # Redis redelivers unacknowledged tasks after the visibility timeout (default 1 h). A
+        # backfill can run longer than that; geo tasks are idempotent, but avoid needless reruns.
+        broker_transport_options={"visibility_timeout": 7 * 3600},
+        beat_schedule=beat_schedule(settings.geo_nightly_hour_utc),
     )
     app.autodiscover_tasks(["aqua_worker"], related_name="tasks", force=True)
     return app

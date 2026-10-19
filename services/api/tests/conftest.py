@@ -20,7 +20,8 @@ from aqua_core.storage import StoredObject
 
 POSTGIS_IMAGE = "imresamu/postgis:17-3.6"
 TABLES = (
-    "audit_log, plot_measurements, field_submissions, capture_nonces, plots, monitoring_periods, "
+    "audit_log, alerts, scene_observations, analysis_runs, "
+    "plot_measurements, field_submissions, capture_nonces, plots, monitoring_periods, "
     "tenure_documents, projects, refresh_tokens, memberships, organizations, users"
 )
 
@@ -74,6 +75,9 @@ class FakeStorage:
     def put(self, key: str, data: bytes, content_type: str = "application/pdf") -> str:
         self.objects[key] = (data, content_type)
         return hashlib.sha256(data).hexdigest()
+
+    def put_bytes(self, key: str, data: bytes, content_type: str) -> str:
+        return self.put(key, data, content_type)
 
 
 @pytest.fixture

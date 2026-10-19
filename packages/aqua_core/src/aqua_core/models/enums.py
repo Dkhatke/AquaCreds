@@ -111,3 +111,26 @@ class SubmissionStatus(StrEnum):
     PENDING_CHECKS = "pending_checks"
     CHECKED = "checked"  # all automatic checks ran; verifier decides
     REJECTED = "rejected"  # a hard check failed (outside boundary, duplicate, bad nonce)
+
+
+class AnalysisKind(StrEnum):
+    BACKFILL = "backfill"  # all scenes since the backfill start date (once, at registration)
+    INCREMENTAL = "incremental"  # nightly: only scenes newer than the latest observation
+    COMPOSITE = "composite"  # seasonal (dry-season) median + percentile composite
+
+
+class AnalysisStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class AlertKind(StrEnum):
+    VEGETATION_LOSS = "vegetation_loss"
+
+
+class AlertSeverity(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
