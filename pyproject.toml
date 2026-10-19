@@ -82,6 +82,7 @@ members = ["packages/*", "services/*"]
 aqua-core = { workspace = true }
 aqua-api = { workspace = true }
 aqua-worker = { workspace = true }
+aqua-carbon = { workspace = true }
 # CPU-only PyTorch wheels on Linux (much smaller); macOS uses PyPI wheels (with MPS).
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
@@ -101,22 +102,35 @@ extend-exclude = ["_legacy"]
 select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "RUF", "SIM", "C4", "PT"]
 ignore = ["E501"]
 
+# Mathematical symbols are intentional in formulas shown to verifiers (calculation traces).
+allowed-confusables = ["×", "−", "–", "ρ", "σ"]
+
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S101", "S105", "S106"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["aqua_core", "aqua_api", "aqua_worker"]
+known-first-party = ["aqua_core", "aqua_carbon", "aqua_api", "aqua_worker"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-files = ["packages/aqua_core/src", "services/api/src", "services/worker/src"]
-mypy_path = ["packages/aqua_core/src", "services/api/src", "services/worker/src"]
+files = [
+    "packages/aqua_core/src",
+    "packages/aqua_carbon/src",
+    "services/api/src",
+    "services/worker/src",
+]
+mypy_path = [
+    "packages/aqua_core/src",
+    "packages/aqua_carbon/src",
+    "services/api/src",
+    "services/worker/src",
+]
 exclude = ["/migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*", "kombu.*", "boto3.*", "botocore.*"]
+module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "scipy.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -135,7 +149,7 @@ asyncio_default_fixture_loop_scope = "function"
 [tool.coverage.run]
 # SQLAlchemy's asyncio layer runs code on greenlets; without this, coverage misses those lines.
 concurrency = ["greenlet", "thread"]
-source = ["aqua_core", "aqua_api", "aqua_worker"]
+source = ["aqua_core", "aqua_carbon", "aqua_api", "aqua_worker"]
 omit = ["*/migrations/*"]
 
 [tool.coverage.report]
