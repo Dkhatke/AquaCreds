@@ -348,8 +348,10 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
+    { name = "h3" },
     { name = "httpx" },
     { name = "mypy" },
+    { name = "pandas" },
     { name = "pip-audit" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -417,8 +419,10 @@ ml = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "h3", specifier = "~=4.5" },
     { name = "httpx", specifier = "~=0.28.1" },
     { name = "mypy", specifier = "~=2.4" },
+    { name = "pandas", specifier = "~=3.0" },
     { name = "pip-audit", specifier = "~=2.10" },
     { name = "pre-commit", specifier = "~=4.7" },
     { name = "pytest", specifier = "~=9.1" },

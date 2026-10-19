@@ -18,6 +18,9 @@ dev = [
     "types-shapely>=2.1.0",
     "pre-commit~=4.7",
     "pip-audit~=2.10",
+    # needed by ml/tests (spatial splits) without installing the heavy `ml` group in CI
+    "h3~=4.5",
+    "pandas~=3.0",
 ]
 # Research / training environment (local + Kaggle/Colab). Not installed in service images.
 ml = [
