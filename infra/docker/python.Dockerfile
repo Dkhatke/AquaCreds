@@ -23,6 +23,7 @@ COPY packages/aqua_core/pyproject.toml packages/aqua_core/pyproject.toml
 COPY packages/aqua_carbon/pyproject.toml packages/aqua_carbon/pyproject.toml
 COPY packages/aqua_geo/pyproject.toml packages/aqua_geo/pyproject.toml
 COPY packages/aqua_chain/pyproject.toml packages/aqua_chain/pyproject.toml
+COPY packages/aqua_mrv/pyproject.toml packages/aqua_mrv/pyproject.toml
 COPY services/api/pyproject.toml services/api/pyproject.toml
 COPY services/worker/pyproject.toml services/worker/pyproject.toml
 
@@ -66,6 +67,15 @@ CMD ["uvicorn", "aqua_api.main:app", "--host", "0.0.0.0", "--port", "8000", "--w
 
 # ---------------------------------------------------------------- worker
 FROM runtime AS worker
+# System libraries for WeasyPrint (MRV report PDFs, packages/aqua_mrv): Pango/HarfBuzz text layout
+# and fonts with the glyphs used in calculation traces (ρ, σ, ₀, ×, −).
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \
+      fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
+USER app
 COPY --from=build-worker --chown=app:app /opt/venv /opt/venv
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
   CMD celery -A aqua_worker.celery_app inspect ping -d "celery@$HOSTNAME" --timeout 5 || exit 1

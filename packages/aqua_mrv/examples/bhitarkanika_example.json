@@ -1,0 +1,947 @@
+{
+  "notes": "ILLUSTRATIVE, FICTIONAL plot data to demonstrate the report builder. Not real measurements and not a real project.",
+  "project": {
+    "id": "demo-bhitarkanika-001",
+    "name": "Bhitarkanika demo restoration (fictional)",
+    "state": "Odisha",
+    "methodology": "ccts_bm_fr05_001",
+    "area_ha": 100.0,
+    "start_year": 2026,
+    "boundary": {
+      "type": "Polygon",
+      "coordinates": [
+        [
+          [
+            86.88,
+            20.7
+          ],
+          [
+            86.8896,
+            20.7
+          ],
+          [
+            86.8896,
+            20.709
+          ],
+          [
+            86.88,
+            20.709
+          ],
+          [
+            86.88,
+            20.7
+          ]
+        ]
+      ]
+    }
+  },
+  "period": {
+    "kind": "verification",
+    "start_year": 2026,
+    "end_year": 2031
+  },
+  "strata_area_ha": {
+    "dense": 60.0,
+    "sparse": 40.0
+  },
+  "plots": [
+    {
+      "code": "D01",
+      "stratum": "dense",
+      "area_m2": 100.0,
+      "lat": 20.701,
+      "lon": 86.881,
+      "trees": [
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 5.7,
+          "height_m": 3.9,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 8.9,
+          "height_m": 2.3,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 4.3,
+          "height_m": 2.3,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 5.4,
+          "height_m": 3.3,
+          "alive": false
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 5.2,
+          "height_m": 4.5,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 5.1,
+          "height_m": 2.3,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 8.1,
+          "height_m": 2.4,
+          "alive": false
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.7,
+          "height_m": 3.7,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 6.9,
+          "height_m": 3.3,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 6.5,
+          "height_m": 3.4,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 5.5,
+          "height_m": 3.4,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 8.8,
+          "height_m": 4.1,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 6.4,
+          "height_m": 4.4,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 7.2,
+          "height_m": 4.0,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 7.6,
+          "height_m": 3.4,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 6.1,
+          "height_m": 2.1,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "D02",
+      "stratum": "dense",
+      "area_m2": 100.0,
+      "lat": 20.701,
+      "lon": 86.8825,
+      "trees": [
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 4.5,
+          "height_m": 3.7,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 4.5,
+          "height_m": 2.0,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 7.2,
+          "height_m": 1.9,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 8.0,
+          "height_m": 3.4,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 4.5,
+          "height_m": 4.0,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 5.2,
+          "height_m": 2.5,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 7.2,
+          "height_m": 4.4,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 7.8,
+          "height_m": 3.9,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 5.8,
+          "height_m": 4.0,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 4.4,
+          "height_m": 4.1,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 8.2,
+          "height_m": 4.4,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "D03",
+      "stratum": "dense",
+      "area_m2": 100.0,
+      "lat": 20.701,
+      "lon": 86.884,
+      "trees": [
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 6.1,
+          "height_m": 1.9,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 7.7,
+          "height_m": 4.1,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 7.6,
+          "height_m": 2.4,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 7.1,
+          "height_m": 2.3,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 7.7,
+          "height_m": 3.8,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 5.4,
+          "height_m": 2.7,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 6.3,
+          "height_m": 2.6,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 6.3,
+          "height_m": 4.4,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 7.9,
+          "height_m": 2.7,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 4.7,
+          "height_m": 2.1,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 5.5,
+          "height_m": 4.0,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 5.8,
+          "height_m": 2.0,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "D04",
+      "stratum": "dense",
+      "area_m2": 100.0,
+      "lat": 20.7022,
+      "lon": 86.881,
+      "trees": [
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 6.3,
+          "height_m": 4.2,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 4.4,
+          "height_m": 3.4,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 6.1,
+          "height_m": 4.1,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 5.7,
+          "height_m": 3.0,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 8.2,
+          "height_m": 2.1,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 7.1,
+          "height_m": 2.2,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 5.0,
+          "height_m": 2.1,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 8.6,
+          "height_m": 4.3,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 5.0,
+          "height_m": 2.2,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 6.5,
+          "height_m": 3.3,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 8.6,
+          "height_m": 4.4,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 5.6,
+          "height_m": 3.8,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 5.2,
+          "height_m": 2.2,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "D05",
+      "stratum": "dense",
+      "area_m2": 100.0,
+      "lat": 20.7022,
+      "lon": 86.8825,
+      "trees": [
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 7.2,
+          "height_m": 3.5,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 8.9,
+          "height_m": 4.3,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 8.0,
+          "height_m": 2.4,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 8.6,
+          "height_m": 2.2,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 5.0,
+          "height_m": 2.8,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 8.4,
+          "height_m": 3.3,
+          "alive": false
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 4.4,
+          "height_m": 2.5,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.1,
+          "height_m": 2.2,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 5.0,
+          "height_m": 2.1,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 4.2,
+          "height_m": 2.2,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 8.0,
+          "height_m": 2.6,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.4,
+          "height_m": 3.6,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 4.7,
+          "height_m": 3.5,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "D06",
+      "stratum": "dense",
+      "area_m2": 100.0,
+      "lat": 20.7022,
+      "lon": 86.884,
+      "trees": [
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 6.8,
+          "height_m": 2.0,
+          "alive": false
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 6.0,
+          "height_m": 2.6,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 5.4,
+          "height_m": 2.1,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 5.5,
+          "height_m": 2.9,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 6.4,
+          "height_m": 4.2,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 5.8,
+          "height_m": 2.2,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 6.3,
+          "height_m": 3.8,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 5.8,
+          "height_m": 2.3,
+          "alive": true
+        },
+        {
+          "species": "Rhizophora mucronata",
+          "dbh_cm": 5.6,
+          "height_m": 2.1,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 7.0,
+          "height_m": 4.4,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 7.8,
+          "height_m": 3.8,
+          "alive": true
+        },
+        {
+          "species": "Excoecaria agallocha",
+          "dbh_cm": 8.1,
+          "height_m": 3.7,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "S01",
+      "stratum": "sparse",
+      "area_m2": 100.0,
+      "lat": 20.705,
+      "lon": 86.881,
+      "trees": [
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 6.8,
+          "height_m": 4.0,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 5.1,
+          "height_m": 2.2,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 3.6,
+          "height_m": 3.7,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 6.0,
+          "height_m": 3.2,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 5.5,
+          "height_m": 3.5,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 4.8,
+          "height_m": 2.1,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 6.0,
+          "height_m": 4.3,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 4.8,
+          "height_m": 3.6,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 6.8,
+          "height_m": 2.3,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 3.5,
+          "height_m": 4.4,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 4.6,
+          "height_m": 4.3,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "S02",
+      "stratum": "sparse",
+      "area_m2": 100.0,
+      "lat": 20.705,
+      "lon": 86.8825,
+      "trees": [
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 4.6,
+          "height_m": 2.5,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 5.5,
+          "height_m": 3.7,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 6.0,
+          "height_m": 3.4,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 4.8,
+          "height_m": 3.0,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 6.6,
+          "height_m": 4.3,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 3.5,
+          "height_m": 3.9,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 6.3,
+          "height_m": 4.1,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "S03",
+      "stratum": "sparse",
+      "area_m2": 100.0,
+      "lat": 20.705,
+      "lon": 86.884,
+      "trees": [
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 6.9,
+          "height_m": 4.3,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 6.9,
+          "height_m": 1.9,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.1,
+          "height_m": 3.8,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.1,
+          "height_m": 3.5,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 3.4,
+          "height_m": 4.1,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 4.8,
+          "height_m": 2.1,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 5.8,
+          "height_m": 2.1,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.7,
+          "height_m": 3.1,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 3.0,
+          "height_m": 3.6,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 6.2,
+          "height_m": 4.1,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.8,
+          "height_m": 3.4,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "S04",
+      "stratum": "sparse",
+      "area_m2": 100.0,
+      "lat": 20.7062,
+      "lon": 86.881,
+      "trees": [
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 5.7,
+          "height_m": 3.8,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.5,
+          "height_m": 2.0,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 3.6,
+          "height_m": 4.2,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 4.6,
+          "height_m": 3.0,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.6,
+          "height_m": 1.8,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "S05",
+      "stratum": "sparse",
+      "area_m2": 100.0,
+      "lat": 20.7062,
+      "lon": 86.8825,
+      "trees": [
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 4.3,
+          "height_m": 3.1,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 4.3,
+          "height_m": 2.2,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 4.4,
+          "height_m": 3.8,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 4.1,
+          "height_m": 3.3,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 4.1,
+          "height_m": 3.3,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 4.9,
+          "height_m": 2.4,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 5.7,
+          "height_m": 4.1,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 3.7,
+          "height_m": 2.1,
+          "alive": true
+        }
+      ]
+    },
+    {
+      "code": "S06",
+      "stratum": "sparse",
+      "area_m2": 100.0,
+      "lat": 20.7062,
+      "lon": 86.884,
+      "trees": [
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 5.4,
+          "height_m": 3.2,
+          "alive": true
+        },
+        {
+          "species": "Avicennia marina",
+          "dbh_cm": 3.9,
+          "height_m": 3.6,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 6.0,
+          "height_m": 3.1,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 4.8,
+          "height_m": 3.6,
+          "alive": true
+        },
+        {
+          "species": "Avicennia sp.",
+          "dbh_cm": 6.6,
+          "height_m": 3.0,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 3.7,
+          "height_m": 2.7,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 5.4,
+          "height_m": 4.1,
+          "alive": true
+        },
+        {
+          "species": "Sonneratia apetala",
+          "dbh_cm": 6.1,
+          "height_m": 2.3,
+          "alive": true
+        }
+      ]
+    }
+  ],
+  "planting": [
+    {
+      "year": 2026,
+      "area_ha": 100.0
+    }
+  ],
+  "include_soc": true,
+  "evidence": {
+    "submissions_total": 148,
+    "submissions_accepted": 131,
+    "rejected": 17,
+    "trust_score_distribution": {
+      "0.0-0.5": 17,
+      "0.5-0.8": 39,
+      "0.8-1.0": 92
+    }
+  },
+  "satellite": {
+    "stats": {
+      "ndvi_median_2031": 0.61,
+      "mangrove_area_ha_2031": 91.4
+    },
+    "provenance": {
+      "ndvi_median_2031": "Sentinel-2 L2A dry-season median (illustrative value)",
+      "mangrove_area_ha_2031": "aqua_geo classifier (illustrative value)"
+    }
+  },
+  "generated_at": "2031-06-30T00:00:00Z"
+}
