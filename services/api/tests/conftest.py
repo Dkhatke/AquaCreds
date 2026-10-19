@@ -1,0 +1,139 @@
+"""Integration-test fixtures: a throwaway PostGIS container (testcontainers), migrated once per
+session; tables truncated between tests; an in-memory fake for object storage."""
+
+import hashlib
+import uuid
+from collections.abc import AsyncIterator, Iterator
+from dataclasses import dataclass, field
+from typing import Any
+
+import httpx
+import pytest
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
+from aqua_api.main import create_app
+from aqua_core.settings import Settings
+from aqua_core.storage import StoredObject
+
+POSTGIS_IMAGE = "imresamu/postgis:17-3.6"
+TABLES = "audit_log, tenure_documents, projects, refresh_tokens, memberships, organizations, users"
+
+
+def _docker_available() -> bool:
+    try:
+        import docker
+
+        docker.from_env().ping()
+        return True
+    except Exception:
+        return False
+
+
+@pytest.fixture(scope="session")
+def database_url() -> Iterator[str]:
+    if not _docker_available():
+        pytest.skip("Docker is required for integration tests")
+    from testcontainers.community.postgres import PostgresContainer
+
+    with PostgresContainer(POSTGIS_IMAGE, driver="asyncpg") as pg:
+        url = pg.get_connection_url()
+        cfg = Config()
+        cfg.set_main_option("script_location", "aqua_api:migrations")
+        cfg.set_main_option("sqlalchemy.url", url)
+        command.upgrade(cfg, "head")
+        yield url
+
+
+@dataclass
+class FakeStorage:
+    objects: dict[str, tuple[bytes, str]] = field(default_factory=dict)
+
+    def presign_put(self, key: str, content_type: str) -> str:
+        return f"http://storage.test/{key}?signature=fake"
+
+    def describe(self, key: str) -> StoredObject | None:
+        if key not in self.objects:
+            return None
+        data, content_type = self.objects[key]
+        return StoredObject(
+            size_bytes=len(data), content_type=content_type, sha256=hashlib.sha256(data).hexdigest()
+        )
+
+    def put(self, key: str, data: bytes, content_type: str = "application/pdf") -> str:
+        self.objects[key] = (data, content_type)
+        return hashlib.sha256(data).hexdigest()
+
+
+@pytest.fixture
+def storage() -> FakeStorage:
+    return FakeStorage()
+
+
+@pytest.fixture
+async def client(database_url: str, storage: FakeStorage) -> AsyncIterator[httpx.AsyncClient]:
+    app = create_app(
+        Settings(_env_file=None, app_env="test", database_url=database_url, jwt_secret="t" * 48)
+    )
+    app.state.storage = storage
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test/api/v1"
+    ) as c:
+        yield c
+    await app.state.engine.dispose()
+    engine = create_async_engine(database_url)
+    async with engine.begin() as conn:
+        await conn.execute(text(f"TRUNCATE {TABLES} RESTART IDENTITY CASCADE"))
+    await engine.dispose()
+
+
+@pytest.fixture
+async def sql(database_url: str) -> AsyncIterator[Any]:
+    """Run raw SQL in tests (e.g. promote a user, tamper with the audit log)."""
+    engine = create_async_engine(database_url)
+
+    async def run(statement: str, **params: Any) -> Any:
+        async with engine.begin() as conn:
+            result = await conn.execute(text(statement), params)
+            return result.fetchall() if result.returns_rows else result.rowcount
+
+    yield run
+    await engine.dispose()
+
+
+class Actor:
+    """A registered + logged-in user with convenience HTTP helpers."""
+
+    def __init__(self, client: httpx.AsyncClient, email: str, token: str, user_id: uuid.UUID):
+        self.client, self.email, self.token, self.id = client, email, token, user_id
+
+    @property
+    def headers(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self.token}"}
+
+    async def get(self, url: str, **kw: Any) -> httpx.Response:
+        return await self.client.get(url, headers=self.headers, **kw)
+
+    async def post(self, url: str, **kw: Any) -> httpx.Response:
+        return await self.client.post(url, headers=self.headers, **kw)
+
+    async def patch(self, url: str, **kw: Any) -> httpx.Response:
+        return await self.client.patch(url, headers=self.headers, **kw)
+
+
+@pytest.fixture
+def make_actor(client: httpx.AsyncClient) -> Any:
+    async def _make(name: str = "User") -> Actor:
+        email = f"{name.lower().replace(' ', '.')}.{uuid.uuid4().hex[:6]}@example.org"
+        password = "correct-horse-battery"
+        r = await client.post(
+            "/auth/register", json={"email": email, "full_name": name, "password": password}
+        )
+        assert r.status_code == 201, r.text
+        login = await client.post("/auth/login", json={"email": email, "password": password})
+        assert login.status_code == 200, login.text
+        return Actor(client, email, login.json()["access_token"], uuid.UUID(r.json()["id"]))
+
+    return _make

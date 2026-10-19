@@ -22,9 +22,22 @@ class Settings(BaseSettings):
     s3_bucket: str = "aquacreds-dev"
     s3_access_key_id: str = "aquadev"
     s3_secret_access_key: SecretStr = SecretStr("aquadev-secret")
+    # Endpoint used in presigned URLs handed to clients (browser/mobile). Inside Docker the API
+    # reaches storage as http://s3:8333, but clients need a host-reachable address.
+    s3_public_endpoint_url: str | None = None
+    upload_max_bytes: int = 25 * 1024 * 1024
+    upload_url_ttl_s: int = 900
 
     jwt_secret: SecretStr = SecretStr("dev-only-change-me")
+    jwt_access_ttl_min: int = 15
+    jwt_refresh_ttl_days: int = 30
     cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    # Project boundary rules (MVP limits; see IMPLEMENTATION_PLAN Phase 2)
+    project_min_area_ha: float = 0.5
+    project_max_area_ha: float = 5000.0
+    # Minimum shared area (ha) for two boundaries to count as overlapping (ignores edge-touching).
+    project_overlap_tolerance_ha: float = 0.01
 
     @field_validator("cors_origins", mode="before")
     @classmethod
