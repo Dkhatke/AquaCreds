@@ -67,8 +67,12 @@ processing baseline ≥ 04.00; ÷10000 to reflectance; seasonal medians; ≥ 3 c
 | **Pilot partner plots** | Calibration + validation (future) | DBH/height/species per tree | Collected via the mobile app's plot form | Partner agreement | future |
 
 **Equations and factors** (implemented in `packages/aqua_carbon`, each with a citation):
-- Komiyama et al. 2005 common mangrove allometry: AGB = 0.251·ρ·D^2.46; BGB = 0.199·ρ^0.899·D^2.22 (kg,
-  D in cm, ρ in g/cm³). **Verify coefficients against the original paper before release.**
+- Komiyama et al. 2005 common mangrove allometry: AGB = 0.251·ρ·D^2.46 (✅ confirmed via a secondary
+  table, n = 104, R² = 0.98); BGB = 0.199·ρ^0.899·D^2.22 (kg, D in cm, ρ in g/cm³) ⚠️ **BGB coefficients
+  still need a full-text check.**
+- AR-TOOL14 v04.1 defaults (used by CCTS via BM-T-AR-0004): carbon fraction 0.47; baseline tree
+  root-shoot 0.25; shrub root-shoot 0.40; uncertainty-discount table (Appendix 2).
+- BM FR05.001 default soil accrual: 0.50 t C/ha/yr for 20 years after planting.
 - IPCC 2013 Wetlands Supplement, Chapter 4 (coastal wetlands): Tier-1 defaults for root:shoot, carbon
   fraction, and soil accumulation rates. Encoded as methodology-profile parameters with page references.
 - CO₂/C = 44/12.

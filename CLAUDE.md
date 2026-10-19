@@ -6,6 +6,7 @@ Blue-carbon MRV + registry + marketplace (SIH25038 rebuild). Before doing anythi
 
 Rules for this repo:
 - `_legacy/` is the old SIH prototype: reference only, git-ignored, never commit it or port its ML/carbon math.
+- **Never commit to `main`.** Work on a feature branch (`docs/…`, `feat/…`, `fix/…`, `chore/…`), push, and open a PR; the user merges.
 - Run git commands inside this folder only (the user's home directory is also a git repo).
 - Python 3.12 via `uv`; TypeScript via `pnpm`. Docker images must build for `linux/arm64` (Oracle free VM).
 - Never fabricate metrics or fall back to fake tx hashes/IDs. Surface failures as errors.

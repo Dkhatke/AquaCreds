@@ -3,11 +3,14 @@
 > Blockchain-based Blue Carbon Registry and MRV system (SIH25038, team VISSDOM), rebuilt from scratch as a
 > production-grade MVP with a strong, honest ML core.
 >
-> Status: **planning** · Last updated: 2026-10-19
+> Status: **planning, revision 2** (re-verified against BM FR05.001 / AR-TOOL14) · Last updated: 2026-10-19
 >
 > Companion documents:
 > - [TECH_STACK.md](TECH_STACK.md): every technology choice, the alternatives considered, and why.
 > - [DATASETS.md](DATASETS.md): every dataset, where it comes from, licence, and how it is used.
+> - [RESEARCH_NOTES.md](RESEARCH_NOTES.md): answers on land tenure, satellite timing, monitoring
+>   duration and the carbon calculation, plus the plan changes R1–R9 they forced (already applied
+>   below; revision 2).
 > - [CONTEXT.md](CONTEXT.md): project memory (what exists, decisions made, what is next).
 > - [../requirements/](../requirements/): installable requirement files and setup prerequisites.
 
@@ -263,6 +266,9 @@ This is the most important phase. Full dataset details are in [DATASETS.md](DATA
     within the GMW mask). Pulled with `earthaccess` (free NASA Earthdata login).
   - ESA CCI Biomass maps as a secondary reference.
   - Simard et al. 2019 (nominal year 2000) for **comparison only**.
+- **Role in crediting (R2):** this model's output is the **auxiliary variable** for model-assisted
+  (double-sampling) estimation against field plots, and the basis for stratification. It is never used
+  on its own for issuance.
 - **Independent validation:** a table of published Indian mangrove field-plot AGB values compiled from the
   literature (Sundarbans, Bhitarkanika, Pichavaram, etc., with coordinates and year), plus plots from pilot
   partners later.
@@ -337,6 +343,19 @@ version is recorded in every MRV record.
   CI. A drift check fails the build if the client is stale.
 - **Rate limiting** (slowapi + Valkey), a CORS allowlist, and structured logs (structlog JSON).
 
+- **Tenure & authorisation evidence pack (R5).** This replaces the PPT's "land registry check", since
+  intertidal land has no ordinary registry. Each project declares a tenure type (`forest_land`,
+  `revenue_government_land`, `port_or_central_land`, `community_panchayat`, `private_land`) and uploads
+  the matching documents: Forest Department MoU, Collector NOC, Panchayat resolution + FPIC record, title
+  + consent, CRZ/CZMA clearance, and a carbon-rights/benefit-sharing agreement. Documents are private;
+  hashes are anchored. A verifier tenure checklist is required before registration. Details are in
+  RESEARCH_NOTES Q1.
+- **CCTS eligibility validation (R8):**
+  - Project start ≥ 2025-01-01.
+  - Declared mangrove-species share > 90%.
+  - Soil disturbance ≤ 10% (declared + evidenced).
+  - A "degraded mangrove habitat" signal from GMW 1996–2020 history (computed in Phase 4).
+
 **Exit criteria:** integration tests (pytest + testcontainers PostGIS) cover auth, RBAC, the project
 lifecycle and the overlap check; coverage ≥ 80% on services.
 
@@ -353,8 +372,20 @@ lifecycle and the overlap check; coverage ≥ 80% on services.
   retry/backoff, and show sync status.
 - **Boundary capture:** walk the perimeter (GPS track) or import KML/GeoJSON; preview on a map
   (MapLibre React Native).
-- **Plot measurement form:** species picker (Indian mangrove list), DBH, height, plot radius. This feeds
-  the field-plot AGB used for calibration and validation.
+- **Sample-plot inventory (mandatory for crediting, R1).** AR-TOOL14 requires ex-post biomass from
+  sample plots, so the app must support:
+  - **Plot design and allocation:** permanent circular/square plots, stratified by Phase 4 strata, with
+    a **sample-size calculator** targeting ±10% at 90% CI.
+  - **Navigation** to pre-allocated plot centres.
+  - **GPS averaging** (30–60 s) at plot centres.
+  - **Plot-centre photo** showing the physical marker/tag ID.
+  - **Per-tree records:** species (Indian mangrove list), DBH, height, alive/dead; seedling counts for
+    young plots.
+  - **Re-measurement** of the same plots at each verification.
+- **Fixed photo-monitoring points (R7):** re-photographed every ~6 months at the same bearing. This is
+  "participatory photo-mapping" evidence that crown cover has not decreased (AR-TOOL14 ¶26).
+- **Tide awareness (R7):** predicted tide height is stored with each capture; crews are guided to
+  low-tide windows.
 - **i18n:** English + Hindi to start; Bengali, Odia, Tamil, Gujarati and Marathi are planned (coastal
   states).
 
@@ -392,6 +423,17 @@ results appear in the API.
    with intervals, mean NDVI, and the inter-period change.
 5. Provenance: every output stores the STAC item IDs, model versions, code version, and parameters.
 
+**Processing schedule (R6), so nothing takes days:**
+- Reads are COG windowed reads of the project polygon only; whole tiles are never downloaded.
+- **At registration:** one backfill job, 2017 → today (~500–700 S2 scenes + S1, tens of minutes).
+- **Nightly (Celery beat):** fetch only new scenes per active project, append per-scene zonal statistics
+  to a Postgres time-series table, and raise **loss/degradation alerts** against the project's own
+  historical envelope.
+- **Seasonally (dry season) / annually:** composites, then classifier + biomass model.
+- Monitoring cadence: photo points every 6 months; internal monitoring report annually;
+  **verification + issuance every 2–5 years, first at year 3–5**. Credits are ex-post only. See
+  RESEARCH_NOTES Q2–Q3.
+
 **Operational constraints for the free VM:** one `geo` worker with concurrency 1, a memory cap via Compose
 `mem_limit`, dask chunk sizing, and a per-project area cap. A 5,000 ha project at 10 m is about 500k
 pixels per scene, which is comfortable.
@@ -409,6 +451,15 @@ under 10 minutes on the target VM spec.
 - Outputs: carbon stock by pool (AGB, BGB, optional soil), **stock change**, gross removals, deductions
   (uncertainty, leakage, non-permanence buffer), and **net estimated removals (tCO₂e)** with a full
   calculation trace.
+- **Primary profile `ccts_bm_fr05_001` (R3)** implements BM FR05.001 Eq. 1–8 exactly:
+  - ΔC_BSL, ΔC_ACTUAL = ΔC_P − GHG_E, LK, ΔC_AR.
+  - **tCCC / lCCC** per verification period.
+  - AR-TOOL14 plot-based stocks with the **uncertainty-discount table** (U ≤ 10% → 0; 10–15% → 25%;
+    15–20% → 50%; 20–30% → 75%; > 30% → 100% of U).
+  - CF = 0.47 by default.
+  - SOC default 0.50 t C/ha/yr for 20 years after planting.
+  - Model-assisted (double-sampling) estimation, using satellite AGB as the auxiliary variable to
+    tighten plot-based uncertainty.
 - Methodology profiles: `ccts_bm_fr05_001` (India CCTS, mangrove A/R) and `vm0033_v2_1` (Verra) as
   configuration plus documentation. They mirror the structure of each methodology, but **do not claim
   compliance** until reviewed by an accredited verifier.
@@ -441,7 +492,7 @@ producing a hashed report.
 | Contract | Responsibility |
 |---|---|
 | `AquaRegistry` | `AccessControl` roles (`REGISTRAR`, `VERIFIER`, `ISSUER`, `PAUSER`). Registers a project (ID, boundary hash, metadata CID, owner). Records monitoring reports (report hash, evidence CID, period, approved net tCO₂e) with verifier signatures. Pausable. |
-| `AquaCredit` (ERC-1155) | One token ID per **project × vintage (monitoring period)**. `mint` only by `ISSUER`, capped at the approved net tCO₂e for that report (prevents over-issuance). `retire(id, amount, beneficiary, reason)` burns tokens and emits a certificate event. Optional transfer restriction to KYC'd accounts (allowlist), switched off by default. |
+| `AquaCredit` (ERC-1155) | One token ID per **project × verification period × credit type (tCCC / lCCC, R4)**, with an expiry timestamp. When a later verification shows a reversal (lCCC < 0), the issuer's **replacement obligation** is recorded on-chain and must be settled (retire equivalent units) before new issuance. `mint` only by `ISSUER`, capped at the approved net tCO₂e for that report (prevents over-issuance). `retire(id, amount, beneficiary, reason)` burns tokens and emits a certificate event. Optional transfer restriction to KYC'd accounts (allowlist), switched off by default. |
 | `AquaProject` (ERC-721, soulbound) | Optional project "deed" NFT (the PPT's "NFT for unique plantation records"), non-transferable. |
 | `AquaMarketplace` | Fixed-price listings of ERC-1155 credits for an ERC-20 payment token (test USDC / mock stablecoin on Amoy). Pull-payment pattern, `ReentrancyGuard`, fee in basis points. |
 | `AquaForwardFund` | Reverse-auction forward funding (§Phase 7). |
@@ -538,6 +589,17 @@ Satellite and photo models describe **ecosystem extent and condition**. Carbon n
 **documented carbon engine** whose inputs (area, AGB, ratios, factors) each carry a source and an
 uncertainty. No ML model ever outputs "credits".
 
+**Revision 2 (R2):** under BM FR05.001 / AR-TOOL14, ex-post tree biomass must come from **field sample
+plots**; remote sensing may only be used *in conjunction with* plots. The ML roles are therefore:
+1. Stratification.
+2. Model-assisted / double-sampling estimation, which tightens uncertainty and so shrinks the discount.
+3. Planted area and survival.
+4. "No decrease" evidence between inventories.
+5. Eligibility evidence (historical mangrove loss).
+6. Fraud/consistency checks and loss alerts.
+
+Satellite-only AGB is shown as an *indicative estimate*, never as the basis for issuance.
+
 ### 6.2 Sentinel-2 preprocessing checklist
 - Use L2A only, with SCL classes 3 (shadow), 8/9 (cloud), 10 (cirrus) and 11 (snow) masked; optionally
   `s2cloudless`.
@@ -561,23 +623,27 @@ not raw pixel counts.
 - **Satellite AGB:** Model B P50, with P10–P90 bounds.
 - **BGB from AGB** (when there are no plots): a root-to-shoot ratio from the selected methodology or IPCC
   2013 Wetlands Supplement Tier-1 tables, configurable per methodology profile and never hard-coded.
-- **Carbon fraction** of dry biomass: from the methodology profile (IPCC Wetlands Supplement default for
-  mangroves), configurable.
+- **Carbon fraction** of dry biomass: **0.47 t C / t d.m.** (the AR-TOOL14 default used by CCTS),
+  overridable only with "transparent and verifiable information" per the methodology profile.
 - **CO₂e = C × 44/12.**
 - **Soil organic carbon:** the Maxwell et al. 2023 30 m stock (0–100 cm) is reported as **context only**.
   Soil *accumulation* for crediting uses the methodology's default rates, only where the methodology allows
   it.
 
-### 6.5 From stock to credits
+### 6.5 From stock to credits (CCTS BM FR05.001, the primary profile)
 
 ```
-ΔC_biomass = (C_stock_monitoring − C_stock_baseline)       per pool, tCO₂e
-Gross removals = ΔC_biomass (+ soil accrual if allowed)
-Uncertainty deduction = per methodology (e.g., deduct if CI half-width > 10–15% of estimate)
-Leakage = methodology default (often 0 for degraded mangrove A/R; configurable)
-Buffer (non-permanence) = risk-tool % (configurable, e.g. 10–20%)
-Net creditable removals = Gross − uncertainty − leakage − buffer
+Stocks from sample plots (AR-TOOL14), discounted by the uncertainty table, × CF 0.47 × 44/12
+ΔC_P,t     = ΔC_TREE + ΔC_SHRUB + ΔC_DW(optional) + ΔSOC(optional; default 0.50 tC/ha/yr × 20 yr)
+ΔC_ACTUAL  = ΔC_P − GHG_E (non-CO2 from biomass burning)
+ΔC_AR,t    = ΔC_ACTUAL − ΔC_BSL − LK
+tCCC(t2)   = Σ ΔC_AR since project start          (temporary; expire next commitment period)
+lCCC(t2)   = Σ ΔC_AR over (t1, t2]                (long-term; expire end of crediting period)
+lCCC < 0   → reversal: that many lCCCs must be replaced
 ```
+
+For the **VM0033 profile**, the original buffer-pool approach (AFOLU non-permanence risk tool) applies
+instead. A full worked example is in RESEARCH_NOTES Q4.
 
 The conservative choice is always used: when a P10/P50 choice exists, the methodology profile states which
 one applies.
