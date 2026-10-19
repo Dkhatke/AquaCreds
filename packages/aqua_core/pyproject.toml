@@ -1,0 +1,19 @@
+[project]
+name = "aqua-core"
+version = "0.1.0"
+description = "Shared settings, logging, database and storage helpers for AquaCreds services"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pydantic~=2.14",
+    "pydantic-settings~=2.16",
+    "structlog~=26.1",
+    "sqlalchemy[asyncio]~=2.1",
+    "asyncpg~=0.32.0",
+    "geoalchemy2~=0.20.0",
+    "redis~=8.1",
+    "boto3~=1.43",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"

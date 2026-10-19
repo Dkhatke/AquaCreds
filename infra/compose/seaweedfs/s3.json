@@ -1,0 +1,14 @@
+{
+  "identities": [
+    {
+      "name": "aquadev",
+      "credentials": [
+        {
+          "accessKey": "aquadev",
+          "secretKey": "aquadev-secret"
+        }
+      ],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
