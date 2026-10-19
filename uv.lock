@@ -13,6 +13,7 @@ members = [
     "aqua-api",
     "aqua-carbon",
     "aqua-core",
+    "aqua-geo",
     "aqua-worker",
     "aquacreds",
 ]
@@ -288,6 +289,39 @@ requires-dist = [
     { name = "redis", specifier = "~=8.1" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = "~=2.1" },
     { name = "structlog", specifier = "~=26.1" },
+]
+
+[[package]]
+name = "aqua-geo"
+version = "0.1.0"
+source = { editable = "packages/aqua_geo" }
+dependencies = [
+    { name = "dask", extra = ["array"] },
+    { name = "numpy" },
+    { name = "odc-stac" },
+    { name = "planetary-computer" },
+    { name = "pyproj" },
+    { name = "pystac" },
+    { name = "pystac-client" },
+    { name = "rasterio" },
+    { name = "rioxarray" },
+    { name = "shapely" },
+    { name = "xarray" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dask", extras = ["array"], specifier = "~=2026.8" },
+    { name = "numpy", specifier = "~=2.5" },
+    { name = "odc-stac", specifier = "~=0.5.3" },
+    { name = "planetary-computer", specifier = "~=1.0" },
+    { name = "pyproj", specifier = "~=3.8" },
+    { name = "pystac", specifier = "~=1.15" },
+    { name = "pystac-client", specifier = "~=0.9.0" },
+    { name = "rasterio", specifier = "~=1.5" },
+    { name = "rioxarray", specifier = "~=0.23.0" },
+    { name = "shapely", specifier = "~=2.2" },
+    { name = "xarray", specifier = "~=2026.9" },
 ]
 
 [[package]]

@@ -1,0 +1,23 @@
+# Reproducible data pipeline. `uv run dvc repro` re-runs only stages whose inputs changed.
+# Remote storage (Cloudflare R2) is configured later with `dvc remote add` (see docs/DATASETS.md).
+stages:
+  download_coasttrain:
+    cmd: uv run python ml/pipelines/download.py coasttrain_v1
+    deps:
+      - ml/pipelines/download.py
+    outs:
+      - data/raw/coasttrain
+
+  download_gmw_v4_2020:
+    cmd: uv run python ml/pipelines/download.py gmw_v4_2020
+    deps:
+      - ml/pipelines/download.py
+    outs:
+      - data/raw/gmw_v4
+
+  download_gmw_v3_1996:
+    cmd: uv run python ml/pipelines/download.py gmw_v3_1996
+    deps:
+      - ml/pipelines/download.py
+    outs:
+      - data/raw/gmw_v3

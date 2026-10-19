@@ -1,0 +1,2 @@
+dataset,source,file,md5,licence,citation,purpose,downloaded_utc
+coasttrain_v1,https://zenodo.org/records/7080756,nick-murray/coastTrain-v1.0.0.zip,45fd44b8b6c32db4e3278959ac1b0ad1,see record (other-open),"Murray et al. 2022, coastTrain, Remote Sensing 14:5766, doi:10.3390/rs14225766",Labelled coastal-ecosystem occurrence points (classifier training labels),2026-10-19
