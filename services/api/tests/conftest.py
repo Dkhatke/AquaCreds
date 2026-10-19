@@ -19,7 +19,10 @@ from aqua_core.settings import Settings
 from aqua_core.storage import StoredObject
 
 POSTGIS_IMAGE = "imresamu/postgis:17-3.6"
-TABLES = "audit_log, tenure_documents, projects, refresh_tokens, memberships, organizations, users"
+TABLES = (
+    "audit_log, plot_measurements, field_submissions, capture_nonces, plots, monitoring_periods, "
+    "tenure_documents, projects, refresh_tokens, memberships, organizations, users"
+)
 
 
 def _docker_available() -> bool:
@@ -62,6 +65,12 @@ class FakeStorage:
             size_bytes=len(data), content_type=content_type, sha256=hashlib.sha256(data).hexdigest()
         )
 
+    def get_bytes(self, key: str, max_bytes: int) -> bytes:
+        data, _ = self.objects[key]
+        if len(data) > max_bytes:
+            raise ValueError("too large")
+        return data
+
     def put(self, key: str, data: bytes, content_type: str = "application/pdf") -> str:
         self.objects[key] = (data, content_type)
         return hashlib.sha256(data).hexdigest()
@@ -73,11 +82,20 @@ def storage() -> FakeStorage:
 
 
 @pytest.fixture
-async def client(database_url: str, storage: FakeStorage) -> AsyncIterator[httpx.AsyncClient]:
+def enqueued() -> list[tuple[str, tuple[str, ...], str]]:
+    """Tasks the API tried to send to workers (recorded instead of using a broker)."""
+    return []
+
+
+@pytest.fixture
+async def client(
+    database_url: str, storage: FakeStorage, enqueued: list[tuple[str, tuple[str, ...], str]]
+) -> AsyncIterator[httpx.AsyncClient]:
     app = create_app(
         Settings(_env_file=None, app_env="test", database_url=database_url, jwt_secret="t" * 48)
     )
     app.state.storage = storage
+    app.state.enqueue = lambda name, *args, queue="default": enqueued.append((name, args, queue))
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test/api/v1"
     ) as c:

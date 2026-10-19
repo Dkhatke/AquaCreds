@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     s3_public_endpoint_url: str | None = None
     upload_max_bytes: int = 25 * 1024 * 1024
     upload_url_ttl_s: int = 900
+    capture_nonce_ttl_min: int = 15  # a photo must be captured within this window
 
     jwt_secret: SecretStr = SecretStr("dev-only-change-me")
     jwt_access_ttl_min: int = 15
