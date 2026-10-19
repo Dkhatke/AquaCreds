@@ -13,6 +13,7 @@ members = [
     "aqua-api",
     "aqua-carbon",
     "aqua-core",
+    "aqua-geo",
     "aqua-worker",
     "aquacreds",
 ]
@@ -291,6 +292,39 @@ requires-dist = [
 ]
 
 [[package]]
+name = "aqua-geo"
+version = "0.1.0"
+source = { editable = "packages/aqua_geo" }
+dependencies = [
+    { name = "dask", extra = ["array"] },
+    { name = "numpy" },
+    { name = "odc-stac" },
+    { name = "planetary-computer" },
+    { name = "pyproj" },
+    { name = "pystac" },
+    { name = "pystac-client" },
+    { name = "rasterio" },
+    { name = "rioxarray" },
+    { name = "shapely" },
+    { name = "xarray" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "dask", extras = ["array"], specifier = "~=2026.8" },
+    { name = "numpy", specifier = "~=2.5" },
+    { name = "odc-stac", specifier = "~=0.5.3" },
+    { name = "planetary-computer", specifier = "~=1.0" },
+    { name = "pyproj", specifier = "~=3.8" },
+    { name = "pystac", specifier = "~=1.15" },
+    { name = "pystac-client", specifier = "~=0.9.0" },
+    { name = "rasterio", specifier = "~=1.5" },
+    { name = "rioxarray", specifier = "~=0.23.0" },
+    { name = "shapely", specifier = "~=2.2" },
+    { name = "xarray", specifier = "~=2026.9" },
+]
+
+[[package]]
 name = "aqua-worker"
 version = "0.1.0"
 source = { editable = "services/worker" }
@@ -314,8 +348,10 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
+    { name = "h3" },
     { name = "httpx" },
     { name = "mypy" },
+    { name = "pandas" },
     { name = "pip-audit" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -383,8 +419,10 @@ ml = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "h3", specifier = "~=4.5" },
     { name = "httpx", specifier = "~=0.28.1" },
     { name = "mypy", specifier = "~=2.4" },
+    { name = "pandas", specifier = "~=3.0" },
     { name = "pip-audit", specifier = "~=2.10" },
     { name = "pre-commit", specifier = "~=4.7" },
     { name = "pytest", specifier = "~=9.1" },

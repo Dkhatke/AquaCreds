@@ -40,6 +40,40 @@ processing baseline ≥ 04.00; ÷10000 to reflectance; seasonal medians; ≥ 3 c
 | **Allen Coral Atlas** (benthic: seagrass) | Seagrass research layer (clear reef waters only: Lakshadweep, Andaman, Gulf of Mannar) | 5 m (Planet) | allencoralatlas.org downloads | CC BY 4.0 | ⚠️ optional / research |
 | **Manual gold set** (ours) | Unbiased test set for accuracy + Olofsson area CIs | ~500 points, stratified random, interpreted on high-res basemaps | Created in QGIS, stored in DVC | Ours | to build |
 
+**coastTrain findings for the AOI window (68–97.5°E, 6–24.8°N), measured 2026-10-19:**
+19,275 usable points after dropping coral reef.
+
+| Label | Field / image-interpreted | Map-derived (sampled from GMW 1996, 25 m) |
+|---|---|---|
+| mangrove | 934 | 17,169 |
+| terrestrial_other | 384 | 0 |
+| tidal_flat | 286 | 0 |
+| water | 261 | 0 |
+| seagrass | 224 | 0 |
+| salt_marsh | 17 | 0 |
+
+Consequences:
+1. Map-derived mangrove points (reference year 1996) are kept **only where GMW v4 (2020) still
+   shows mangrove**, because many 1996 mangroves are now ponds or farmland.
+2. Negatives are too scarce, so they are supplemented from **ESA WorldCover** (read via STAC
+   for the AOI only).
+3. **Salt marsh (17 points) cannot be trained on.** It stays a research class unless the
+   Worthington 2024 map is obtained.
+4. The 934 field/interpreted mangrove points are prioritised for the **gold/test** split.
+
+Verified Zenodo records: coastTrain v1.0.0 = **7080756** (7.3 MB); GMW v4.0.19 2020 =
+**12756047** (180 MB GeoTIFF zip); GMW v3 = **6894273**; Maxwell SOC = **7729491** (4.8 GB of
+tiles, deferred: above the 500 MB download guard).
+
+**Built training labels (`ml/pipelines/labels_build.py`, run 2026-10-19, 48 s, 0.62 GB RAM):**
+14,129 points: mangrove 4,801 · water 4,763 · terrestrial_other 2,662 · cropland_aquaculture 1,396
+· tidal_flat 282 · built_bare 210 · salt_marsh 15 (not trained in v2.0). Only 55 of the 17,169
+1996-sampled mangrove points were absent from GMW 2020. That is far fewer than expected loss, and
+likely because coastTrain sampled stable mangrove cores; to be spot-checked on imagery. Splits:
+5 spatial folds of ~2,600 points each + 1,133 held out (Gulf of Kutch). WorldCover negatives
+are read as full-resolution windows per H3 cell (100% agreement with per-point reads), with
+Planetary Computer URLs re-signed per tile (tokens expire after ~45 min).
+
 **Label construction:**
 1. Merge sources.
 2. Erode polygons 30 m before sampling (avoids mixed pixels).

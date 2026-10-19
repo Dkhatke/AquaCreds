@@ -1,0 +1,22 @@
+[project]
+name = "aqua-geo"
+version = "0.1.0"
+description = "Satellite feature pipeline shared by ML training and production (STAC → masked reflectance → composites → indices → zonal stats)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy~=2.5",
+    "xarray~=2026.9",
+    "dask[array]~=2026.8",
+    "rasterio~=1.5",
+    "rioxarray~=0.23.0",
+    "shapely~=2.2",
+    "pyproj~=3.8",
+    "pystac~=1.15",
+    "pystac-client~=0.9.0",
+    "odc-stac~=0.5.3",
+    "planetary-computer~=1.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"

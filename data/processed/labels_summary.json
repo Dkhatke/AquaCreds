@@ -1,0 +1,82 @@
+{
+  "total": 14129,
+  "by_label": {
+    "mangrove": 4801,
+    "water": 4763,
+    "terrestrial_other": 2662,
+    "cropland_aquaculture": 1396,
+    "tidal_flat": 282,
+    "built_bare": 210,
+    "salt_marsh": 15
+  },
+  "by_split": {
+    "fold_3": 2621,
+    "fold_4": 2620,
+    "fold_1": 2590,
+    "fold_2": 2585,
+    "fold_0": 2580,
+    "heldout_region": 1133
+  },
+  "by_label_and_split": {
+    "fold_0": {
+      "built_bare": 20,
+      "cropland_aquaculture": 203,
+      "mangrove": 937,
+      "salt_marsh": 0,
+      "terrestrial_other": 423,
+      "tidal_flat": 33,
+      "water": 964
+    },
+    "fold_1": {
+      "built_bare": 36,
+      "cropland_aquaculture": 202,
+      "mangrove": 959,
+      "salt_marsh": 1,
+      "terrestrial_other": 527,
+      "tidal_flat": 21,
+      "water": 844
+    },
+    "fold_2": {
+      "built_bare": 28,
+      "cropland_aquaculture": 216,
+      "mangrove": 958,
+      "salt_marsh": 3,
+      "terrestrial_other": 580,
+      "tidal_flat": 24,
+      "water": 776
+    },
+    "fold_3": {
+      "built_bare": 27,
+      "cropland_aquaculture": 381,
+      "mangrove": 927,
+      "salt_marsh": 0,
+      "terrestrial_other": 556,
+      "tidal_flat": 72,
+      "water": 658
+    },
+    "fold_4": {
+      "built_bare": 46,
+      "cropland_aquaculture": 278,
+      "mangrove": 897,
+      "salt_marsh": 11,
+      "terrestrial_other": 479,
+      "tidal_flat": 75,
+      "water": 834
+    },
+    "heldout_region": {
+      "built_bare": 53,
+      "cropland_aquaculture": 116,
+      "mangrove": 123,
+      "salt_marsh": 0,
+      "terrestrial_other": 97,
+      "tidal_flat": 57,
+      "water": 687
+    }
+  },
+  "params": {
+    "negatives_per_cell": 40,
+    "cap": 60,
+    "seed": 42
+  },
+  "worldcover_failed_tiles": []
+}
