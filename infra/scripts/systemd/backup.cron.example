@@ -1,0 +1,4 @@
+# Alternative to the systemd timer: run `crontab -e` as the deploy user and add the lines below.
+# 01:30 IST (20:00 UTC) nightly; output is appended to a log; a non-zero exit is reported by cron.
+CRON_TZ=UTC
+0 20 * * * /opt/aquacreds/infra/scripts/backup.sh >> /opt/aquacreds/backups/backup.log 2>&1

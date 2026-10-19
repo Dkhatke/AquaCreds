@@ -38,6 +38,10 @@ make test lint                # tests, ruff, mypy
 Workflow: never commit to `main`; use a feature branch and open a PR. `pre-commit install` enables the
 lint/format/secret-scan hooks.
 
+## Production deployment
+Free hosting on an Oracle Cloud Always Free ARM VM (Docker Compose + Caddy, Cloudflare R2, nightly
+backups, tag-triggered deploys): see the runbook [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## API (current)
 Swagger UI at http://localhost:8000/docs. Implemented so far:
 - **Auth:** `POST /api/v1/auth/{register,login,refresh,logout}`, `GET /api/v1/auth/me`

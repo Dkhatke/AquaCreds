@@ -1,0 +1,24 @@
+# TEST ONLY — never use on the VM. Layered on compose.prod.yaml by infra/scripts/smoke-prod-local.sh
+# to run the production stack on a laptop: adds a throwaway SeaweedFS S3 service in place of
+# Cloudflare R2. Its credentials are generated per run (SMOKE_S3_CONFIG points at a temp file).
+services:
+  s3:
+    image: chrislusf/seaweedfs:4.48
+    command: ["server", "-dir=/data", "-ip=s3", "-ip.bind=0.0.0.0", "-s3", "-s3.config=/etc/seaweedfs/s3.json"]
+    volumes:
+      - s3data:/data
+      - ${SMOKE_S3_CONFIG:?SMOKE_S3_CONFIG must point at a generated s3.json}:/etc/seaweedfs/s3.json:ro
+    networks: [egress]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:9333/cluster/status || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    depends_on:
+      s3: { condition: service_healthy }
+
+volumes:
+  s3data:
