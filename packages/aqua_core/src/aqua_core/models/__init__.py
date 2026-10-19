@@ -2,11 +2,15 @@
 
 from aqua_core.models.analysis import Alert, AnalysisRun, SceneObservation
 from aqua_core.models.audit import AuditLog
+from aqua_core.models.chain import ChainCursor, ChainEvent, ChainTransaction, OrgWallet
 from aqua_core.models.enums import (
     AlertKind,
     AlertSeverity,
     AnalysisKind,
     AnalysisStatus,
+    ChainSigner,
+    ChainTxPurpose,
+    ChainTxStatus,
     DocumentKind,
     Ecosystem,
     Methodology,
@@ -39,6 +43,12 @@ __all__ = [
     "AnalysisStatus",
     "AuditLog",
     "CaptureNonce",
+    "ChainCursor",
+    "ChainEvent",
+    "ChainSigner",
+    "ChainTransaction",
+    "ChainTxPurpose",
+    "ChainTxStatus",
     "DocumentKind",
     "Ecosystem",
     "FieldSubmission",
@@ -47,6 +57,7 @@ __all__ = [
     "MonitoringPeriod",
     "OrgRole",
     "OrgType",
+    "OrgWallet",
     "Organization",
     "PeriodKind",
     "PeriodStatus",

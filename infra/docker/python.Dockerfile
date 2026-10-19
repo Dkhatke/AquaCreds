@@ -18,7 +18,11 @@ ENV UV_COMPILE_BYTECODE=1 \
 WORKDIR /src
 # Dependency manifests first so the dependency layers cache across source edits.
 COPY pyproject.toml uv.lock README.md ./
+# Every workspace member's manifest is needed for `uv sync --frozen` to resolve the workspace.
 COPY packages/aqua_core/pyproject.toml packages/aqua_core/pyproject.toml
+COPY packages/aqua_carbon/pyproject.toml packages/aqua_carbon/pyproject.toml
+COPY packages/aqua_geo/pyproject.toml packages/aqua_geo/pyproject.toml
+COPY packages/aqua_chain/pyproject.toml packages/aqua_chain/pyproject.toml
 COPY services/api/pyproject.toml services/api/pyproject.toml
 COPY services/worker/pyproject.toml services/worker/pyproject.toml
 
@@ -27,6 +31,7 @@ FROM base AS build-api
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-workspace --package aqua-api
 COPY packages/aqua_core packages/aqua_core
+COPY packages/aqua_chain packages/aqua_chain
 COPY services/api services/api
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable --package aqua-api
@@ -35,6 +40,8 @@ FROM base AS build-worker
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-workspace --package aqua-worker
 COPY packages/aqua_core packages/aqua_core
+COPY packages/aqua_chain packages/aqua_chain
+COPY packages/aqua_geo packages/aqua_geo
 COPY services/worker services/worker
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable --package aqua-worker
