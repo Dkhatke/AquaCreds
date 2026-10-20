@@ -286,6 +286,14 @@ async def test_request_changes_then_new_version(
     assert periods[0]["status"] == "changes_requested"
     project = (await s.admin.get(f"/projects/{s.project_id}")).json()
     assert project["status"] == "submitted"  # monitoring report: project unchanged
+    # The field team can add corrections while changes are requested, but not open a second period
+    nonce = await s.admin.post(f"/periods/{s.period_id}/nonces")
+    assert nonce.status_code == 201, nonce.text
+    second = await s.admin.post(
+        f"/projects/{s.project_id}/periods",
+        json={"kind": "monitoring", "start_date": "2027-01-01", "end_date": "2027-12-31"},
+    )
+    assert second.status_code == 409
 
     result = await request_and_build(
         s, storage, enqueued, sessionmaker, now=GENERATED_AT + timedelta(days=3)
