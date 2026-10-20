@@ -64,12 +64,28 @@ async def get_current_user(
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+STAFF_ROLES = frozenset({PlatformRole.VERIFIER, PlatformRole.REGISTRY_ADMIN})
+MFA_REQUIRED_DETAIL = (
+    "Two-factor authentication is required for staff accounts: enrol with "
+    "POST /api/v1/auth/mfa/setup and /auth/mfa/enable, then sign in again"
+)
+
+
 def require_platform_role(
     *roles: PlatformRole,
-) -> Callable[[User], Coroutine[Any, Any, User]]:
-    async def _check(user: CurrentUser) -> User:
+) -> Callable[..., Coroutine[Any, Any, User]]:
+    """Allow only the given platform roles. Staff roles (verifier, registry_admin) must also have
+    TOTP enabled when MFA_REQUIRED_FOR_STAFF is in effect (default: production)."""
+
+    async def _check(user: CurrentUser, settings: SettingsDep) -> User:
         if user.platform_role not in roles:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient platform role")
+        if (
+            settings.staff_mfa_required
+            and user.platform_role in STAFF_ROLES
+            and user.mfa_enabled_at is None
+        ):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, MFA_REQUIRED_DETAIL)
         return user
 
     return _check

@@ -42,6 +42,10 @@ fi
 step "generate throwaway secrets in $TMP"
 rnd() { openssl rand -hex "$1"; }
 s3_key="smoke$(rnd 4)" s3_secret="$(rnd 24)" bk_key="backup$(rnd 4)" bk_secret="$(rnd 24)"
+# Throwaway secrets that pass assert_production_safe (a random Fernet key; a fresh BIP-39 mnemonic).
+mfa_key="$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
+relayer_mnemonic="$(docker run --rm --entrypoint python "aquacreds-api:$SMOKE_TAG" -c \
+  'from eth_account import Account; Account.enable_unaudited_hdwallet_features(); print(Account.create_with_mnemonic()[1])')"
 cat > "$SMOKE_S3_CONFIG" <<EOF
 {"identities": [
   {"name": "app", "credentials": [{"accessKey": "$s3_key", "secretKey": "$s3_secret"}],
@@ -61,6 +65,8 @@ HTTP_PORT=$HTTP_PORT
 HTTPS_PORT=$HTTPS_PORT
 CORS_ORIGINS=https://app.example.org
 JWT_SECRET=$(rnd 32)
+MFA_ENCRYPTION_KEY=$mfa_key
+RELAYER_MNEMONIC=$relayer_mnemonic
 POSTGRES_USER=aquacreds
 POSTGRES_PASSWORD=$(rnd 24)
 POSTGRES_DB=aquacreds

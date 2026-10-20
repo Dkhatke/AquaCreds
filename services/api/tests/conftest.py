@@ -15,6 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from aqua_api.main import create_app
+from aqua_api.ratelimit import MemoryRateLimitBackend
 from aqua_core.settings import Settings
 from aqua_core.storage import StoredObject
 
@@ -22,7 +23,7 @@ POSTGIS_IMAGE = "imresamu/postgis:17-3.6"
 ANVIL_IMAGE = "ghcr.io/foundry-rs/foundry:v1.7.0"
 TABLES = (
     "mrv_reports, chain_events, chain_cursors, chain_transactions, org_wallets, "
-    "audit_log, alerts, scene_observations, analysis_runs, "
+    "mfa_recovery_codes, audit_log, alerts, scene_observations, analysis_runs, "
     "plot_measurements, field_submissions, capture_nonces, plots, monitoring_periods, "
     "tenure_documents, projects, refresh_tokens, memberships, organizations, users"
 )
@@ -126,15 +127,17 @@ async def client(
     enqueued: list[tuple[str, tuple[str, ...], str]],
     settings_overrides: dict[str, Any],
 ) -> AsyncIterator[httpx.AsyncClient]:
-    app = create_app(
-        Settings(
-            _env_file=None,
-            app_env="test",
-            database_url=database_url,
-            jwt_secret="t" * 48,
-            **settings_overrides,
-        )
-    )
+    options: dict[str, Any] = {
+        "app_env": "test",
+        "database_url": database_url,
+        "jwt_secret": "t" * 48,
+        # Most tests log in many times from one address; test_auth_hardening re-enables limits.
+        "rate_limit_enabled": False,
+        **settings_overrides,
+    }
+    app = create_app(Settings(_env_file=None, **options))
+    # No Valkey in API tests: an in-process counter store (the Redis backend has its own test).
+    app.state.rate_limiter.backend = MemoryRateLimitBackend()
     app.state.storage = storage
     app.state.enqueue = lambda name, *args, queue="default": enqueued.append((name, args, queue))
     async with httpx.AsyncClient(

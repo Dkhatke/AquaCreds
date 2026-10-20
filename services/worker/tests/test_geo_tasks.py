@@ -12,6 +12,7 @@ from geo_fakes import synthetic
 from shapely.geometry import box
 
 from aqua_core.models import AnalysisStatus
+from aqua_core.settings import Settings
 from aqua_worker.celery_app import app, beat_schedule
 from aqua_worker.scenes import SceneRef, StacSceneSource
 from aqua_worker.tasks import geo
@@ -28,11 +29,80 @@ def test_geo_tasks_registered_on_geo_queue() -> None:
 
 
 def test_nightly_beat_schedule_uses_configured_hour() -> None:
-    entry = beat_schedule(21)["geo-nightly-ingest"]
+    entry = beat_schedule(Settings(_env_file=None, geo_nightly_hour_utc=21))["geo-nightly-ingest"]
     assert entry["task"] == "aqua.geo.ingest_new_scenes"
     assert entry["options"]["queue"] == "geo"
     assert entry["schedule"] == crontab(hour=21, minute=0)
     assert "geo-nightly-ingest" in app.conf.beat_schedule
+
+
+CHAIN = {
+    "relayer_mnemonic": " ".join(["abandon"] * 11 + ["about"]),  # BIP-39 test vector, no funds
+    "chain_registry_address": "0x" + "11" * 20,
+    "chain_credit_address": "0x" + "22" * 20,
+}
+
+
+def test_beat_schedule_without_chain_has_geo_jobs_only() -> None:
+    schedule = beat_schedule(Settings(_env_file=None))
+    assert set(schedule) == {"geo-nightly-ingest", "geo-reap-stale-runs"}
+    reaper = schedule["geo-reap-stale-runs"]
+    assert reaper["task"] == "aqua.geo.reap_stale_runs"
+    assert reaper["schedule"] == crontab(minute=17)  # hourly
+    # Not the geo queue: the single geo worker may be stuck in the very job being reaped.
+    assert reaper["options"]["queue"] == "default"
+    for entry in schedule.values():
+        assert entry["task"] in app.tasks
+
+
+def test_beat_schedule_indexes_chain_events_when_configured() -> None:
+    schedule = beat_schedule(Settings(_env_file=None, chain_index_interval_s=45, **CHAIN))
+    assert set(schedule) == {"geo-nightly-ingest", "geo-reap-stale-runs", "chain-index-events"}
+    entry = schedule["chain-index-events"]
+    assert entry["task"] == "aqua.chain.index_events"
+    assert entry["task"] in app.tasks
+    assert entry["schedule"] == 45
+    assert entry["options"] == {"queue": "chain", "expires": 45}
+    assert beat_schedule(Settings(_env_file=None, **CHAIN))["chain-index-events"]["schedule"] == 30
+
+
+def test_index_task_skips_when_chain_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    from aqua_worker.tasks import chain
+
+    monkeypatch.setattr(chain, "get_settings", lambda: Settings(_env_file=None))
+    monkeypatch.setattr(chain, "_index", lambda: pytest.fail("must not touch the chain"))
+    assert chain.index_events_task.run() == {"skipped": "chain not configured"}
+
+
+def test_stale_run_timeout_exceeds_every_geo_hard_time_limit() -> None:
+    limit_s = max(
+        app.tasks[name].time_limit
+        for name in (
+            "aqua.geo.backfill_project",
+            "aqua.geo.ingest_new_scenes",
+            "aqua.geo.build_composite",
+        )
+    )
+    assert Settings(_env_file=None).geo_stale_run_timeout_min * 60 > limit_s
+
+
+def test_reaper_wrapper_uses_configured_timeout(
+    monkeypatch: pytest.MonkeyPatch, calls: list[Any]
+) -> None:
+    seen: dict[str, Any] = {}
+
+    async def fake_reap(sm: Any, *, stale_after: Any, now: Any) -> dict[str, Any]:
+        seen.update(sm=sm, stale_after=stale_after, now=now)
+        return {"reaped": 0, "run_ids": []}
+
+    monkeypatch.setattr(geo, "reap_stale_runs", fake_reap)
+    monkeypatch.setattr(
+        geo, "get_settings", lambda: Settings(_env_file=None, geo_stale_run_timeout_min=90)
+    )
+    assert geo.reap_stale_runs_task.run() == {"reaped": 0, "run_ids": []}
+    assert seen["sm"] == "SESSIONMAKER"
+    assert seen["stale_after"].total_seconds() == 90 * 60
+    assert seen["now"].tzinfo is not None
 
 
 @pytest.fixture

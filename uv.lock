@@ -230,11 +230,13 @@ dependencies = [
     { name = "aqua-core" },
     { name = "argon2-cffi" },
     { name = "celery", extra = ["redis"] },
+    { name = "cryptography" },
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "geojson-pydantic" },
     { name = "orjson" },
     { name = "pyjwt", extra = ["crypto"] },
+    { name = "pyotp" },
     { name = "rfc8785" },
     { name = "segno" },
     { name = "shapely" },
@@ -248,11 +250,13 @@ requires-dist = [
     { name = "aqua-core", editable = "packages/aqua_core" },
     { name = "argon2-cffi", specifier = "~=25.1" },
     { name = "celery", extras = ["redis"], specifier = "~=5.6" },
+    { name = "cryptography", specifier = "~=50.0" },
     { name = "email-validator", specifier = "~=2.3" },
     { name = "fastapi", specifier = "~=0.146.0" },
     { name = "geojson-pydantic", specifier = "~=2.2" },
     { name = "orjson", specifier = "~=3.13" },
     { name = "pyjwt", extras = ["crypto"], specifier = "~=2.15" },
+    { name = "pyotp", specifier = "~=2.10" },
     { name = "rfc8785", specifier = "~=0.1.4" },
     { name = "segno", specifier = "~=1.6.6" },
     { name = "shapely", specifier = "~=2.2" },
@@ -4410,6 +4414,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/26/96/888ea83c8d0f1e2cc732bea6be94ed0db784cacd99f0248333483be657b3/pyogrio-0.13.0-cp311-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:680842c88b5e678125edd13b15f7187ff3ce7630cadef538887edd3cbe801287", size = 31670710, upload-time = "2026-06-26T15:29:44.328Z" },
     { url = "https://files.pythonhosted.org/packages/20/c2/247c150f5ca12f8593c20e39115db551b18de5c6cb383006de21b57399e4/pyogrio-0.13.0-cp311-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:220a988ce2a26591d6db5c775b07289d4f54cabdf274cc048f0e17a0b9d5be14", size = 33334097, upload-time = "2026-06-26T15:29:48.533Z" },
     { url = "https://files.pythonhosted.org/packages/d2/ba/3757e312a98c428ac5d8b787f3608ae325174ebef6897930a42e21dd057a/pyogrio-0.13.0-cp311-abi3-win_amd64.whl", hash = "sha256:1b91f6d6e6757a6ea84b9459d24f479dcb52bbf4ebcdb16baf39e49d2836a1cf", size = 23824927, upload-time = "2026-06-26T15:29:52.493Z" },
+]
+
+[[package]]
+name = "pyotp"
+version = "2.10.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2d/c6/c5d96a86fd0bf6fa1bbb5c5c341ff3208638b692727a683c8289068d9a11/pyotp-2.10.0.tar.gz", hash = "sha256:d01e9703443616b03c57c700b5cbffd56a1f929c1b0f8f03131bc78c1fca9d3f", size = 18625, upload-time = "2026-06-14T03:48:49.221Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/65/33/7b83bde70eddaaaaef487751a9c3a5cc0c0be54620ded0e120ebdc401ff9/pyotp-2.10.0-py3-none-any.whl", hash = "sha256:1df2f6a1bcc3bb0716172a5215ddc2f8c7c7fd26a13df9927d52e1746934836c", size = 13768, upload-time = "2026-06-14T03:48:47.831Z" },
 ]
 
 [[package]]

@@ -7,8 +7,8 @@ in `aqua_chain.relayer`, so a misconfigured concurrency can delay but never dupl
 Pattern: async core functions take their dependencies (relayer / client / sessionmaker) so tests
 drive them directly against Anvil; the Celery wrappers only wire settings and retries.
 
-Indexer schedule: there is no Celery beat schedule in this repository yet. Run
-`aqua.chain.index_events` periodically (e.g. every 30 s) once beat is added, or from cron:
+Indexer schedule: Celery beat runs `aqua.chain.index_events` every CHAIN_INDEX_INTERVAL_S (30 s)
+when the chain is configured (see `aqua_worker.celery_app.beat_schedule`). By hand:
     celery -A aqua_worker.celery_app call aqua.chain.index_events --queue chain
 """
 
@@ -29,6 +29,7 @@ from aqua_chain.relayer import Relayer
 from aqua_chain.runtime import build_relayer, indexer_config
 from aqua_core import audit
 from aqua_core.db import create_engine, session_factory
+from aqua_core.logging import get_logger
 from aqua_core.models import ChainTransaction, ChainTxStatus, Project
 from aqua_core.settings import get_settings
 
@@ -299,4 +300,7 @@ async def _index() -> dict[str, Any]:
 
 @shared_task(name="aqua.chain.index_events", **_TASK_OPTIONS)
 def index_events_task() -> dict[str, Any]:
+    if not get_settings().chain_configured:
+        get_logger("aqua_worker.chain").info("chain.index.skipped", reason="chain not configured")
+        return {"skipped": "chain not configured"}
     return asyncio.run(_index())

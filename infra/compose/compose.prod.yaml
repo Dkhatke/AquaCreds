@@ -49,9 +49,20 @@ x-app-env: &app-env
   CORS_ORIGINS: ${CORS_ORIGINS:-}
   SENTRY_DSN: ${SENTRY_DSN:-}
   SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
-  # Later phases (empty until used; unknown variables are ignored by the settings loader).
-  AMOY_RPC_URL: ${AMOY_RPC_URL:-}
+  # Security (assert_production_safe refuses to start without these).
+  MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?set MFA_ENCRYPTION_KEY (Fernet key; see .env.prod.example)}
+  TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-172.16.0.0/12}
+  RELAYER_MNEMONIC: ${RELAYER_MNEMONIC:?set RELAYER_MNEMONIC (relayer HD wallet; never the Anvil dev mnemonic)}
+  # Chain (Polygon Amoy). The indexer beat entry is skipped until the contract addresses are set.
+  CHAIN_RPC_URL: ${CHAIN_RPC_URL:-https://rpc-amoy.polygon.technology}
   CHAIN_ID: ${CHAIN_ID:-80002}
+  CHAIN_REGISTRY_ADDRESS: ${CHAIN_REGISTRY_ADDRESS:-}
+  CHAIN_CREDIT_ADDRESS: ${CHAIN_CREDIT_ADDRESS:-}
+  CHAIN_MARKETPLACE_ADDRESS: ${CHAIN_MARKETPLACE_ADDRESS:-}
+  CHAIN_USDC_ADDRESS: ${CHAIN_USDC_ADDRESS:-}
+  CHAIN_DEPLOY_BLOCK: ${CHAIN_DEPLOY_BLOCK:-0}
+  CHAIN_PRIORITY_FEE_GWEI: ${CHAIN_PRIORITY_FEE_GWEI:-30}
+  # Later phases (empty until used; unknown variables are ignored by the settings loader).
   PINATA_JWT: ${PINATA_JWT:-}
   PC_SDK_SUBSCRIPTION_KEY: ${PC_SDK_SUBSCRIPTION_KEY:-}
   EARTHDATA_USERNAME: ${EARTHDATA_USERNAME:-}

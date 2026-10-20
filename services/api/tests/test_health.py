@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest
+from cryptography.fernet import Fernet
 from fastapi import Request
 
 from aqua_api.main import create_app
@@ -63,9 +64,13 @@ async def test_docs_hidden_in_production() -> None:
             s3_secret_access_key="z",
             # BIP-39 test vector (no funds); only checks that a non-dev mnemonic is configured.
             relayer_mnemonic=" ".join(["abandon"] * 11 + ["about"]),
+            mfa_encryption_key=Fernet.generate_key().decode(),
         )
     )
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as c:
         assert (await c.get("/docs")).status_code == 404
+        # Strict CSP everywhere in production (no docs exemption needed).
+        health = await c.get("/healthz")
+        assert "default-src 'none'" in health.headers["content-security-policy"]

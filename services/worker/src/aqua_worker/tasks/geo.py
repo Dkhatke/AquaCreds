@@ -19,7 +19,7 @@ import uuid
 import warnings
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -533,6 +533,65 @@ async def build_composite(
         return {"run_id": str(run.id), **outputs}
 
 
+# ---------------------------------------------------------------- stale-run reaper
+
+
+def _stale_error(stale_after: timedelta) -> str:
+    minutes = int(stale_after.total_seconds() // 60)
+    return (
+        f"Run still 'running' after {minutes} min, beyond the Celery hard time limit: the worker "
+        "was killed (time limit, out of memory) or restarted before it could record the outcome. "
+        "Marked failed by aqua.geo.reap_stale_runs; partial outputs are kept. Re-queue the job "
+        "to retry (ingestion is idempotent)."
+    )
+
+
+async def reap_stale_runs(
+    sessionmaker: async_sessionmaker[AsyncSession], *, stale_after: timedelta, now: datetime
+) -> dict[str, Any]:
+    """Mark analysis runs stuck in `running` for longer than `stale_after` as failed (audit-logged).
+
+    A run killed by the hard time limit (SIGKILL) never reaches `_fail_run`, so it would stay
+    `running` forever and block nothing but mislead every reader of its status."""
+    cutoff = now - stale_after
+    async with sessionmaker() as session:
+        runs = (
+            await session.scalars(
+                select(AnalysisRun)
+                .where(
+                    AnalysisRun.status == AnalysisStatus.RUNNING,
+                    func.coalesce(AnalysisRun.started_at, AnalysisRun.created_at) < cutoff,
+                )
+                .order_by(AnalysisRun.started_at)
+                .with_for_update(skip_locked=True)
+            )
+        ).all()
+        error = _stale_error(stale_after)
+        for run in runs:
+            started = run.started_at or run.created_at
+            run.status = AnalysisStatus.FAILED
+            run.error = error
+            run.finished_at = now
+            await audit.record(
+                session,
+                actor_id=None,
+                action="analysis.reaped",
+                entity_type="analysis_run",
+                entity_id=run.id,
+                data={
+                    "project_id": str(run.project_id),
+                    "kind": run.kind.value,
+                    "started_at": started.isoformat(),
+                    "stale_after_min": int(stale_after.total_seconds() // 60),
+                },
+            )
+        await session.commit()
+    run_ids = [str(run.id) for run in runs]
+    if run_ids:
+        log.warning("geo.reaper.reaped", count=len(run_ids), run_ids=run_ids)
+    return {"reaped": len(run_ids), "run_ids": run_ids}
+
+
 # ---------------------------------------------------------------- Celery wrappers
 
 
@@ -604,4 +663,12 @@ def build_composite_task(
                 max_cloud=settings.geo_composite_max_cloud_pct,
             )
         )
+    )
+
+
+@shared_task(name="aqua.geo.reap_stale_runs", soft_time_limit=300, time_limit=360)
+def reap_stale_runs_task() -> dict[str, Any]:
+    stale_after = timedelta(minutes=get_settings().geo_stale_run_timeout_min)
+    return asyncio.run(
+        _with_db(lambda sm: reap_stale_runs(sm, stale_after=stale_after, now=datetime.now(UTC)))
     )

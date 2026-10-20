@@ -17,6 +17,8 @@ dependencies = [
     "geojson-pydantic~=2.2",
     "shapely~=2.2",
     "rfc8785~=0.1.4",
+    "cryptography~=50.0",
+    "pyotp~=2.10",
     "segno~=1.6.6",
 ]
 

@@ -7,7 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from aqua_api import __version__
+from aqua_api.middleware import SecurityHeadersMiddleware
 from aqua_api.queue import enqueue
+from aqua_api.ratelimit import RateLimiter, RedisRateLimitBackend
 from aqua_api.routers import (
     analysis,
     audit,
@@ -39,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             yield
         finally:
+            await app.state.rate_limiter.backend.close()
             await app.state.engine.dispose()
             log.info("api.shutdown")
 
@@ -54,6 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.sessionmaker = session_factory(app.state.engine)
     app.state.storage = S3ObjectStorage(settings)
     app.state.enqueue = enqueue  # replaced by a recorder in tests
+    app.state.rate_limiter = RateLimiter(settings, RedisRateLimitBackend(settings.redis_url))
 
     if settings.cors_origins:
         app.add_middleware(
@@ -63,6 +67,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
             allow_headers=["Authorization", "Content-Type"],
         )
+
+    # Added last = outermost: headers are applied to every response, including CORS preflights.
+    app.add_middleware(
+        SecurityHeadersMiddleware,
+        csp_exempt_paths=(
+            app.docs_url or "",
+            app.redoc_url or "",
+            app.swagger_ui_oauth2_redirect_url or "",
+        ),
+        no_store_prefix="/api/v1/auth",
+    )
 
     app.include_router(health.router)
     for module in (auth, orgs, projects, field, analysis, reports, audit, chain, system, public):
