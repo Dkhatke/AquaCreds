@@ -102,3 +102,34 @@ def test_qr_svg_and_uri() -> None:
     assert uri.startswith("otpauth://totp/AquaCreds:asha%40example.org?secret=JBSWY3DPEHPK3PXP")
     assert "issuer=AquaCreds" in uri
     assert mfa.qr_svg(uri).startswith("<svg")
+
+
+@pytest.mark.parametrize(
+    ("role", "enabled", "required", "expected_role", "reads_all"),
+    [
+        ("verifier", False, True, "user", False),
+        ("verifier", True, True, "verifier", True),
+        ("registry_admin", False, True, "user", False),
+        ("registry_admin", False, False, "registry_admin", True),
+        ("user", False, True, "user", False),
+    ],
+)
+def test_staff_privileges_need_mfa_when_required(
+    role: str, enabled: bool, required: bool, expected_role: str, reads_all: bool
+) -> None:
+    from datetime import UTC, datetime
+
+    from aqua_api.deps import can_read_all_projects, effective_platform_role, mfa_required_for
+    from aqua_core.models import PlatformRole, User
+
+    settings = Settings(_env_file=None, mfa_required_for_staff=required)
+    user = User(
+        email="s@example.org",
+        full_name="Staff",
+        password_hash="x",
+        platform_role=PlatformRole(role),
+        mfa_enabled_at=datetime.now(UTC) if enabled else None,
+    )
+    assert effective_platform_role(user, settings) == PlatformRole(expected_role)
+    assert can_read_all_projects(user, settings) is reads_all
+    assert mfa_required_for(user, settings) is (required and role != "user")

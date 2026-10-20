@@ -1,5 +1,5 @@
 """Registration, login (+ TOTP second factor), token refresh (rotation with reuse detection),
-logout, current user, and MFA enrolment.
+logout, current user, MFA enrolment, status and recovery-code regeneration.
 
 Rate limits (Valkey, see `aqua_api.ratelimit`): per IP on register/login/refresh/MFA, plus per
 account on login (email) and on every TOTP/recovery-code check (user id, shared bucket).
@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aqua_api import mfa
-from aqua_api.deps import CurrentUser, SessionDep, SettingsDep
+from aqua_api.deps import CurrentUser, SessionDep, SettingsDep, mfa_required_for
 from aqua_api.ratelimit import RateLimiter, get_rate_limiter, ip_limit
 from aqua_api.schemas.identity import (
     LoginIn,
@@ -25,6 +25,7 @@ from aqua_api.schemas.identity import (
     MfaCodeIn,
     MfaEnabledOut,
     MfaSetupOut,
+    MfaStatusOut,
     MfaVerifyIn,
     RefreshIn,
     RegisterIn,
@@ -51,6 +52,9 @@ _BAD_MFA_TOKEN = HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired
 _BAD_CODE = HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid authentication code")
 
 LimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
+
+# Token responses after a recovery-code sign-in report the remaining count at or below this.
+LOW_RECOVERY_CODES = 2
 
 
 async def _issue_tokens(
@@ -117,9 +121,10 @@ async def login(
 
 async def _consume_code(
     session: AsyncSession, user: User, code: str, settings: Settings, *, allow_recovery: bool
-) -> str:
+) -> int | None:
     """Check a TOTP code (current step ±1, never a step already used) or, if allowed, an unused
-    recovery code, and mark it used. Returns "totp" or "recovery"; raises 401 otherwise.
+    recovery code, and mark it used. Returns None for a TOTP code, or the number of recovery
+    codes still unused after a recovery code; raises 401 otherwise.
     The caller must hold the user row lock (SELECT ... FOR UPDATE) and commit."""
     if user.mfa_secret_encrypted is None:
         raise _BAD_CODE
@@ -129,7 +134,7 @@ async def _consume_code(
         if user.mfa_last_used_step is not None and step <= user.mfa_last_used_step:
             raise _BAD_CODE  # replay of an already accepted (or older) code
         user.mfa_last_used_step = step
-        return "totp"
+        return None
     if allow_recovery and mfa.looks_like_recovery_code(code):
         recovery = await session.scalar(
             select(MfaRecoveryCode)
@@ -157,7 +162,7 @@ async def _consume_code(
                 entity_id=user.id,
                 data={"remaining": int(remaining or 0)},
             )
-            return "recovery"
+            return int(remaining or 0)
     raise _BAD_CODE
 
 
@@ -173,13 +178,15 @@ async def _lock_user(session: AsyncSession, user_id: uuid.UUID) -> User | None:
 @router.post(
     "/mfa/verify",
     response_model=TokenPair,
+    response_model_exclude_none=True,
     dependencies=[Depends(ip_limit("mfa", "rate_limit_mfa_ip"))],
 )
 async def mfa_verify(
     body: MfaVerifyIn, session: SessionDep, settings: SettingsDep, limiter: LimiterDep
 ) -> TokenPair:
     """Second login step: exchange the `mfa_token` from /auth/login + a TOTP or recovery code
-    for the token pair."""
+    for the token pair. After a recovery code, `recovery_codes_remaining` is included when
+    LOW_RECOVERY_CODES or fewer remain (regenerate with POST /auth/mfa/recovery-codes)."""
     try:
         user_id = uuid.UUID(mfa.decode_mfa_token(body.mfa_token, settings)["sub"])
     except (jwt.PyJWTError, ValueError, KeyError) as exc:
@@ -189,13 +196,46 @@ async def mfa_verify(
     if user is None or not user.is_active or user.mfa_enabled_at is None:
         raise _BAD_MFA_TOKEN
     try:
-        await _consume_code(session, user, body.code, settings, allow_recovery=True)
+        remaining = await _consume_code(session, user, body.code, settings, allow_recovery=True)
     except HTTPException:
         await session.rollback()
         raise
     tokens = await _issue_tokens(session, user, settings)
     await session.commit()
+    if remaining is not None and remaining <= LOW_RECOVERY_CODES:
+        tokens.recovery_codes_remaining = remaining
     return tokens
+
+
+async def _unused_recovery_codes(session: AsyncSession, user_id: uuid.UUID) -> int:
+    count = await session.scalar(
+        select(sa_func.count(MfaRecoveryCode.id)).where(
+            MfaRecoveryCode.user_id == user_id, MfaRecoveryCode.used_at.is_(None)
+        )
+    )
+    return int(count or 0)
+
+
+async def _replace_recovery_codes(session: AsyncSession, user_id: uuid.UUID) -> list[str]:
+    """Delete every recovery code of the user and store hashes of 10 new ones (returned once)."""
+    codes = mfa.new_recovery_codes()
+    await session.execute(delete(MfaRecoveryCode).where(MfaRecoveryCode.user_id == user_id))
+    session.add_all(
+        MfaRecoveryCode(user_id=user_id, code_hash=mfa.hash_recovery_code(c)) for c in codes
+    )
+    return codes
+
+
+@router.get("/mfa", response_model=MfaStatusOut)
+async def mfa_status(user: CurrentUser, session: SessionDep, settings: SettingsDep) -> MfaStatusOut:
+    """Two-factor status of the signed-in account (never the secret or the codes)."""
+    enabled = user.mfa_enabled_at is not None
+    return MfaStatusOut(
+        enabled=enabled,
+        enabled_at=user.mfa_enabled_at,
+        recovery_codes_remaining=await _unused_recovery_codes(session, user.id) if enabled else 0,
+        required=mfa_required_for(user, settings),
+    )
 
 
 @router.post("/mfa/setup", response_model=MfaSetupOut)
@@ -241,11 +281,7 @@ async def mfa_enable(
         raise
     now = utcnow()
     locked.mfa_enabled_at = now
-    codes = mfa.new_recovery_codes()
-    await session.execute(delete(MfaRecoveryCode).where(MfaRecoveryCode.user_id == locked.id))
-    session.add_all(
-        MfaRecoveryCode(user_id=locked.id, code_hash=mfa.hash_recovery_code(c)) for c in codes
-    )
+    codes = await _replace_recovery_codes(session, locked.id)
     await session.execute(
         update(RefreshToken)
         .where(RefreshToken.user_id == locked.id, RefreshToken.revoked_at.is_(None))
@@ -257,6 +293,43 @@ async def mfa_enable(
         action="auth.mfa_enabled",
         entity_type="user",
         entity_id=locked.id,
+    )
+    await session.commit()
+    return MfaEnabledOut(recovery_codes=codes)
+
+
+@router.post(
+    "/mfa/recovery-codes",
+    response_model=MfaEnabledOut,
+    dependencies=[Depends(ip_limit("mfa", "rate_limit_mfa_ip"))],
+)
+async def mfa_regenerate_recovery_codes(
+    body: MfaCodeIn,
+    user: CurrentUser,
+    session: SessionDep,
+    settings: SettingsDep,
+    limiter: LimiterDep,
+) -> MfaEnabledOut:
+    """Replace the recovery codes: a current TOTP code (not a recovery code) is required. Every
+    old code stops working; the 10 new codes are shown once (only their hashes are stored)."""
+    await limiter.enforce_account("mfa", settings.rate_limit_mfa_account, str(user.id))
+    locked = await _lock_user(session, user.id)
+    if locked is None or locked.mfa_enabled_at is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Two-factor authentication is not enabled")
+    try:
+        await _consume_code(session, locked, body.code, settings, allow_recovery=False)
+    except HTTPException:
+        await session.rollback()
+        raise
+    previous_unused = await _unused_recovery_codes(session, locked.id)
+    codes = await _replace_recovery_codes(session, locked.id)
+    await audit.record(
+        session,
+        actor_id=locked.id,
+        action="auth.mfa_recovery_codes_regenerated",
+        entity_type="user",
+        entity_id=locked.id,
+        data={"issued": len(codes), "invalidated_unused": previous_unused},
     )
     await session.commit()
     return MfaEnabledOut(recovery_codes=codes)

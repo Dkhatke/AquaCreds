@@ -37,6 +37,10 @@ class TokenPair(BaseModel):
     refresh_token: str
     token_type: str = "bearer"  # noqa: S105 (OAuth2 token type, not a secret)
     expires_in: int
+    recovery_codes_remaining: int | None = Field(
+        default=None,
+        description="Set only when a recovery code was used and few remain: regenerate them",
+    )
 
 
 class MfaChallenge(BaseModel):
@@ -64,6 +68,15 @@ class MfaSetupOut(BaseModel):
 
 class MfaEnabledOut(BaseModel):
     recovery_codes: list[str] = Field(description="Shown once; each code works once")
+
+
+class MfaStatusOut(BaseModel):
+    enabled: bool
+    enabled_at: datetime | None
+    recovery_codes_remaining: int = Field(description="Unused recovery codes")
+    required: bool = Field(
+        description="True when this account must have MFA (staff while MFA_REQUIRED_FOR_STAFF)"
+    )
 
 
 class MembershipOut(BaseModel):

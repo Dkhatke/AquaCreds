@@ -12,6 +12,7 @@ from sqlalchemy import select
 from aqua_api.deps import (
     CurrentUser,
     SessionDep,
+    SettingsDep,
     can_read_all_projects,
     org_role,
     require_platform_role,
@@ -69,10 +70,12 @@ def _relayer(request: Request) -> Relayer:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
 
 
-async def _visible_project(session: SessionDep, project_id: uuid.UUID, user: User) -> Project:
+async def _visible_project(
+    session: SessionDep, project_id: uuid.UUID, user: User, settings: Settings
+) -> Project:
     project = await session.get(Project, project_id)
     if project is None or (
-        org_role(user, project.org_id) is None and not can_read_all_projects(user)
+        org_role(user, project.org_id) is None and not can_read_all_projects(user, settings)
     ):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     return project
@@ -117,12 +120,12 @@ async def register_project_on_chain(
 
 @router.get("/chain/transactions/{tx_id}", response_model=ChainTxOut)
 async def get_transaction(
-    tx_id: uuid.UUID, user: CurrentUser, session: SessionDep
+    tx_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> ChainTransaction:
     tx = await session.get(ChainTransaction, tx_id)
     if tx is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Transaction not found")
-    if not can_read_all_projects(user):
+    if not can_read_all_projects(user, settings):
         project = (
             await session.get(Project, uuid.UUID(tx.entity_id))
             if tx.entity_type == "project"
@@ -135,9 +138,9 @@ async def get_transaction(
 
 @router.get("/projects/{project_id}/chain", response_model=ProjectChainOut)
 async def project_chain(
-    project_id: uuid.UUID, user: CurrentUser, session: SessionDep
+    project_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> ProjectChainOut:
-    project = await _visible_project(session, project_id, user)
+    project = await _visible_project(session, project_id, user, settings)
     key = to_hex(project_id_bytes32(project.id))
     txs = await session.scalars(
         select(ChainTransaction)
