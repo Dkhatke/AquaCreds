@@ -26,6 +26,7 @@ class Deployment:
     marketplace: str
     usdc: str
     block: int
+    forward_fund: str | None = None
 
     def settings(self, rpc_url: str, **overrides: Any) -> dict[str, Any]:
         values: dict[str, Any] = {
@@ -35,6 +36,7 @@ class Deployment:
             "chain_credit_address": self.credit,
             "chain_marketplace_address": self.marketplace,
             "chain_usdc_address": self.usdc,
+            "chain_forward_fund_address": self.forward_fund,
             "chain_deploy_block": self.block,
             "relayer_mnemonic": ANVIL_DEV_MNEMONIC,
             "chain_confirmations": 2,
@@ -104,6 +106,25 @@ async def deploy_suite(rpc_url: str) -> Deployment:
     )
     await w3.provider.disconnect()  # type: ignore[attr-defined]
     return Deployment(registry=registry, credit=credit, marketplace=market, usdc=usdc, block=start)
+
+
+async def deploy_forward_fund(rpc_url: str, deployment: Deployment) -> Deployment:
+    """Add AquaForwardFund (admin = account 0) to a deployed suite."""
+    w3 = w3_for(rpc_url)
+    deployer: LocalAccount = Account.from_key(signers().derive(0).key)
+    try:
+        deployment.forward_fund = await _deploy(
+            w3,
+            deployer,
+            "AquaForwardFund",
+            deployer.address,
+            deployment.registry,
+            deployment.credit,
+            deployment.usdc,
+        )
+    finally:
+        await w3.provider.disconnect()  # type: ignore[attr-defined]
+    return deployment
 
 
 async def mine(rpc_url: str, blocks: int = 1) -> None:

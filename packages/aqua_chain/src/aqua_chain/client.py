@@ -48,6 +48,7 @@ class ChainClient:
                 "AquaCredit": settings.chain_credit_address,
                 "AquaMarketplace": settings.chain_marketplace_address,
                 "MockUSDC": settings.chain_usdc_address,
+                "AquaForwardFund": settings.chain_forward_fund_address,
             },
         )
 

@@ -16,6 +16,7 @@ from aqua_api.routers import (
     auth,
     chain,
     field,
+    forward_fund,
     health,
     orgs,
     projects,
@@ -80,7 +81,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     app.include_router(health.router)
-    for module in (auth, orgs, projects, field, analysis, reports, audit, chain, system, public):
+    for module in (
+        auth,
+        orgs,
+        projects,
+        field,
+        analysis,
+        reports,
+        audit,
+        chain,
+        forward_fund,
+        system,
+        public,
+    ):
         app.include_router(module.router, prefix="/api/v1")
     return app
 

@@ -12,11 +12,18 @@ max(node pending nonce, highest nonce the DB holds for that sender + 1). The sig
 (nonce, hash, raw bytes) is committed *before* broadcast, so a lost RPC response is retried by
 re-broadcasting the same bytes and can never produce a second transaction with a fresh nonce. A
 partial unique index on (chain_id, from_address, nonce) backs this up in the database.
+
+Custodial organisation wallets: a transaction queued with `org_wallet=` is signed by that
+organisation's HD-derived wallet (e.g. a forward-fund offer, where the org wallet is the on-chain
+project owner). Its `signer` is `org_wallet` and `from_address` is the org wallet; the key is
+derived from its `OrgWallet` row at submit time. Platform-role transactions never fall back to an
+org wallet key, and org-wallet transactions never use a platform-role key.
 """
 
 from dataclasses import dataclass
 from typing import Any
 
+from eth_account.signers.local import LocalAccount
 from eth_typing import HexStr
 from eth_utils.crypto import keccak
 from sqlalchemy import func, select, text
@@ -37,7 +44,13 @@ from aqua_chain.events import EventDecoder
 from aqua_chain.wallets import Signers
 from aqua_core import audit
 from aqua_core.logging import get_logger
-from aqua_core.models import ChainSigner, ChainTransaction, ChainTxPurpose, ChainTxStatus
+from aqua_core.models import (
+    ChainSigner,
+    ChainTransaction,
+    ChainTxPurpose,
+    ChainTxStatus,
+    OrgWallet,
+)
 from aqua_core.models._types import utcnow
 from aqua_core.models.chain import NONCE_HOLDING_STATUSES
 from aqua_core.settings import Settings
@@ -114,16 +127,27 @@ class Relayer:
         function: str,
         args: list[Any],
         requested_by: Any = None,
+        org_wallet: OrgWallet | None = None,
     ) -> ChainTransaction:
-        """Create a `queued` transaction in the caller's session (caller commits)."""
+        """Create a `queued` transaction in the caller's session (caller commits). With
+        `org_wallet`, the transaction is signed by that custodial organisation wallet."""
         from_json_args(artifacts.function_abi(contract, function)["inputs"], args)  # validate
+        if (org_wallet is not None) != (signer == ChainSigner.ORG_WALLET):
+            raise ChainError("signer 'org_wallet' requires org_wallet=, and only it may use one")
+        if org_wallet is not None:
+            derived = self.signers.derive(org_wallet.derivation_index).address
+            if derived.lower() != org_wallet.address.lower():
+                raise ChainError(
+                    f"org wallet {org_wallet.address} does not match derivation index "
+                    f"{org_wallet.derivation_index}"
+                )
         tx = ChainTransaction(
             chain_id=self.client.chain_id,
             purpose=purpose,
             entity_type=entity_type,
             entity_id=entity_id,
             signer=signer,
-            from_address=self.signers.address(signer),
+            from_address=org_wallet.address if org_wallet else self.signers.address(signer),
             to_address=self.client.address_of(contract),
             contract=contract,
             function=function,
@@ -153,13 +177,12 @@ class Relayer:
                 raise LookupError(f"chain transaction {tx_id} not found")
             if tx.status is not ChainTxStatus.QUEUED:
                 return tx.status
-            problem = self._config_problem(tx)
-            if problem:
+            account, problem = await self._signing_account(session, tx)
+            if problem or account is None:
                 await self._finish(session, tx, ChainTxStatus.FAILED, error=problem)
                 await session.commit()
                 return ChainTxStatus.FAILED
 
-            account = self.signers.account(tx.signer)
             contract = self.client.contract(tx.contract)
             inputs = artifacts.function_abi(tx.contract, tx.function)["inputs"]
             fn = contract.get_function_by_name(tx.function)(*from_json_args(inputs, tx.args))
@@ -266,14 +289,35 @@ class Relayer:
 
     # ------------------------------------------------------------ internals
 
-    def _config_problem(self, tx: ChainTransaction) -> str | None:
+    async def _signing_account(
+        self, session: AsyncSession, tx: ChainTransaction
+    ) -> tuple[LocalAccount | None, str | None]:
+        """The key that signs `tx`: its platform role's, or (when `from_address` is a custodial
+        organisation wallet) that wallet's. Returns (None, problem) on a configuration mismatch."""
         if tx.chain_id != self.client.chain_id:
-            return f"queued for chain {tx.chain_id}, relayer is on chain {self.client.chain_id}"
-        if self.signers.address(tx.signer).lower() != tx.from_address.lower():
-            return f"{tx.signer} key no longer derives {tx.from_address}"
+            return (
+                None,
+                f"queued for chain {tx.chain_id}, relayer is on chain {self.client.chain_id}",
+            )
         if self.client.address_of(tx.contract).lower() != tx.to_address.lower():
-            return f"{tx.contract} address changed since the transaction was queued"
-        return None
+            return None, f"{tx.contract} address changed since the transaction was queued"
+        if tx.signer != ChainSigner.ORG_WALLET:
+            role_account = self.signers.account(tx.signer)
+            if role_account.address.lower() == tx.from_address.lower():
+                return role_account, None
+            return None, f"{tx.signer} key no longer derives {tx.from_address}"
+        wallet = await session.scalar(
+            select(OrgWallet).where(func.lower(OrgWallet.address) == tx.from_address.lower())
+        )
+        if wallet is None:
+            return None, f"no org wallet {tx.from_address}"
+        account = self.signers.derive(wallet.derivation_index)
+        if account.address.lower() == tx.from_address.lower():
+            return account, None
+        return (
+            None,
+            f"org wallet index {wallet.derivation_index} no longer derives {tx.from_address}",
+        )
 
     async def _next_nonce(self, session: AsyncSession, tx: ChainTransaction) -> int:
         chain_nonce = await self.client.pending_nonce(tx.from_address)

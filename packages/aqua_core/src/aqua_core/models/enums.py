@@ -124,6 +124,8 @@ class ChainTxPurpose(StrEnum):
     APPROVE_REPORT = "approve_report"
     REJECT_REPORT = "reject_report"
     ISSUE_CREDITS = "issue_credits"
+    FORWARD_FUND_OFFER = "forward_fund_offer"
+    FORWARD_FUND_WITHDRAW = "forward_fund_withdraw"
     OTHER = "other"
 
 
@@ -133,6 +135,7 @@ class ChainSigner(StrEnum):
     REGISTRAR = "registrar"
     VERIFIER = "verifier"
     ISSUER = "issuer"
+    ORG_WALLET = "org_wallet"  # a custodial organisation wallet (e.g. a forward-fund offer)
 
 
 class SubmissionStatus(StrEnum):
