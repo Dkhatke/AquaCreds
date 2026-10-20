@@ -143,10 +143,22 @@ class PublicProjectDetail(PublicProjectSummary):
     vintages: list["VintageOut"]
 
 
+# Public time-series indices: the optical indices, plus two Sentinel-1 per-pass P50 aggregates.
+PublicSarIndex = Literal["rvi", "vh_db"]
+PublicTimeseriesIndex = Literal[
+    "ndvi", "evi", "mvi", "ndwi", "mndwi", "ndmi", "cmri", PublicSarIndex
+]
+
+
 class PublicTimeseriesPoint(BaseModel):
+    """Sentinel-2: one clear scene. Sentinel-1 (`rvi`, `vh_db`): one radar pass, P50 only (mean and
+    percentiles are null), `item_id` is the acquisition key and `valid_fraction` replaces
+    `clear_fraction`."""
+
     date: date
-    item_id: str  # public STAC scene id
-    clear_fraction: float
+    item_id: str  # public STAC scene id / Sentinel-1 acquisition key
+    clear_fraction: float | None
+    valid_fraction: float | None = None
     valid_pixels: int
     mean: float | None
     p10: float | None
@@ -157,7 +169,9 @@ class PublicTimeseriesPoint(BaseModel):
 class PublicTimeseries(BaseModel):
     project_id: uuid.UUID
     index: str
-    min_clear_fraction: float
+    sensor: Literal["sentinel-2-l2a", "sentinel-1-rtc"] = "sentinel-2-l2a"
+    note: str  # radar and optical values are not comparable
+    min_clear_fraction: float  # applied to valid_fraction for Sentinel-1
     points: list[PublicTimeseriesPoint]
 
 

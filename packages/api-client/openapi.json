@@ -44,7 +44,8 @@
       },
       "AlertKind": {
         "enum": [
-          "vegetation_loss"
+          "vegetation_loss",
+          "sar_backscatter_drop"
         ],
         "title": "AlertKind",
         "type": "string"
@@ -3695,6 +3696,10 @@
             "title": "Min Clear Fraction",
             "type": "number"
           },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
           "points": {
             "items": {
               "$ref": "#/components/schemas/PublicTimeseriesPoint"
@@ -3706,11 +3711,21 @@
             "format": "uuid",
             "title": "Project Id",
             "type": "string"
+          },
+          "sensor": {
+            "default": "sentinel-2-l2a",
+            "enum": [
+              "sentinel-2-l2a",
+              "sentinel-1-rtc"
+            ],
+            "title": "Sensor",
+            "type": "string"
           }
         },
         "required": [
           "project_id",
           "index",
+          "note",
           "min_clear_fraction",
           "points"
         ],
@@ -3718,10 +3733,18 @@
         "type": "object"
       },
       "PublicTimeseriesPoint": {
+        "description": "Sentinel-2: one clear scene. Sentinel-1 (`rvi`, `vh_db`): one radar pass, P50 only (mean and\npercentiles are null), `item_id` is the acquisition key and `valid_fraction` replaces\n`clear_fraction`.",
         "properties": {
           "clear_fraction": {
-            "title": "Clear Fraction",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clear Fraction"
           },
           "date": {
             "format": "date",
@@ -3775,6 +3798,17 @@
               }
             ],
             "title": "P90"
+          },
+          "valid_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Fraction"
           },
           "valid_pixels": {
             "title": "Valid Pixels",
@@ -5413,7 +5447,11 @@
               "ndwi",
               "mndwi",
               "ndmi",
-              "cmri"
+              "cmri",
+              "vh_db",
+              "vv_db",
+              "vh_vv_ratio_db",
+              "rvi"
             ],
             "title": "Index",
             "type": "string"
@@ -5421,6 +5459,10 @@
           "min_clear_fraction": {
             "title": "Min Clear Fraction",
             "type": "number"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
           },
           "points": {
             "items": {
@@ -5433,11 +5475,26 @@
             "format": "uuid",
             "title": "Project Id",
             "type": "string"
+          },
+          "sensor": {
+            "enum": [
+              "sentinel-2-l2a",
+              "sentinel-1-rtc"
+            ],
+            "title": "Sensor",
+            "type": "string"
+          },
+          "units": {
+            "title": "Units",
+            "type": "string"
           }
         },
         "required": [
           "project_id",
           "index",
+          "sensor",
+          "units",
+          "note",
           "min_clear_fraction",
           "points"
         ],
@@ -5445,6 +5502,7 @@
         "type": "object"
       },
       "TimeseriesPoint": {
+        "description": "One Sentinel-2 scene or one Sentinel-1 pass. For Sentinel-1, `item_id` is the acquisition\nkey, `clear_fraction`/`cloud_cover` are null and `valid_fraction` is the share of polygon\npixels with valid backscatter; for Sentinel-2 the SAR-only fields are null.",
         "properties": {
           "acquired_at": {
             "format": "date-time",
@@ -5452,8 +5510,15 @@
             "type": "string"
           },
           "clear_fraction": {
-            "title": "Clear Fraction",
-            "type": "number"
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clear Fraction"
           },
           "cloud_cover": {
             "anyOf": [
@@ -5485,6 +5550,17 @@
               }
             ],
             "title": "Mean"
+          },
+          "orbit_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orbit State"
           },
           "p10": {
             "anyOf": [
@@ -5518,6 +5594,28 @@
               }
             ],
             "title": "P90"
+          },
+          "relative_orbit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Orbit"
+          },
+          "valid_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Fraction"
           },
           "valid_pixels": {
             "title": "Valid Pixels",
@@ -8648,7 +8746,7 @@
     },
     "/api/v1/projects/{project_id}/timeseries": {
       "get": {
-        "description": "Per-scene zonal statistics of one index. Every point carries its clear fraction so\nclients can tell a real decline from a cloudy scene (filter with `min_clear`).",
+        "description": "Per-scene zonal statistics of one index. Every point carries its clear fraction so\nclients can tell a real decline from a cloudy scene (filter with `min_clear`).\n\nSentinel-1 indices (`vh_db`, `vv_db`, `vh_vv_ratio_db`, `rvi`) return one point per radar\npass with its valid fraction: per-polygon P50 (plus mean/P10/P90) after a 3×3 speckle filter.\nRadar backscatter and optical indices are NOT comparable and must not be mixed.",
         "operationId": "timeseries_api_v1_projects__project_id__timeseries_get",
         "parameters": [
           {
@@ -8674,7 +8772,11 @@
                 "ndwi",
                 "mndwi",
                 "ndmi",
-                "cmri"
+                "cmri",
+                "vh_db",
+                "vv_db",
+                "vh_vv_ratio_db",
+                "rvi"
               ],
               "title": "Index",
               "type": "string"
@@ -8715,11 +8817,13 @@
             }
           },
           {
+            "description": "Minimum clear fraction (Sentinel-2) or valid fraction (Sentinel-1)",
             "in": "query",
             "name": "min_clear",
             "required": false,
             "schema": {
               "default": 0.0,
+              "description": "Minimum clear fraction (Sentinel-2) or valid fraction (Sentinel-1)",
               "maximum": 1,
               "minimum": 0,
               "title": "Min Clear",
@@ -8910,7 +9014,7 @@
     },
     "/api/v1/public/projects/{project_id}/timeseries": {
       "get": {
-        "description": "Project-level zonal statistics per Sentinel-2 scene (clear scenes only).",
+        "description": "Project-level zonal statistics per Sentinel-2 scene (clear scenes only).\n\n`rvi` and `vh_db` return Sentinel-1 per-pass polygon medians (P50 aggregates only, passes with\nvalid fraction >= `min_clear`). Radar and optical values are not comparable.",
         "operationId": "project_timeseries_api_v1_public_projects__project_id__timeseries_get",
         "parameters": [
           {
@@ -8936,7 +9040,9 @@
                 "ndwi",
                 "mndwi",
                 "ndmi",
-                "cmri"
+                "cmri",
+                "rvi",
+                "vh_db"
               ],
               "title": "Index",
               "type": "string"

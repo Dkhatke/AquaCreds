@@ -23,7 +23,7 @@ POSTGIS_IMAGE = "imresamu/postgis:17-3.6"
 ANVIL_IMAGE = "ghcr.io/foundry-rs/foundry:v1.7.0"
 TABLES = (
     "mrv_reports, chain_events, chain_cursors, chain_transactions, org_wallets, "
-    "mfa_recovery_codes, audit_log, alerts, scene_observations, analysis_runs, "
+    "mfa_recovery_codes, audit_log, alerts, sar_observations, scene_observations, analysis_runs, "
     "plot_measurements, field_submissions, capture_nonces, plots, monitoring_periods, "
     "tenure_documents, projects, refresh_tokens, memberships, organizations, users"
 )

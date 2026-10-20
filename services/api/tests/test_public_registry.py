@@ -12,7 +12,7 @@ import httpx
 import pytest
 import rfc8785
 import segno
-from api_testlib import project_payload, square
+from api_testlib import insert_sar_observation, project_payload, square
 from shapely.geometry import shape
 
 from aqua_chain.encoding import project_id_bytes32, to_hex
@@ -379,6 +379,45 @@ async def test_project_detail_aggregates(world: World, client: httpx.AsyncClient
     ).status_code == 422  # cannot lower the public clear-sky floor
     evi = (await client.get(f"/public/projects/{pid}/timeseries", params={"index": "evi"})).json()
     assert evi["points"] == []
+
+
+async def test_public_timeseries_exposes_sar_p50_aggregates_only(
+    world: World, client: httpx.AsyncClient, sql: Any
+) -> None:
+    pid = world.projects["registered"]
+    await insert_sar_observation(sql, pid, "2024-07-05", vh_db=-15.2, rvi=0.61)
+    await insert_sar_observation(sql, pid, "2024-07-17", vh_db=-16.0, valid_fraction=0.3)
+
+    r = await client.get(f"/public/projects/{pid}/timeseries", params={"index": "rvi"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert (body["sensor"], body["min_clear_fraction"]) == ("sentinel-1-rtc", 0.5)
+    assert "not compar" in body["note"]
+    assert body["points"] == [
+        {
+            "date": "2024-07-05",
+            "item_id": "S1A_20240705_120000",
+            "clear_fraction": None,
+            "valid_fraction": 1.0,
+            "valid_pixels": 360,
+            "mean": None,
+            "p10": None,
+            "p50": 0.61,
+            "p90": None,
+        }
+    ]  # the mostly-invalid pass is below the public floor
+    vh = (await client.get(f"/public/projects/{pid}/timeseries", params={"index": "vh_db"})).json()
+    assert [p["p50"] for p in vh["points"]] == [-15.2]
+    for index in ("vv_db", "vh_vv_ratio_db"):  # authenticated API only
+        bad = await client.get(f"/public/projects/{pid}/timeseries", params={"index": index})
+        assert bad.status_code == 422
+    optical = (await client.get(f"/public/projects/{pid}/timeseries")).json()
+    assert (optical["sensor"], optical["points"]) == ("sentinel-2-l2a", [])
+    hidden = world.projects["draft"]
+    await insert_sar_observation(sql, hidden, "2024-07-05")
+    assert (
+        await client.get(f"/public/projects/{hidden}/timeseries", params={"index": "rvi"})
+    ).status_code == 404
 
 
 async def test_boundary_is_simplified_and_valid(

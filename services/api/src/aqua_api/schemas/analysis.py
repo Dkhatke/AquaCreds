@@ -1,12 +1,35 @@
 import uuid
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from aqua_core.models import AlertKind, AlertSeverity, AnalysisKind, AnalysisStatus
 
-TimeseriesIndex = Literal["ndvi", "evi", "mvi", "ndwi", "mndwi", "ndmi", "cmri"]
+OpticalIndex = Literal["ndvi", "evi", "mvi", "ndwi", "mndwi", "ndmi", "cmri"]
+# Sentinel-1 RTC backscatter metrics (terrain-corrected gamma0): VH and VV in dB, the VH/VV ratio in
+# dB (VH dB − VV dB) and the dual-pol radar vegetation index RVI = 4·VH/(VV+VH) (linear).
+SarIndex = Literal["vh_db", "vv_db", "vh_vv_ratio_db", "rvi"]
+TimeseriesIndex = Literal[OpticalIndex, SarIndex]
+SAR_INDICES: frozenset[str] = frozenset(get_args(SarIndex))
+# API index name → key in `sar_observations.stats` (aqua_geo.sentinel1.SAR_METRICS)
+SAR_STATS_KEY: dict[str, str] = {
+    "vh_db": "vh_db",
+    "vv_db": "vv_db",
+    "vh_vv_ratio_db": "vh_vv_db",
+    "rvi": "rvi",
+}
+Sensor = Literal["sentinel-2-l2a", "sentinel-1-rtc"]
+SAR_UNITS: dict[str, str] = {
+    "vh_db": "dB (10·log10 gamma0)",
+    "vv_db": "dB (10·log10 gamma0)",
+    "vh_vv_ratio_db": "dB (VH dB − VV dB)",
+    "rvi": "unitless, 0–2 (4·VH/(VV+VH), linear gamma0)",
+}
+NOT_COMPARABLE = (
+    "Sentinel-1 radar backscatter (structure, moisture, inundation) and Sentinel-2 optical indices "
+    "(reflectance) measure different things on different scales: do not compare or mix their values."
+)
 
 
 class BackfillRequest(BaseModel):
@@ -36,11 +59,18 @@ class AnalysisRunOut(BaseModel):
 
 
 class TimeseriesPoint(BaseModel):
+    """One Sentinel-2 scene or one Sentinel-1 pass. For Sentinel-1, `item_id` is the acquisition
+    key, `clear_fraction`/`cloud_cover` are null and `valid_fraction` is the share of polygon
+    pixels with valid backscatter; for Sentinel-2 the SAR-only fields are null."""
+
     date: date
     acquired_at: datetime
     item_id: str
-    clear_fraction: float
+    clear_fraction: float | None
     cloud_cover: float | None
+    valid_fraction: float | None = None
+    orbit_state: str | None = None
+    relative_orbit: int | None = None
     valid_pixels: int
     mean: float | None
     p10: float | None
@@ -51,7 +81,10 @@ class TimeseriesPoint(BaseModel):
 class TimeseriesOut(BaseModel):
     project_id: uuid.UUID
     index: TimeseriesIndex
-    min_clear_fraction: float
+    sensor: Sensor
+    units: str
+    note: str  # SAR and optical indices are not comparable
+    min_clear_fraction: float  # applied to valid_fraction for Sentinel-1 indices
     points: list[TimeseriesPoint]
 
 

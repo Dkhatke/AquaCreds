@@ -28,7 +28,7 @@ from sqlalchemy import func, select
 from starlette.concurrency import run_in_threadpool
 
 from aqua_api.deps import SessionDep, SettingsDep, StorageDep
-from aqua_api.schemas.analysis import TimeseriesIndex
+from aqua_api.schemas.analysis import NOT_COMPARABLE, SAR_STATS_KEY
 from aqua_api.schemas.public import (
     BoundaryInfo,
     Page,
@@ -40,6 +40,7 @@ from aqua_api.schemas.public import (
     PublicReport,
     PublicReportDetail,
     PublicTimeseries,
+    PublicTimeseriesIndex,
     PublicTimeseriesPoint,
     ReportDownloadLinks,
     RetirementDetail,
@@ -59,6 +60,7 @@ from aqua_core.models import (
     Organization,
     Project,
     ProjectStatus,
+    SarObservation,
     SceneObservation,
 )
 
@@ -187,11 +189,16 @@ async def project_timeseries(
     project_id: uuid.UUID,
     request: Request,
     session: SessionDep,
-    index: TimeseriesIndex = "ndvi",
+    index: PublicTimeseriesIndex = "ndvi",
     min_clear: Annotated[float, Query(ge=reg.PUBLIC_MIN_CLEAR, le=1)] = reg.PUBLIC_MIN_CLEAR,
 ) -> Response:
-    """Project-level zonal statistics per Sentinel-2 scene (clear scenes only)."""
+    """Project-level zonal statistics per Sentinel-2 scene (clear scenes only).
+
+    `rvi` and `vh_db` return Sentinel-1 per-pass polygon medians (P50 aggregates only, passes with
+    valid fraction >= `min_clear`). Radar and optical values are not comparable."""
     await _public_project(session, project_id)
+    if index in ("rvi", "vh_db"):
+        return cached(request, await _public_sar_series(session, project_id, index, min_clear))
     rows = await session.scalars(
         select(SceneObservation)
         .where(
@@ -220,8 +227,55 @@ async def project_timeseries(
     return cached(
         request,
         PublicTimeseries(
-            project_id=project_id, index=index, min_clear_fraction=min_clear, points=points
+            project_id=project_id,
+            index=index,
+            note=NOT_COMPARABLE,
+            min_clear_fraction=min_clear,
+            points=points,
         ),
+    )
+
+
+async def _public_sar_series(
+    session: SessionDep, project_id: uuid.UUID, index: str, min_valid: float
+) -> PublicTimeseries:
+    key = SAR_STATS_KEY[index]
+    rows = await session.execute(
+        select(
+            SarObservation.acquired_on,
+            SarObservation.acquisition_key,
+            SarObservation.valid_fraction,
+            SarObservation.stats[key]["p50"].as_float().label("p50"),
+            SarObservation.stats[key]["valid_pixels"].as_integer().label("valid_pixels"),
+        )
+        .where(
+            SarObservation.project_id == project_id,
+            SarObservation.valid_fraction >= min_valid,
+            SarObservation.stats[key]["p50"].isnot(None),
+        )
+        .order_by(SarObservation.acquired_at, SarObservation.acquisition_key)
+    )
+    points = [
+        PublicTimeseriesPoint(
+            date=r.acquired_on,
+            item_id=r.acquisition_key,
+            clear_fraction=None,
+            valid_fraction=r.valid_fraction,
+            valid_pixels=r.valid_pixels or 0,
+            mean=None,
+            p10=None,
+            p50=r.p50,
+            p90=None,
+        )
+        for r in rows
+    ]
+    return PublicTimeseries(
+        project_id=project_id,
+        index=index,
+        sensor="sentinel-1-rtc",
+        note=NOT_COMPARABLE,
+        min_clear_fraction=min_valid,
+        points=points,
     )
 
 

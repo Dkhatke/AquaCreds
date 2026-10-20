@@ -158,7 +158,16 @@ class AnalysisStatus(StrEnum):
 
 
 class AlertKind(StrEnum):
-    VEGETATION_LOSS = "vegetation_loss"
+    VEGETATION_LOSS = "vegetation_loss"  # Sentinel-2 NDVI below the project's own envelope
+    # Sentinel-1 VH backscatter drop (heuristic; never high severity on SAR alone)
+    SAR_BACKSCATTER_DROP = "sar_backscatter_drop"
+
+
+class SarTrigger(StrEnum):
+    """Why a Sentinel-1 acquisition was ingested."""
+
+    MONSOON = "monsoon"  # acquired in a monsoon month (GEO_S1_MONSOON_MONTHS)
+    CLOUD_GAP = "cloud_gap"  # within ±GEO_S1_WINDOW_DAYS of a cloudy Sentinel-2 scene
 
 
 class AlertSeverity(StrEnum):
