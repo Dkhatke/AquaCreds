@@ -22,6 +22,7 @@ from aqua_api.routers import (
     projects,
     public,
     reports,
+    stewardship,
     system,
 )
 from aqua_core.db import create_engine, session_factory
@@ -88,6 +89,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         field,
         analysis,
         reports,
+        stewardship,
         audit,
         chain,
         forward_fund,
