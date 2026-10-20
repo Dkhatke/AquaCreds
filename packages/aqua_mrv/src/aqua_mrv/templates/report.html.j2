@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MRV report — {{ r.project.name }} ({{ r.period.start_year }}–{{ r.period.end_year }})</title>
+<style>
+  @page {
+    size: A4; margin: 18mm 15mm 20mm 15mm;
+    @top-center { content: "{{ r.status }}"; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8pt; color: #a33; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8pt; color: #666; }
+  }
+  body { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; font-size: 9.5pt; color: #1b1b1b; line-height: 1.35; }
+  h1 { font-size: 17pt; margin: 0 0 2mm; color: #0b4f5c; }
+  h2 { font-size: 12pt; margin: 6mm 0 2mm; color: #0b4f5c; border-bottom: 0.4pt solid #9bb; padding-bottom: 1mm; }
+  .banner { border: 1pt solid #a33; background: #fdf0f0; color: #7a1f1f; padding: 2.5mm 3mm; font-weight: bold; margin: 3mm 0; }
+  table { border-collapse: collapse; width: 100%; margin: 1mm 0 2mm; }
+  th, td { border: 0.4pt solid #bbb; padding: 1.2mm 1.5mm; vertical-align: top; text-align: left; }
+  th { background: #eef4f5; font-weight: bold; }
+  td.num { text-align: right; white-space: nowrap; }
+  table.kv td:first-child { width: 38%; color: #444; }
+  .mono { font-family: "DejaVu Sans Mono", Menlo, "Courier New", monospace; font-size: 8.5pt; }
+  .hash { font-family: "DejaVu Sans Mono", Menlo, "Courier New", monospace; font-size: 9pt; background: #f4f4f4; padding: 2mm; border: 0.4pt solid #ccc; }
+  .small { font-size: 8pt; color: #555; }
+  .trace td { font-size: 8.3pt; }
+  .headline td.num { font-size: 11pt; font-weight: bold; }
+  ul.warnings li { margin-bottom: 1mm; }
+</style>
+</head>
+<body>
+<h1>MRV report: {{ r.project.name }}</h1>
+<div class="small">Project {{ r.project.id }} · {{ r.project.state }}, India · {{ r.period.kind|capitalize }} period {{ r.period.start_year }}–{{ r.period.end_year }}{% if r.generated_at %} · generated {{ r.generated_at }}{% endif %}</div>
+<div class="banner">{{ r.status }}</div>
+
+<h2>Summary</h2>
+<table class="kv headline">
+  <tr><td>lCCC for the period (tCO₂e)</td><td class="num">{{ r.result.lccc|num }}</td></tr>
+  <tr><td>lCCC units (on-chain, signed integer)</td><td class="num">{{ lccc_units }}</td></tr>
+  <tr><td>tCCC, cumulative since project start (tCO₂e)</td><td class="num">{{ r.result.tccc|num }}</td></tr>
+  <tr><td>Tree carbon stock at t2 (tCO₂e)</td><td class="num">{{ r.result.tree_stock_tco2e|num }}</td></tr>
+  <tr><td>Sampling uncertainty U (90% CI)</td><td class="num">{{ r.result.uncertainty_pct|num }} %</td></tr>
+  <tr><td>Uncertainty discount (fraction of U)</td><td class="num">{{ r.result.discount_fraction }}</td></tr>
+</table>
+<p>Report hash (SHA-256 of the RFC 8785 canonical record):</p>
+<div class="hash">0x{{ report_hash }}</div>
+
+<h2>Project and period</h2>
+<table class="kv">
+  <tr><td>Project area</td><td>{{ r.project.area_ha|num }} ha</td></tr>
+  <tr><td>Project start year</td><td>{{ r.project.start_year }}</td></tr>
+  <tr><td>Strata (ha)</td><td>{% for name, area in r.inputs.strata_area_ha|dictsort %}{{ name }}: {{ area|num }}{% if not loop.last %} · {% endif %}{% endfor %}</td></tr>
+  <tr><td>Planting cohorts</td><td>{% for c in r.inputs.planting %}{{ c.year }}: {{ c.area_ha|num }} ha{% if not loop.last %} · {% endif %}{% else %}none{% endfor %}</td></tr>
+  <tr><td>SOC pool</td><td>{{ "included (default rate)" if r.inputs.include_soc else "excluded" }}</td></tr>
+  <tr><td>Previous certified tree stock / cumulative removals</td><td>{{ r.inputs.previous.tree_stock_tco2e|num }} / {{ r.inputs.previous.cumulative_removals_tco2e|num }} tCO₂e</td></tr>
+  <tr><td>Baseline / leakage / non-CO₂</td><td>{{ r.inputs.deductions.baseline_removals_tco2e|num }} / {{ r.inputs.deductions.leakage_tco2e|num }} / {{ r.inputs.deductions.nonco2_emissions_tco2e|num }} tCO₂e</td></tr>
+</table>
+
+<h2>Methodology</h2>
+<table class="kv">
+  <tr><td>Profile</td><td class="mono">{{ r.methodology.id }}</td></tr>
+  <tr><td>Methodology</td><td>{{ r.methodology.source }}</td></tr>
+  <tr><td>Tree stocks</td><td>{{ r.methodology.tree_tool }}</td></tr>
+  <tr><td>Allometry</td><td>{{ r.methodology.allometry }}: AGB = 0.251·ρ·D<sup>2.46</sup>, BGB = 0.199·ρ<sup>0.899</sup>·D<sup>2.22</sup> (kg; D cm, ρ g/cm³)</td></tr>
+  <tr><td>Software</td><td class="mono">aqua_carbon {{ r.software.aqua_carbon }} · aqua_mrv {{ r.software.aqua_mrv }}</td></tr>
+</table>
+
+<h2>Calculation trace</h2>
+<table class="trace">
+  <tr><th>Step</th><th>Value</th><th>Unit</th><th>Formula</th><th>Source</th></tr>
+  {% for s in r.trace %}
+  <tr><td>{{ s.label }}<br><span class="mono small">{{ s.key }}</span></td><td class="num">{{ s.value|num(4) }}</td><td>{{ s.unit }}</td><td class="mono">{{ s.formula }}</td><td class="small">{{ s.source }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>Warnings</h2>
+{% if r.warnings %}
+<ul class="warnings">{% for w in r.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+{% else %}<p>None.</p>{% endif %}
+
+<h2>Sample plots</h2>
+<p class="small">Stratified estimate: {{ r.biomass_estimate.mean_t_dm|num }} t d.m. ± {{ r.biomass_estimate.half_width_90_t_dm|num }} (90% CI), {{ r.biomass_estimate.n_plots }} plots, df = {{ r.biomass_estimate.df }}.</p>
+<table>
+  <tr><th>Plot</th><th>Stratum</th><th>Area (m²)</th><th>Live / dead trees</th><th>AGB (t d.m./ha)</th><th>BGB (t d.m./ha)</th><th>Total (t d.m./ha)</th></tr>
+  {% for p in r.plots %}
+  <tr><td class="mono">{{ p.code }}</td><td>{{ p.stratum }}</td><td class="num">{{ p.area_m2|num(0) }}</td><td class="num">{{ p.live_trees }} / {{ p.dead_trees }}</td><td class="num">{{ p.agb_t_dm_ha|num(3) }}</td><td class="num">{{ p.bgb_t_dm_ha|num(3) }}</td><td class="num">{{ p.total_t_dm_ha|num(3) }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>Wood density (ρ)</h2>
+<table>
+  <tr><th>Species</th><th>ρ (g/cm³)</th><th>Record used</th><th>n</th><th>Source</th></tr>
+  {% for name, w in r.wood_density|dictsort %}
+  <tr><td><i>{{ name }}</i></td><td class="num">{{ w.value_g_cm3 }}</td><td>{{ w.taxon }} ({{ w.rank }}){% if w.genus_fallback %} — genus fallback{% endif %}</td><td class="num">{{ w.n }}</td><td class="small">{{ w.source }}, doi:{{ w.source_doi }} ({{ w.licence }}), retrieved {{ w.retrieved }}</td></tr>
+  {% endfor %}
+</table>
+
+<h2>Evidence summary</h2>
+{% if r.evidence %}
+<table class="kv">
+  <tr><td>Submissions (total / accepted / rejected)</td><td>{{ r.evidence.submissions_total }} / {{ r.evidence.submissions_accepted }} / {{ r.evidence.rejected }}</td></tr>
+  <tr><td>Trust-score distribution</td><td>{% for b, n in r.evidence.trust_score_distribution|dictsort %}{{ b }}: {{ n }}{% if not loop.last %} · {% endif %}{% else %}—{% endfor %}</td></tr>
+</table>
+{% else %}<p>No evidence summary supplied.</p>{% endif %}
+
+<h2>Satellite context</h2>
+{% if r.satellite %}
+<p class="small">Context only: satellite products support stratification and checks; they do not create credits.</p>
+<table class="kv">
+  {% for k, v in r.satellite.stats|dictsort %}<tr><td class="mono">{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
+  {% for k, v in r.satellite.provenance|dictsort %}<tr><td class="mono small">provenance: {{ k }}</td><td class="small">{{ v }}</td></tr>{% endfor %}
+</table>
+{% else %}<p>No satellite summary supplied.</p>{% endif %}
+
+<p class="small" style="margin-top: 8mm">{{ r.status }}. This report mirrors the structure of {{ r.methodology.source }} and does not claim compliance until reviewed by an accredited verifier. Schema {{ r.schema }}.</p>
+</body>
+</html>

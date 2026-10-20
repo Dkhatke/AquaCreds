@@ -96,7 +96,7 @@ Planetary Computer URLs re-signed per tile (tokens expire after ~45 min).
 | **AlphaEarth Satellite Embedding V1** (Google DeepMind) | Foundation-model features (64-d) for both models | 10 m, annual 2017–2025 | COGs in `gs://alphaearth_foundations` and AWS Source Cooperative mirror; also GEE | CC BY 4.0 (required attribution text) | ✅ |
 | **Global Mangrove Soil Organic Carbon 2020** (Maxwell et al. 2023, *Data in Brief* 50:109621) | Soil carbon **context** layer (stock 0–100 cm, t/ha, with prediction intervals) | 30 m; trained on 10,331 soil samples | Zenodo 7729491 (COG mosaics) | CC BY 4.0 | ✅ |
 | **Sanderman et al. 2018** mangrove SOC | Comparison (year 2000) | 30 m | Harvard Dataverse | CC BY | optional |
-| **Global Wood Density Database** (Zanne et al. 2009) | ρ per species for the Komiyama equations | Species-level | Dryad | CC0 | ⚠️ confirm record |
+| **Global Wood Density Database** (Zanne et al. 2009) | ρ per species for the Komiyama equations | Species-level | Dryad doi:10.5061/dryad.234 (see §3a) | CC0 1.0 | ✅ |
 | **Literature field plots (India)** | **Independent** AGB validation | Compiled table: site, lat/lon, year, plot size, AGB Mg/ha, source DOI | Manual compilation from published studies (Sundarbans, Bhitarkanika, Pichavaram, Godavari, Andaman, Kutch) | Cite each paper | to build |
 | **Pilot partner plots** | Calibration + validation (future) | DBH/height/species per tree | Collected via the mobile app's plot form | Partner agreement | future |
 
@@ -110,6 +110,27 @@ Planetary Computer URLs re-signed per tile (tokens expire after ~45 min).
 - IPCC 2013 Wetlands Supplement, Chapter 4 (coastal wetlands): Tier-1 defaults for root:shoot, carbon
   fraction, and soil accumulation rates. Encoded as methodology-profile parameters with page references.
 - CO₂/C = 44/12.
+
+### 3a. Wood density reference (`data/reference/wood_density_mangroves.csv`)
+
+- **Source:** Global Wood Density Database v1, Zanne et al. 2009, Dryad doi:10.5061/dryad.234
+  (data paper Chave et al. 2009, *Ecol. Lett.* 12:351–366). **Licence CC0 1.0** (Dryad record,
+  checked 2026-10-19).
+- **Retrieval:** Dryad's file download now needs an API token, so the 16,467 GWDD records were read
+  from the verbatim copy shipped as `wdData` in CRAN BIOMASS 2.2.7-1 (cites the same Dryad source).
+  Retrieval date, DOI and licence are stored on every row; the rebuild script is
+  `data/reference/build_wood_density.py`.
+- **Coverage:** species-level means (with n, SD, min/max, regions, GWDD reference numbers) for all
+  18 target Indian species (*Avicennia marina, A. officinalis, A. alba, Rhizophora mucronata,
+  R. apiculata, Bruguiera gymnorhiza, B. cylindrica, Ceriops tagal, C. decandra, Sonneratia
+  apetala, S. alba, S. caseolaris, Excoecaria agallocha, Heritiera fomes, Kandelia candel,
+  Aegiceras corniculatum, Lumnitzera racemosa, Xylocarpus granatum*) plus 7 more Indian species and
+  genus means for the 11 genera. n ranges from 1 to 6 per species.
+- **Fallbacks:** a species without a row gets its genus mean, flagged `genus_fallback=true` and
+  reported as a warning in the MRV record; an unknown genus is an error (never a guess).
+- **Caveat:** almost all records are from South-East Asia or Australia/PNG (only 3 Indian records).
+  Replace with regional or site-measured densities when available. GWDD v2 (Zenodo
+  doi:10.5281/zenodo.18262736, CC BY 4.0) supersedes v1 and is a candidate upgrade.
 
 ---
 
