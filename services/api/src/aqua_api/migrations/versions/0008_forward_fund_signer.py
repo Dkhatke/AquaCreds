@@ -28,11 +28,11 @@ PURPOSES_NEW = (*PURPOSES_OLD, "forward_fund_offer", "forward_fund_withdraw")
 
 
 def _check(column: str, name: str, values: tuple[str, ...]) -> None:
-    op.drop_constraint(f"ck_chain_transactions_{name}", "chain_transactions", type_="check")
+    # `name` is the bare constraint name: the metadata naming convention adds the
+    # `ck_chain_transactions_` prefix, as it did when 0004_chain created these constraints.
+    op.drop_constraint(name, "chain_transactions", type_="check")
     allowed = ", ".join(f"'{v}'" for v in values)
-    op.create_check_constraint(
-        f"ck_chain_transactions_{name}", "chain_transactions", f"{column} IN ({allowed})"
-    )
+    op.create_check_constraint(name, "chain_transactions", f"{column} IN ({allowed})")
 
 
 def upgrade() -> None:
