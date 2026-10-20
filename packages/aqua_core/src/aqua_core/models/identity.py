@@ -22,9 +22,35 @@ class User(UUIDPk, Timestamps, Base):
     )
     is_active: Mapped[bool] = mapped_column(default=True)
 
+    # TOTP two-factor auth (RFC 6238). The secret is Fernet-encrypted (MFA_ENCRYPTION_KEY); it is
+    # set by /auth/mfa/setup and becomes active once /auth/mfa/enable confirms a code.
+    mfa_secret_encrypted: Mapped[str | None] = mapped_column(sa.Text)
+    mfa_enabled_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    # Highest TOTP time step accepted so far: a code is only valid once (replay protection).
+    mfa_last_used_step: Mapped[int | None] = mapped_column(sa.BigInteger)
+
     memberships: Mapped[list["Membership"]] = relationship(
         back_populates="user", lazy="selectin", cascade="all, delete-orphan"
     )
+
+    @property
+    def mfa_enabled(self) -> bool:
+        return self.mfa_enabled_at is not None
+
+
+class MfaRecoveryCode(UUIDPk, Base):
+    """One-time MFA recovery codes. Only a SHA-256 of each (80-bit random) code is stored."""
+
+    __tablename__ = "mfa_recovery_codes"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    code_hash: Mapped[str] = mapped_column(sa.String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+    used_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
 
 
 class Organization(UUIDPk, Timestamps, Base):

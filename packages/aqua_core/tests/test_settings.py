@@ -1,10 +1,25 @@
+import base64
+
 import pytest
 from pydantic import ValidationError
 
-from aqua_core.settings import ANVIL_DEV_MNEMONIC, Settings
+from aqua_core.settings import ANVIL_DEV_MNEMONIC, DEV_MFA_ENCRYPTION_KEY, Settings
 
 # BIP-39 test vector (no funds); only used to satisfy the "mnemonic configured" check.
 TEST_VECTOR_MNEMONIC = " ".join(["abandon"] * 11 + ["about"])
+PROD_MFA_KEY = base64.urlsafe_b64encode(b"p" * 32).decode()
+
+
+def _prod(**overrides: object) -> Settings:
+    options: dict[str, object] = {
+        "app_env": "production",
+        "jwt_secret": "x" * 48,
+        "s3_secret_access_key": "real-r2-secret",
+        "relayer_mnemonic": TEST_VECTOR_MNEMONIC,
+        "mfa_encryption_key": PROD_MFA_KEY,
+        **overrides,
+    }
+    return Settings(_env_file=None, **options)  # type: ignore[arg-type]
 
 
 def test_cors_origins_parsed_from_comma_separated_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -41,14 +56,46 @@ def test_production_refuses_the_public_anvil_mnemonic() -> None:
 
 
 def test_production_accepts_strong_config() -> None:
-    settings = Settings(
-        _env_file=None,
-        app_env="production",
-        jwt_secret="x" * 48,
-        s3_secret_access_key="real-r2-secret",
-        relayer_mnemonic=TEST_VECTOR_MNEMONIC,
-    )
+    settings = _prod()
     settings.assert_production_safe()
+    assert settings.staff_mfa_required  # default on in production
+
+
+@pytest.mark.parametrize(
+    ("key", "message"),
+    [
+        ("", "MFA_ENCRYPTION_KEY must be set"),
+        (DEV_MFA_ENCRYPTION_KEY, "MFA_ENCRYPTION_KEY is the development default"),
+        (f"{PROD_MFA_KEY},{DEV_MFA_ENCRYPTION_KEY}", "development default"),
+        ("not-a-fernet-key", "url-safe base64 Fernet key"),
+    ],
+)
+def test_production_refuses_missing_or_dev_mfa_key(key: str, message: str) -> None:
+    with pytest.raises(RuntimeError, match=message):
+        _prod(mfa_encryption_key=key).assert_production_safe()
+
+
+def test_production_refuses_disabling_staff_mfa() -> None:
+    with pytest.raises(RuntimeError, match="MFA_REQUIRED_FOR_STAFF"):
+        _prod(mfa_required_for_staff=False).assert_production_safe()
+
+
+def test_empty_mfa_key_falls_back_to_dev_key_outside_production() -> None:
+    assert Settings(_env_file=None, mfa_encryption_key="").mfa_encryption_keys == [
+        DEV_MFA_ENCRYPTION_KEY
+    ]
+    configured = Settings(_env_file=None, mfa_encryption_key=f" {PROD_MFA_KEY} ,")
+    assert configured.mfa_encryption_keys == [PROD_MFA_KEY]
+
+
+def test_staff_mfa_default_off_outside_production() -> None:
+    assert not Settings(_env_file=None).staff_mfa_required
+    assert Settings(_env_file=None, mfa_required_for_staff=True).staff_mfa_required
+
+
+def test_trusted_proxies_parsed_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("TRUSTED_PROXY_IPS", "172.16.0.0/12, 10.0.0.5")
+    assert Settings(_env_file=None).trusted_proxy_ips == ["172.16.0.0/12", "10.0.0.5"]
 
 
 def test_development_allows_defaults() -> None:

@@ -1,0 +1,92 @@
+name: Security
+
+# Dependency audit (pip-audit on uv.lock), container image scan (Trivy), secret scan (gitleaks over
+# the full history). Runs on PRs, on main, and weekly so new advisories surface without a push.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 3 * * 1"  # Mondays 03:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TRIVY_IMAGE: aquasec/trivy:0.75.0
+  GITLEAKS_IMAGE: zricethezav/gitleaks:v8.30.1
+
+jobs:
+  pip-audit:
+    name: pip-audit (uv.lock)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Export locked requirements
+        run: |
+          # Service images: every workspace package's runtime dependencies (no dev/ml groups).
+          uv export --frozen --no-hashes --all-packages --no-dev --no-emit-workspace -o requirements-runtime.txt
+          # Everything in the lock, incl. dev and the local-only ml group.
+          uv export --frozen --no-hashes --all-packages --all-groups --no-emit-workspace -o requirements-all.txt
+      - name: Audit runtime dependencies (no exceptions)
+        run: uvx --from pip-audit~=2.10 pip-audit -r requirements-runtime.txt --no-deps --disable-pip --progress-spinner off
+      - name: Audit all locked dependencies
+        # CVE-2025-69872 (diskcache <= 5.6.3 unpickles its cache directory; no fixed release yet):
+        # only pulled in by DVC in the local ml group, never in an image; exploiting it needs write
+        # access to the local DVC cache. Remove the ignore once diskcache ships a fix.
+        run: >-
+          uvx --from pip-audit~=2.10 pip-audit -r requirements-all.txt --no-deps --disable-pip
+          --progress-spinner off
+          --ignore-vuln PYSEC-2026-2447 --ignore-vuln GHSA-w8v5-vhqr-4h9v
+
+  trivy:
+    name: Trivy (${{ matrix.target }} image)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [api, worker]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build image (amd64, loaded locally)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infra/docker/python.Dockerfile
+          target: ${{ matrix.target }}
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: aquacreds-${{ matrix.target }}:scan
+          cache-from: type=gha,scope=${{ matrix.target }}
+      - name: Report HIGH and CRITICAL findings
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            "$TRIVY_IMAGE" image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 \
+            --no-progress "aquacreds-${{ matrix.target }}:scan"
+      - name: Fail on CRITICAL vulnerabilities that have a fix
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            "$TRIVY_IMAGE" image --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1 \
+            --skip-db-update --no-progress "aquacreds-${{ matrix.target }}:scan"
+
+  gitleaks:
+    name: gitleaks (full history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Scan every commit
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" "$GITLEAKS_IMAGE" git /repo --redact --no-banner --verbose

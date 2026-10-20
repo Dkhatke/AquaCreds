@@ -32,7 +32,13 @@ from aqua_core.models.field import (
     Plot,
     PlotMeasurement,
 )
-from aqua_core.models.identity import Membership, Organization, RefreshToken, User
+from aqua_core.models.identity import (
+    Membership,
+    MfaRecoveryCode,
+    Organization,
+    RefreshToken,
+    User,
+)
 from aqua_core.models.project import Project, TenureDocument
 from aqua_core.models.report import MRVReport
 
@@ -57,6 +63,7 @@ __all__ = [
     "MRVReport",
     "Membership",
     "Methodology",
+    "MfaRecoveryCode",
     "MonitoringPeriod",
     "OrgRole",
     "OrgType",

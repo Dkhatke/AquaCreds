@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -38,6 +39,33 @@ class TokenPair(BaseModel):
     expires_in: int
 
 
+class MfaChallenge(BaseModel):
+    """Returned by /auth/login instead of tokens when the account has TOTP enabled."""
+
+    mfa_required: Literal[True] = True
+    mfa_token: str
+    expires_in: int
+
+
+class MfaVerifyIn(BaseModel):
+    mfa_token: str = Field(min_length=20, max_length=2000)
+    code: str = Field(min_length=6, max_length=32, description="6-digit TOTP or a recovery code")
+
+
+class MfaCodeIn(BaseModel):
+    code: str = Field(min_length=6, max_length=32)
+
+
+class MfaSetupOut(BaseModel):
+    secret: str = Field(description="Base32 secret for manual entry in an authenticator app")
+    otpauth_uri: str
+    qr_svg: str = Field(description="Inline SVG QR code of otpauth_uri")
+
+
+class MfaEnabledOut(BaseModel):
+    recovery_codes: list[str] = Field(description="Shown once; each code works once")
+
+
 class MembershipOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     org_id: uuid.UUID
@@ -50,6 +78,7 @@ class UserOut(BaseModel):
     email: str
     full_name: str
     platform_role: PlatformRole
+    mfa_enabled: bool = False
     created_at: datetime
     memberships: list[MembershipOut] = []
 

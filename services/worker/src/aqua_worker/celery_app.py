@@ -14,21 +14,49 @@ from celery.schedules import crontab
 from celery.signals import setup_logging
 from kombu.entity import Queue
 
-from aqua_core.logging import configure_logging
-from aqua_core.settings import get_settings
+from aqua_core.logging import configure_logging, get_logger
+from aqua_core.settings import Settings, get_settings
 
 QUEUES = ("default", "geo", "ml", "chain", "reports")
 
+log = get_logger("aqua_worker.beat")
 
-def beat_schedule(nightly_hour_utc: int) -> dict[str, Any]:
-    """Periodic jobs run by `celery -A aqua_worker.celery_app beat` (one beat process only)."""
-    return {
+
+def beat_schedule(settings: Settings) -> dict[str, Any]:
+    """Every periodic job, in one place. Run by `celery -A aqua_worker.celery_app beat`
+    (exactly ONE beat process, or jobs are scheduled twice).
+
+    - geo-nightly-ingest: new Sentinel-2 scenes + loss alerts (GEO_NIGHTLY_HOUR_UTC).
+    - geo-reap-stale-runs: hourly; on `default` because the geo worker (concurrency 1) can be busy
+      for hours with the very job that may have died.
+    - chain-index-events: every CHAIN_INDEX_INTERVAL_S, only when the chain is configured.
+    """
+    schedule: dict[str, Any] = {
         "geo-nightly-ingest": {
             "task": "aqua.geo.ingest_new_scenes",
-            "schedule": crontab(hour=nightly_hour_utc, minute=0),
+            "schedule": crontab(hour=settings.geo_nightly_hour_utc, minute=0),
             "options": {"queue": "geo", "expires": 20 * 3600},  # skip if a whole day late
         },
+        "geo-reap-stale-runs": {
+            "task": "aqua.geo.reap_stale_runs",
+            "schedule": crontab(minute=17),  # hourly, off the top of the hour
+            "options": {"queue": "default", "expires": 3600},
+        },
     }
+    if settings.chain_configured:
+        interval = settings.chain_index_interval_s
+        schedule["chain-index-events"] = {
+            "task": "aqua.chain.index_events",
+            "schedule": interval,
+            # A tick still waiting when the next is due is redundant (the indexer is cursor-based).
+            "options": {"queue": "chain", "expires": interval},
+        }
+    else:
+        log.info(
+            "beat.chain_index_skipped",
+            reason="chain not configured (RELAYER_MNEMONIC and contract addresses)",
+        )
+    return schedule
 
 
 def create_celery() -> Celery:
@@ -52,7 +80,7 @@ def create_celery() -> Celery:
         # Redis redelivers unacknowledged tasks after the visibility timeout (default 1 h). A
         # backfill can run longer than that; geo tasks are idempotent, but avoid needless reruns.
         broker_transport_options={"visibility_timeout": 7 * 3600},
-        beat_schedule=beat_schedule(settings.geo_nightly_hour_utc),
+        beat_schedule=beat_schedule(settings),
     )
     app.autodiscover_tasks(["aqua_worker"], related_name="tasks", force=True)
     return app

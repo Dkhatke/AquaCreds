@@ -1,5 +1,9 @@
 """Typed runtime configuration, read from environment variables (and `.env` in development)."""
 
+import base64
+import binascii
+import ipaddress
+import re
 from datetime import date
 from functools import lru_cache
 from typing import Annotated, Literal
@@ -9,6 +13,33 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # Foundry/Hardhat's well-known development mnemonic: its keys are public, so production refuses it.
 ANVIL_DEV_MNEMONIC = "test test test test test test test test test test test junk"
+# Fernet key used for MFA secrets in development/test only (derived, so secret scanners see no key
+# literal). Production refuses it.
+DEV_MFA_ENCRYPTION_KEY = base64.urlsafe_b64encode(b"aquacreds-dev-only-mfa-key-32by!").decode()
+
+_RATE_RE = re.compile(r"^\s*(\d+)\s*/\s*(second|minute|hour|day)\s*$")
+_RATE_UNITS = {"second": 1, "minute": 60, "hour": 3600, "day": 86400}
+
+
+def parse_rate(rate: str) -> tuple[int, int]:
+    """ "10/minute" → (10, 60): at most `count` requests per window of `seconds`."""
+    match = _RATE_RE.match(rate)
+    if match is None or int(match.group(1)) < 1:
+        raise ValueError(f"invalid rate {rate!r}; expected '<n>/<second|minute|hour|day>'")
+    return int(match.group(1)), _RATE_UNITS[match.group(2)]
+
+
+def _is_fernet_key(key: str) -> bool:
+    try:
+        return len(base64.urlsafe_b64decode(key.encode())) == 32
+    except (binascii.Error, ValueError):
+        return False
+
+
+def _split_csv(value: object) -> object:
+    if isinstance(value, str):
+        return [item.strip() for item in value.split(",") if item.strip()]
+    return value
 
 
 class Settings(BaseSettings):
@@ -76,12 +107,58 @@ class Settings(BaseSettings):
     chain_priority_fee_gwei: float = Field(default=1.5, ge=0)  # Amoy needs >= 25-30 gwei
     chain_index_batch_blocks: int = Field(default=2000, ge=1)
     chain_reorg_depth: int = Field(default=12, ge=0)  # indexer re-scans this many recent blocks
+    chain_index_interval_s: float = Field(default=30.0, gt=0)  # beat: aqua.chain.index_events
 
-    @field_validator("cors_origins", mode="before")
+    # ---------------------------------------------------------------- worker ops (Phase 9)
+    # A run still `running` this long after it started is marked failed by aqua.geo.reap_stale_runs.
+    # Must exceed the longest Celery hard time limit (6 h 5 min for backfill/nightly ingestion).
+    geo_stale_run_timeout_min: int = Field(default=8 * 60, ge=60)
+
+    # ---------------------------------------------------------------- auth hardening (Phase 9)
+    # Fernet key(s) encrypting TOTP secrets at rest, comma-separated: the first encrypts, all
+    # decrypt (key rotation). Generate: python -c "from cryptography.fernet import Fernet;
+    # print(Fernet.generate_key().decode())"
+    mfa_encryption_key: SecretStr = SecretStr(DEV_MFA_ENCRYPTION_KEY)
+    # Staff (verifier / registry_admin) must enrol TOTP before using staff-only endpoints.
+    # None = required in production only.
+    mfa_required_for_staff: bool | None = None
+    mfa_issuer: str = "AquaCreds"
+    mfa_token_ttl_s: int = Field(default=300, ge=30, le=900)
+    # Fixed-window rate limits on the auth endpoints, stored in Valkey ("<n>/<unit>").
+    rate_limit_enabled: bool = True
+    rate_limit_login_ip: str = "10/minute"
+    rate_limit_login_account: str = "5/minute"
+    rate_limit_register_ip: str = "5/minute"
+    rate_limit_refresh_ip: str = "30/minute"
+    rate_limit_mfa_ip: str = "10/minute"
+    rate_limit_mfa_account: str = "5/minute"
+    # Reverse proxies (IPs or CIDRs, comma-separated) whose X-Forwarded-For is trusted for the
+    # client address, e.g. the Docker network Caddy runs on. Empty = use the TCP peer address.
+    trusted_proxy_ips: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    @field_validator("cors_origins", "trusted_proxy_ips", mode="before")
     @classmethod
-    def _split_origins(cls, value: object) -> object:
-        if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
+    def _split_lists(cls, value: object) -> object:
+        return _split_csv(value)
+
+    @field_validator("trusted_proxy_ips")
+    @classmethod
+    def _valid_networks(cls, value: list[str]) -> list[str]:
+        for item in value:
+            ipaddress.ip_network(item, strict=False)  # raises ValueError on garbage
+        return value
+
+    @field_validator(
+        "rate_limit_login_ip",
+        "rate_limit_login_account",
+        "rate_limit_register_ip",
+        "rate_limit_refresh_ip",
+        "rate_limit_mfa_ip",
+        "rate_limit_mfa_account",
+    )
+    @classmethod
+    def _valid_rate(cls, value: str) -> str:
+        parse_rate(value)
         return value
 
     @model_validator(mode="after")
@@ -108,6 +185,26 @@ class Settings(BaseSettings):
             and self.chain_credit_address
         )
 
+    @property
+    def staff_mfa_required(self) -> bool:
+        if self.mfa_required_for_staff is None:
+            return self.app_env == "production"
+        return self.mfa_required_for_staff
+
+    @property
+    def _configured_mfa_keys(self) -> list[str]:
+        raw = self.mfa_encryption_key.get_secret_value()
+        return [k.strip() for k in raw.split(",") if k.strip()]
+
+    @property
+    def mfa_encryption_keys(self) -> list[str]:
+        """Fernet keys, first = encryption key. An empty value outside production falls back to
+        the development key (production refuses both)."""
+        keys = self._configured_mfa_keys
+        if not keys and self.app_env != "production":
+            return [DEV_MFA_ENCRYPTION_KEY]
+        return keys
+
     def assert_production_safe(self) -> None:
         """Refuse to start in production with development defaults."""
         if self.app_env != "production":
@@ -125,6 +222,15 @@ class Settings(BaseSettings):
             problems.append("RELAYER_MNEMONIC must be set (Docker secret)")
         elif mnemonic == ANVIL_DEV_MNEMONIC:
             problems.append("RELAYER_MNEMONIC is the public Anvil development mnemonic")
+        mfa_keys = self._configured_mfa_keys
+        if not mfa_keys:
+            problems.append("MFA_ENCRYPTION_KEY must be set (Fernet key)")
+        elif DEV_MFA_ENCRYPTION_KEY in mfa_keys:
+            problems.append("MFA_ENCRYPTION_KEY is the development default")
+        elif not all(_is_fernet_key(k) for k in mfa_keys):
+            problems.append("MFA_ENCRYPTION_KEY must be url-safe base64 Fernet key(s) (32 bytes)")
+        if self.mfa_required_for_staff is False:
+            problems.append("MFA_REQUIRED_FOR_STAFF must not be disabled in production")
         if problems:
             raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
 
