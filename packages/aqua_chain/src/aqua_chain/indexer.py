@@ -18,7 +18,7 @@ from aqua_chain.events import DecodedEvent, EventDecoder
 from aqua_core.models import ChainCursor, ChainEvent
 
 INDEXER_LOCK_KEY = 0x41_51_49_58  # "AQIX"
-INDEXED_CONTRACTS = ("AquaRegistry", "AquaCredit", "AquaMarketplace")
+INDEXED_CONTRACTS = ("AquaRegistry", "AquaCredit", "AquaMarketplace", "AquaForwardFund")
 
 
 @dataclass(frozen=True)

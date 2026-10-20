@@ -91,6 +91,9 @@ class Settings(BaseSettings):
     chain_credit_address: str | None = None
     chain_marketplace_address: str | None = None
     chain_usdc_address: str | None = None
+    # AquaForwardFund (Phase 7, reverse-auction forward funding). Optional: when unset the indexer
+    # skips it and the forward-fund API answers 503.
+    chain_forward_fund_address: str | None = None
     chain_deploy_block: int = 0  # first block the indexer scans
     # BIP-39 mnemonic of the platform relayer. All signer and custodial org keys are derived from
     # it (BIP-44 m/44'/60'/0'/0/{index}); it never touches the database. Docker secret in prod.
