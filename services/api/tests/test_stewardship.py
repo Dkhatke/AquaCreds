@@ -171,7 +171,7 @@ async def test_project_and_org_stewardship_from_seeded_data(make_actor: Any, sql
     r = await s.admin.get(f"/projects/{s.project_id}/stewardship")
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["score_version"] == "stewardship-v1"
+    assert body["score_version"] == "stewardship-v2"  # v2: area rule, NDVI fallback here
     assert not body["insufficient_data"]
     assert not body["renormalised"]
 

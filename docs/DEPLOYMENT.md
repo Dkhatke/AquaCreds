@@ -148,6 +148,18 @@ automatically after a reboot.
    [{"AllowedOrigins": ["https://app.example.org"], "AllowedMethods": ["PUT", "GET"],
      "AllowedHeaders": ["content-type"], "MaxAgeSeconds": 3600}]
    ```
+5. **Publish the ecosystem classifier** (once per model version). The model files are DVC outputs
+   that are not in git, so they are not in the worker image. Workers download them from
+   `models/ecosystem_classifier/v1/` in this bucket and use them only if their SHA-256 matches the
+   hashes pinned in `services/worker/src/aqua_worker/model_store.py`. From a machine that has
+   `ml/artifacts/ecosystem_classifier_v1/`, with the app bucket's S3 variables set:
+   ```bash
+   uv run python -m aqua_worker.model_store publish ml/artifacts/ecosystem_classifier_v1
+   uv run python -m aqua_worker.model_store verify   # download, hash-check and load it
+   ```
+   Files whose hashes differ are refused. Each worker that consumes the `ml` queue logs
+   `ml.model.verified` (or `ml.model.unavailable`) when it starts. Until the model is published,
+   classifications fail with a clear error and nothing is stored.
 
 ### 3.7 Secrets file on the VM
 ```bash

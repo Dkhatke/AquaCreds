@@ -13,6 +13,8 @@ dependencies = [
     "pillow~=13.0",
     "imagehash~=4.3",
     "shapely~=2.2",
+    # Ecosystem classifier inference (aqua.ml.classify_project); worker image only, not the API.
+    "onnxruntime==1.31.0",
 ]
 
 [tool.uv.sources]

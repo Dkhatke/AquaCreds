@@ -1,6 +1,12 @@
 """ORM models. Importing this package registers every table on `aqua_core.db.Base.metadata`."""
 
-from aqua_core.models.analysis import Alert, AnalysisRun, SarObservation, SceneObservation
+from aqua_core.models.analysis import (
+    Alert,
+    AnalysisRun,
+    Classification,
+    SarObservation,
+    SceneObservation,
+)
 from aqua_core.models.audit import AuditLog
 from aqua_core.models.chain import ChainCursor, ChainEvent, ChainTransaction, OrgWallet
 from aqua_core.models.enums import (
@@ -58,6 +64,7 @@ __all__ = [
     "ChainTransaction",
     "ChainTxPurpose",
     "ChainTxStatus",
+    "Classification",
     "DocumentKind",
     "Ecosystem",
     "FieldSubmission",

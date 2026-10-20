@@ -108,6 +108,7 @@ async def _queue_run(
     params: dict[str, object],
     task: str,
     args: tuple[str, ...],
+    queue: str = GEO_QUEUE,
 ) -> AnalysisRun:
     run = AnalysisRun(
         project_id=project.id,
@@ -130,7 +131,7 @@ async def _queue_run(
     await session.commit()
     await session.refresh(run)
     try:
-        request.app.state.enqueue(task, *args, str(run.id), queue=GEO_QUEUE)
+        request.app.state.enqueue(task, *args, str(run.id), queue=queue)
     except Exception as exc:
         run.status = AnalysisStatus.FAILED
         run.error = "could not enqueue the job"

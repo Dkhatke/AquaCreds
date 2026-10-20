@@ -52,9 +52,16 @@ class SceneSource(Protocol):
     ) -> list[SceneRef]: ...
 
     def load(
-        self, scenes: Sequence[SceneRef], geometry: BaseGeometry, *, chunk: int = 1024
+        self,
+        scenes: Sequence[SceneRef],
+        geometry: BaseGeometry,
+        *,
+        chunk: int = 1024,
+        bands: Sequence[str] | None = None,
     ) -> LoadedScenes:
-        """Lazy (dask) or eager load clipped to `geometry`; callers call `.load()`/compute."""
+        """Lazy (dask) or eager load clipped to `geometry`; callers call `.load()`/compute.
+        `bands` defaults to the bands every index needs (`aqua_geo.indices.REQUIRED_FOR_ALL`);
+        the classifier asks for all of `aqua_geo.sentinel2.BANDS`."""
         ...
 
     def fallback_for(
@@ -167,7 +174,12 @@ class StacSceneSource:
         return refs
 
     def load(
-        self, scenes: Sequence[SceneRef], geometry: BaseGeometry, *, chunk: int = 1024
+        self,
+        scenes: Sequence[SceneRef],
+        geometry: BaseGeometry,
+        *,
+        chunk: int = 1024,
+        bands: Sequence[str] | None = None,
     ) -> LoadedScenes:
         from aqua_geo import sentinel2 as s2
         from aqua_geo.indices import REQUIRED_FOR_ALL
@@ -181,7 +193,7 @@ class StacSceneSource:
             signed,
             geometry,
             provider=provider,
-            bands=REQUIRED_FOR_ALL,
+            bands=tuple(bands) if bands else REQUIRED_FOR_ALL,
             chunks={"x": chunk, "y": chunk},
         )
         epsg = int(ds.attrs["epsg"])
@@ -284,3 +296,51 @@ class StacSarSource:
         ds = s1.load(signed, geometry)
         epsg = int(ds.attrs["epsg"])
         return LoadedSar(ds=ds, inside=s2.polygon_mask(ds["vv"], geometry, epsg), epsg=epsg)
+
+
+# ---------------------------------------------------------------- Copernicus DEM
+
+
+@dataclass(frozen=True)
+class DemRef:
+    item_id: str
+    item: Any = field(default=None, compare=False, repr=False)  # the pystac.Item (unsigned)
+
+
+class DemSource(Protocol):
+    name: str
+    collection: str
+
+    def search(self, geometry: BaseGeometry) -> list[DemRef]:
+        """DEM tiles over `geometry`; empty over open sea (elevation then falls back to 0 m)."""
+        ...
+
+    def load(
+        self, tiles: Sequence[DemRef], like: "xr.DataArray", epsg: int, *, chunk: int = 1024
+    ) -> "xr.DataArray":
+        """Elevation (m, NaN where missing) on the (y, x) grid of `like`."""
+        ...
+
+
+class StacDemSource:
+    """Copernicus DEM GLO-30 (`cop-dem-glo-30`) from Planetary Computer, the training source."""
+
+    name = "planetary-computer"
+
+    def __init__(self) -> None:
+        from aqua_geo import dem
+
+        self.collection = dem.COLLECTION
+
+    def search(self, geometry: BaseGeometry) -> list[DemRef]:
+        from aqua_geo import dem
+
+        return [DemRef(item.id, item) for item in dem.search(geometry)]
+
+    def load(
+        self, tiles: Sequence[DemRef], like: "xr.DataArray", epsg: int, *, chunk: int = 1024
+    ) -> "xr.DataArray":
+        from aqua_geo import dem
+
+        signed = [dem.sign(t.item) for t in tiles]  # sign right before reading
+        return dem.load_on_grid(signed, like, epsg, chunk=chunk)

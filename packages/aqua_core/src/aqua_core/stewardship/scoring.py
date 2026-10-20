@@ -4,8 +4,8 @@ An off-chain, non-transferable 0–100 score per project, aggregated per organis
 token and is never stored: it is recomputed from the MRV/evidence/satellite tables on request. Every
 number in the result is returned with the raw inputs and sub-scores it came from.
 
-Formula (``STEWARDSHIP_V1``; all constants live in :class:`StewardshipParams`)
----------------------------------------------------------------------------
+Formula (``STEWARDSHIP_V1`` / ``STEWARDSHIP_V2``; all constants live in :class:`StewardshipParams`)
+-------------------------------------------------------------------------------------------
 
 **1. Verification continuity** (weight 0.40). Inputs: every *decided* MRV report of the project
 (approved / changes_requested / rejected) in decision order.
@@ -35,6 +35,27 @@ Formula (``STEWARDSHIP_V1``; all constants live in :class:`StewardshipParams`)
 - MVI p50 medians of the same windows are reported as context only (not scored).
 - Insufficient data: either window lacks clear scenes, or the project is < 12 months old.
 
+**2b. Survival from classified mangrove area** (``STEWARDSHIP_V2`` only; replaces the NDVI rule
+above when its inputs exist, otherwise ``stewardship-v2`` falls back to the NDVI rule unchanged).
+Inputs: ecosystem-classifier results per dry season (Nov *s* – Mar *s+1*, ending 31 March *s+1*)
+of one model version (the version of the latest season), mangrove area in ha.
+
+- ``latest`` = the latest classified season that ended on/before ``as_of`` and started on/after the
+  project start (a post-start look); ``baseline`` = the latest classified season that ended before
+  the project start, or else the earliest classified season before ``latest``.
+- Both must exist, be different seasons, come from the same model version, and the baseline area
+  must be ≥ ``area_min_baseline_ha`` (1 ha; a relative change of a near-zero area is noise).
+- ``change = 100 × (latest_ha − baseline_ha) / baseline_ha`` (percent of the baseline area).
+- ``area_score = 100`` if ``change ≥ −5 %`` (maintained/increased, within classifier noise); ``0`` if
+  ``change ≤ −20 %``; linear in between.
+- ``survival = max(0, area_score − 20 × unresolved high-severity alerts)`` (same alert rule; the
+  classifier's own ``mangrove_area_loss`` alerts count like vegetation-loss alerts).
+- The NDVI inputs are still reported (context) and ``inputs.method`` says which rule scored.
+
+Version history: ``stewardship-v1`` = components 1, 2 and 3 (NDVI survival only);
+``stewardship-v2`` = the same with 2b (the default since the classifier was served). Every result
+carries ``score_version``; both parameter sets stay importable, so a v1 score can be reproduced.
+
 **3. Evidence quality** (weight 0.25). Inputs: the latest monitoring period (by end date) with at
 least one automatically checked or rejected field submission.
 
@@ -60,7 +81,7 @@ rule as the survival penalty).
 import math
 import statistics
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -95,6 +116,11 @@ class StewardshipParams:
     alert_rule: str
     # evidence
     evidence_weights: dict[str, float]
+    # survival from classified mangrove area (stewardship-v2; ignored when False)
+    use_classification: bool = False
+    area_tolerance_pct: float = 5.0  # change ≥ −tolerance → 100
+    area_decline_pct: float = 20.0  # change ≤ −decline → 0
+    area_min_baseline_ha: float = 1.0
 
 
 STEWARDSHIP_V1 = StewardshipParams(
@@ -116,6 +142,9 @@ STEWARDSHIP_V1 = StewardshipParams(
     ),
     evidence_weights={"trust": 0.50, "acceptance": 0.25, "plot_coverage": 0.25},
 )
+
+
+STEWARDSHIP_V2 = replace(STEWARDSHIP_V1, version="stewardship-v2", use_classification=True)
 
 
 @dataclass(frozen=True)
@@ -151,12 +180,31 @@ class SceneValue:
 
 
 @dataclass(frozen=True)
+class SeasonClassification:
+    """Mangrove area of one dry-season classification (the latest run of that season)."""
+
+    classification_id: str
+    season_start_year: int  # Nov <year> – Mar <year + 1>
+    model_version: str
+    mangrove_ha: float
+
+    @property
+    def season_end(self) -> date:
+        return date(self.season_start_year + 1, 3, 31)
+
+    @property
+    def season_start(self) -> date:
+        return date(self.season_start_year, 11, 1)
+
+
+@dataclass(frozen=True)
 class SurvivalInputs:
     project_start: date
     as_of: date
     scenes: Sequence[SceneValue]  # baseline + latest windows (others are ignored)
     unresolved_high_alerts: int  # see StewardshipParams.high_alert_penalty for the rule
     independently_cleared_high_alerts: int = 0  # context only
+    classifications: Sequence[SeasonClassification] = ()  # stewardship-v2 only
 
 
 @dataclass(frozen=True)
@@ -334,6 +382,15 @@ def score_survival(
         notes.append(
             f"{inp.unresolved_high_alerts} unresolved high-severity vegetation-loss alert(s)"
         )
+    if params.use_classification:
+        pair = classification_pair(inp)
+        if pair is not None and pair[0].mangrove_ha >= params.area_min_baseline_ha:
+            return _area_survival(pair, inp, params, inputs, notes)
+        inputs["method"] = "ndvi_p50"
+        notes.append(
+            "no two comparable dry-season classifications (pre/post start, same model, baseline "
+            f">= {params.area_min_baseline_ha:g} ha mangrove): NDVI rule used"
+        )
     if missing or base_ndvi is None or late_ndvi is None:
         return ComponentScore(SURVIVAL, weight, None, True, {}, inputs, notes)
 
@@ -355,6 +412,77 @@ def score_survival(
         {"ndvi_change_score": _r(ndvi_score), "alert_penalty": _r(alert_penalty)},
         inputs,
         notes,
+    )
+
+
+def classification_pair(
+    inp: SurvivalInputs,
+) -> tuple[SeasonClassification, SeasonClassification] | None:
+    """(baseline, latest) classifications for the area rule, or None (see section 2b)."""
+    ended = [c for c in inp.classifications if c.season_end <= inp.as_of]
+    post_start = [c for c in ended if c.season_start >= inp.project_start]
+    if not post_start:
+        return None
+    latest = max(post_start, key=lambda c: c.season_start_year)
+    same = [
+        c
+        for c in ended
+        if c.model_version == latest.model_version
+        and c.season_start_year < latest.season_start_year
+    ]
+    if not same:
+        return None
+    before = [c for c in same if c.season_end < inp.project_start]
+    baseline = (
+        max(before, key=lambda c: c.season_start_year)
+        if before
+        else min(same, key=lambda c: c.season_start_year)
+    )
+    return baseline, latest
+
+
+def _area_survival(
+    pair: tuple[SeasonClassification, SeasonClassification],
+    inp: SurvivalInputs,
+    params: StewardshipParams,
+    inputs: dict[str, Any],
+    notes: list[str],
+) -> ComponentScore:
+    baseline, latest = pair
+    change = 100.0 * (latest.mangrove_ha - baseline.mangrove_ha) / baseline.mangrove_ha
+    tol, drop = params.area_tolerance_pct, params.area_decline_pct
+    if change >= -tol:
+        area_score = 100.0
+    elif change <= -drop:
+        area_score = 0.0
+    else:
+        area_score = 100.0 * (change + drop) / (drop - tol)
+    inputs.update(
+        {
+            "method": "classification_area",
+            "model_version": latest.model_version,
+            "baseline_season_start_year": baseline.season_start_year,
+            "baseline_mangrove_ha": baseline.mangrove_ha,
+            "baseline_classification_id": baseline.classification_id,
+            "latest_season_start_year": latest.season_start_year,
+            "latest_mangrove_ha": latest.mangrove_ha,
+            "latest_classification_id": latest.classification_id,
+            "mangrove_area_change_pct": round(change, 6),
+            "area_tolerance_pct": tol,
+            "area_decline_pct": drop,
+        }
+    )
+    # NDVI-window shortfalls do not apply to the area rule.
+    kept = [n for n in notes if "clear scenes" not in n and "younger than 12 months" not in n]
+    alert_penalty = inp.unresolved_high_alerts * params.high_alert_penalty
+    return ComponentScore(
+        SURVIVAL,
+        params.weights[SURVIVAL],
+        _r(_clamp(area_score - alert_penalty)),
+        False,
+        {"area_change_score": _r(area_score), "alert_penalty": _r(alert_penalty)},
+        inputs,
+        kept,
     )
 
 

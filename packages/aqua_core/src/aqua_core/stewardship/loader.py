@@ -1,4 +1,4 @@
-"""Load stewardship inputs from the database and score them (no writes, no new tables).
+"""Load stewardship inputs from the database and score them (no writes, no score table).
 
 A handful of small indexed queries per project; nothing is cached, so the score always reflects the
 current verifier decisions, scenes, alerts and evidence.
@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from aqua_core.models import (
     Alert,
     AlertSeverity,
+    Classification,
     FieldSubmission,
     Membership,
     MonitoringPeriod,
@@ -31,13 +32,14 @@ from aqua_core.models._types import utcnow
 from aqua_core.stewardship.scoring import (
     DECIDED_STATUSES,
     FORWARD_FUNDING_V1,
-    STEWARDSHIP_V1,
+    STEWARDSHIP_V2,
     EvidenceInputs,
     ForwardFundingParams,
     OrgStewardship,
     ProjectStewardship,
     ReportDecision,
     SceneValue,
+    SeasonClassification,
     StewardshipParams,
     SurvivalInputs,
     aggregate_org,
@@ -128,7 +130,34 @@ async def _survival(
         )
     ).all()
     cleared = sum(bool(r.cleared) for r in alert_rows)
-    return SurvivalInputs(start, as_of, scenes, len(alert_rows) - cleared, cleared)
+    classifications = (
+        await _classifications(session, project.id) if params.use_classification else []
+    )
+    return SurvivalInputs(start, as_of, scenes, len(alert_rows) - cleared, cleared, classifications)
+
+
+async def _classifications(
+    session: AsyncSession, project_id: uuid.UUID
+) -> list[SeasonClassification]:
+    """The latest classification per (dry season, model version) of the project."""
+    rows = await session.execute(
+        select(
+            Classification.id,
+            Classification.season_start_year,
+            Classification.model_version,
+            Classification.mangrove_ha,
+        )
+        .where(Classification.project_id == project_id)
+        .order_by(
+            Classification.season_start_year,
+            Classification.model_version,
+            Classification.created_at.desc(),
+        )
+    )
+    latest: dict[tuple[int, str], SeasonClassification] = {}
+    for cid, season, version, ha in rows:
+        latest.setdefault((season, version), SeasonClassification(str(cid), season, version, ha))
+    return list(latest.values())
 
 
 async def _evidence(session: AsyncSession, project_id: uuid.UUID) -> EvidenceInputs:
@@ -171,7 +200,7 @@ async def project_stewardship(
     project: Project,
     *,
     computed_at: datetime | None = None,
-    params: StewardshipParams = STEWARDSHIP_V1,
+    params: StewardshipParams = STEWARDSHIP_V2,
 ) -> ProjectStewardship:
     now = computed_at or utcnow()
     return score_project(
@@ -190,7 +219,7 @@ async def org_stewardship(
     org_id: uuid.UUID,
     *,
     computed_at: datetime | None = None,
-    params: StewardshipParams = STEWARDSHIP_V1,
+    params: StewardshipParams = STEWARDSHIP_V2,
 ) -> OrgStewardship:
     """Every non-draft project of the organisation, area-weighted."""
     now = computed_at or utcnow()

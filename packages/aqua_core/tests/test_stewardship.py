@@ -12,10 +12,12 @@ from aqua_core.stewardship import (
     CONTINUITY,
     EVIDENCE,
     STEWARDSHIP_V1,
+    STEWARDSHIP_V2,
     SURVIVAL,
     EvidenceInputs,
     ReportDecision,
     SceneValue,
+    SeasonClassification,
     SurvivalInputs,
     aggregate_org,
     eligibility_for_forward_funding,
@@ -272,3 +274,74 @@ def test_org_area_weighting_and_forward_funding() -> None:
     empty = aggregate_org(org_id="o", projects=[], computed_at=NOW)
     assert empty.insufficient_data
     assert eligibility_for_forward_funding(empty)[0] is False
+
+
+# ---------------------------------------------------------------- stewardship-v2 (classified area)
+
+
+def classes(*pairs: tuple[int, float], version: str = "v1") -> list[SeasonClassification]:
+    return [SeasonClassification(f"c{y}", y, version, ha) for y, ha in pairs]
+
+
+def area_survival(cls: list[SeasonClassification], **kw: object) -> SurvivalInputs:
+    base = survival(**kw)  # type: ignore[arg-type]
+    return SurvivalInputs(START, NOW.date(), base.scenes, base.unresolved_high_alerts, 0, cls)
+
+
+def test_v2_scores_survival_from_mangrove_area_change() -> None:
+    # START 2027-01-01: season 2025-26 (ends Mar 2026) is the baseline, 2029-30 the latest.
+    cls = classes((2024, 50.0), (2025, 100.0), (2027, 70.0), (2029, 88.0), (2030, 1.0))
+    c = score_survival(area_survival(cls), STEWARDSHIP_V2)
+    assert c.inputs["method"] == "classification_area"
+    assert c.inputs["baseline_season_start_year"] == 2025
+    assert c.inputs["latest_season_start_year"] == 2029  # 2030-31 has not ended by NOW
+    assert c.inputs["mangrove_area_change_pct"] == pytest.approx(-12.0)
+    assert c.sub_scores["area_change_score"] == pytest.approx(100 * (20 - 12) / 15, abs=0.01)
+    assert c.score == c.sub_scores["area_change_score"]
+    assert c.inputs["latest_ndvi_p50_median"] == pytest.approx(0.62)  # NDVI kept as context
+    keep = score_survival(area_survival(classes((2025, 100.0), (2029, 96.0))), STEWARDSHIP_V2)
+    assert keep.score == 100.0
+    lost = score_survival(area_survival(classes((2025, 100.0), (2029, 79.0))), STEWARDSHIP_V2)
+    assert lost.score == 0.0
+    alert = score_survival(
+        area_survival(classes((2025, 100.0), (2029, 96.0)), alerts=1), STEWARDSHIP_V2
+    )
+    assert alert.score == 80.0
+    assert alert.sub_scores["alert_penalty"] == 20.0
+
+
+def test_v2_baseline_falls_back_to_the_earliest_post_start_season() -> None:
+    c = score_survival(
+        area_survival(classes((2027, 40.0), (2028, 41.0), (2029, 42.0))), STEWARDSHIP_V2
+    )
+    assert c.inputs["baseline_season_start_year"] == 2027
+    assert c.score == 100.0
+
+
+@pytest.mark.parametrize(
+    "cls",
+    [
+        [],  # nothing classified
+        classes((2025, 100.0)),  # only a pre-start season
+        classes((2029, 100.0)),  # only one post-start season
+        classes((2025, 100.0), version="v0") + classes((2029, 90.0)),  # different models
+        classes((2025, 0.5), (2029, 0.4)),  # baseline below 1 ha
+    ],
+)
+def test_v2_falls_back_to_the_ndvi_rule(cls: list[SeasonClassification]) -> None:
+    c = score_survival(area_survival(cls), STEWARDSHIP_V2)
+    v1 = score_survival(area_survival(cls), STEWARDSHIP_V1)
+    assert c.inputs["method"] == "ndvi_p50"
+    assert c.score == v1.score == 100.0
+    assert any(n.startswith("no two comparable") for n in c.notes)
+
+
+def test_v1_ignores_classifications() -> None:
+    cls = classes((2025, 100.0), (2029, 10.0))
+    v1 = score_survival(area_survival(cls), STEWARDSHIP_V1)
+    assert v1.score == 100.0
+    assert "method" not in v1.inputs
+    assert STEWARDSHIP_V2.version == "stewardship-v2"
+    assert STEWARDSHIP_V2.weights == STEWARDSHIP_V1.weights
+    assert not STEWARDSHIP_V1.use_classification
+    assert STEWARDSHIP_V2.use_classification

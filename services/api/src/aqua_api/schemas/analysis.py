@@ -103,3 +103,50 @@ class AlertOut(BaseModel):
     acknowledged_by: uuid.UUID | None
     acknowledged_at: datetime | None
     created_at: datetime
+
+
+class ClassificationRequest(BaseModel):
+    """Dry season starting in November of `season_start_year` (e.g. 2020 → Nov 2020–Mar 2021)."""
+
+    season_start_year: int = Field(ge=2016, le=2100)
+
+
+class ClassificationOut(BaseModel):
+    """One ecosystem-classifier result. Areas: classified 10 m pixels x pixel area / UTM areal
+    scale, pixel centres inside the boundary. Context for MRV only: credits come from plots."""
+
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+    id: uuid.UUID
+    project_id: uuid.UUID
+    run_id: uuid.UUID | None
+    season_start_year: int
+    model_version: str
+    model_sha256: str
+    features_sha256: str
+    provider: str
+    scenes: list[dict[str, Any]]
+    dem_items: list[str]
+    epsg: int
+    pixel_area_m2: float
+    areal_scale: float
+    polygon_pixels: int
+    classified_pixels: int
+    unclassified_pixels: int
+    classes: list[str]  # class index order (values of the classes COG)
+    class_areas_ha: dict[str, float]
+    mangrove_ha: float
+    mangrove_mean_confidence: float | None
+    low_confidence_threshold: float
+    low_confidence_share: float
+    classes_cog_sha256: str
+    probability_cog_sha256: str
+    created_at: datetime
+
+
+class ClassificationDownloads(BaseModel):
+    classes_url: str  # uint8 class index COG (nodata 255; class names in the band tags)
+    probability_url: str  # float32 highest-class probability COG (NaN no-data)
+
+
+class ClassificationDetail(ClassificationOut):
+    downloads: ClassificationDownloads

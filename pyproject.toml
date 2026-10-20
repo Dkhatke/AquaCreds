@@ -23,6 +23,8 @@ dev = [
     "pandas~=3.0",
     # PDF text extraction in aqua_mrv report tests
     "pypdf~=6.21",
+    # builds tiny synthetic ONNX models in the classifier tests (the real model is a DVC output)
+    "onnx~=1.23",
 ]
 # Research / training environment (local + Kaggle/Colab). Not installed in service images.
 ml = [
@@ -148,7 +150,7 @@ mypy_path = [
 exclude = ["/migrations/"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "scipy.*", "planetary_computer.*", "rasterio.*", "imagehash.*", "weasyprint.*"]
+module = ["celery.*", "kombu.*", "boto3.*", "botocore.*", "scipy.*", "planetary_computer.*", "rasterio.*", "imagehash.*", "weasyprint.*", "onnxruntime.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

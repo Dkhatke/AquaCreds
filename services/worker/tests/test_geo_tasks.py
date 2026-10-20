@@ -45,7 +45,7 @@ CHAIN = {
 
 def test_beat_schedule_without_chain_has_geo_jobs_only() -> None:
     schedule = beat_schedule(Settings(_env_file=None))
-    assert set(schedule) == {"geo-nightly-ingest", "geo-reap-stale-runs"}
+    assert set(schedule) == {"geo-nightly-ingest", "geo-reap-stale-runs", "ml-classify-dry-season"}
     reaper = schedule["geo-reap-stale-runs"]
     assert reaper["task"] == "aqua.geo.reap_stale_runs"
     assert reaper["schedule"] == crontab(minute=17)  # hourly
@@ -60,6 +60,7 @@ def test_beat_schedule_indexes_chain_events_when_configured() -> None:
     assert set(schedule) == {
         "geo-nightly-ingest",
         "geo-reap-stale-runs",
+        "ml-classify-dry-season",
         "chain-index-events",
         "chain-top-up-org-wallets",
     }
