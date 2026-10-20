@@ -10,7 +10,7 @@ from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, status
 
-from aqua_api.deps import CurrentUser, SessionDep, can_read_all_projects, org_role
+from aqua_api.deps import CurrentUser, SessionDep, SettingsDep, can_read_all_projects, org_role
 from aqua_api.schemas.stewardship import (
     ForwardFundingOut,
     OrgStewardshipOut,
@@ -25,10 +25,12 @@ router = APIRouter(tags=["stewardship"])
 
 @router.get("/orgs/{org_id}/stewardship", response_model=OrgStewardshipOut)
 async def get_org_stewardship(
-    org_id: uuid.UUID, user: CurrentUser, session: SessionDep
+    org_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> OrgStewardshipOut:
     org = await session.get(Organization, org_id)
-    if org is None or (org_role(user, org_id) is None and not can_read_all_projects(user)):
+    if org is None or (
+        org_role(user, org_id) is None and not can_read_all_projects(user, settings)
+    ):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Organisation not found")
     result = await org_stewardship(session, org_id)
     eligible, reasons = eligibility_for_forward_funding(result)
@@ -44,11 +46,11 @@ async def get_org_stewardship(
 
 @router.get("/projects/{project_id}/stewardship", response_model=ProjectStewardshipOut)
 async def get_project_stewardship(
-    project_id: uuid.UUID, user: CurrentUser, session: SessionDep
+    project_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> ProjectStewardshipOut:
     project = await session.get(Project, project_id)
     if project is None or (
-        org_role(user, project.org_id) is None and not can_read_all_projects(user)
+        org_role(user, project.org_id) is None and not can_read_all_projects(user, settings)
     ):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     return ProjectStewardshipOut.model_validate(await project_stewardship(session, project))
