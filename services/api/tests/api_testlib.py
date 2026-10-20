@@ -1,5 +1,8 @@
 """Shared helpers for API integration tests."""
 
+import json
+import uuid
+from datetime import UTC, date, datetime
 from typing import Any
 
 
@@ -35,3 +38,47 @@ def project_payload(org_id: str, **overrides: Any) -> dict[str, Any]:
     }
     payload.update(overrides)
     return payload
+
+
+async def insert_sar_observation(
+    sql: Any,
+    project_id: Any,
+    day: str | date,
+    *,
+    vh_db: float = -15.0,
+    rvi: float = 0.6,
+    valid_fraction: float = 1.0,
+    relative_orbit: int = 85,
+    key: str | None = None,
+) -> str:
+    """One `sar_observations` row with VH/VV dB, ratio and RVI statistics around the given values."""
+    day = date.fromisoformat(day) if isinstance(day, str) else day
+    key = key or f"S1A_{day:%Y%m%d}_120000"
+
+    def summary(v: float) -> dict[str, float]:
+        return {"valid_pixels": 360, "mean": v, "p10": v - 1.0, "p50": v, "p90": v + 1.0}
+
+    stats = {
+        "vh_db": summary(vh_db),
+        "vv_db": summary(vh_db + 7.0),
+        "vh_vv_db": summary(-7.0),
+        "vh_vv_ratio": summary(0.2),
+        "rvi": summary(rvi),
+    }
+    await sql(
+        "INSERT INTO sar_observations (id, project_id, acquisition_key, item_ids, acquired_at, "
+        "acquired_on, platform, orbit_state, relative_orbit, trigger, provider, polygon_pixels, "
+        "valid_pixels, valid_fraction, stats) VALUES (:id, :p, :k, ARRAY[:item], :at, :d, 'S1A', "
+        "'ascending', :orbit, 'monsoon', 'fake-sar', 360, :valid_px, :vf, CAST(:s AS jsonb))",
+        id=uuid.uuid4(),
+        p=project_id,
+        k=key,
+        item=f"{key}_rtc",
+        at=datetime(day.year, day.month, day.day, 12, tzinfo=UTC),
+        d=day,
+        orbit=relative_orbit,
+        valid_px=round(360 * valid_fraction),
+        vf=valid_fraction,
+        s=json.dumps(stats),
+    )
+    return key

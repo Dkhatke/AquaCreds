@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 import pytest
 import rasterio
-from api_testlib import BHITARKANIKA, project_payload, square
+from api_testlib import BHITARKANIKA, insert_sar_observation, project_payload, square
 from conftest import FakeStorage
 from geo_fakes import (
     POLYGON_PIXELS,
@@ -23,7 +23,8 @@ from geo_fakes import (
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from aqua_core.db import session_factory
-from aqua_core.models import AnalysisKind, AnalysisStatus
+from aqua_core.models import AnalysisKind, AnalysisStatus, SarTrigger
+from aqua_worker.alerts import SarAlertRules
 from aqua_worker.tasks import geo
 
 HISTORY_YEARS = range(2019, 2024)
@@ -435,7 +436,7 @@ def _monsoon_year() -> tuple[FakeSceneSource, FakeSarSource]:
     return s2_source, sar
 
 
-async def test_sentinel1_fills_monsoon_and_cloudy_gaps_in_run_outputs(
+async def test_sentinel1_fills_monsoon_and_cloudy_gaps_in_sar_observations(
     client: Any, make_actor: Any, sql: Any, sessionmaker: Any
 ) -> None:
     _, project_id = await _project(make_actor, sql)
@@ -456,15 +457,33 @@ async def test_sentinel1_fills_monsoon_and_cloudy_gaps_in_run_outputs(
     assert s1["policy"] == {"monsoon_months": [6, 7, 8, 9], "clear_floor": 0.3, "window_days": 6}
     assert s1["collection"] == "sentinel-1-rtc"
     assert "3x3" in s1["speckle_filter"]
-    obs = {o["acquired_on"]: o for o in s1["observations"]}
-    assert obs["2024-01-12"]["trigger"] == f"low_clear:{scene('2024-01-10').item_id}"
+    assert s1["table"] == "sar_observations"
+    assert s1["observation_keys"] == ["S1A_20240112_12", "S1A_20240705_12"]
+    assert "observations" not in s1  # the rows live in their own table now
+    assert result.new_sar_dates == [date(2024, 1, 12), date(2024, 7, 5)]
+    rows = await sql(
+        "SELECT * FROM sar_observations WHERE project_id=:p ORDER BY acquired_on", p=project_id
+    )
+    obs = {r.acquired_on.isoformat(): r for r in rows}
+    assert set(obs) == {"2024-01-12", "2024-07-05"}
+    gap = obs["2024-01-12"]
+    assert (gap.trigger, gap.trigger_item_id) == ("cloud_gap", scene("2024-01-10").item_id)
     monsoon = obs["2024-07-05"]
-    assert monsoon["trigger"] == "monsoon"
-    assert (monsoon["polygon_pixels"], monsoon["valid_fraction"]) == (POLYGON_PIXELS, 1.0)
-    assert monsoon["stats"]["vv_db"]["p50"] == pytest.approx(-10.969, abs=1e-3)
-    assert monsoon["stats"]["vh_vv_db"]["p50"] == pytest.approx(-6.990, abs=1e-3)
-    assert monsoon["stats"]["rvi"]["p50"] == pytest.approx(4 * 0.016 / 0.096, abs=1e-3)
-    assert monsoon["provider"] == "fake-sar"
+    assert (monsoon.trigger, monsoon.trigger_item_id) == ("monsoon", None)
+    assert monsoon.acquisition_key == "S1A_20240705_12"
+    assert monsoon.item_ids == ["S1A_20240705_12_rtc"]
+    assert (monsoon.platform, monsoon.orbit_state, monsoon.relative_orbit) == (
+        "S1A",
+        "ascending",
+        85,
+    )
+    assert monsoon.run_id == result.run_id
+    assert (monsoon.polygon_pixels, monsoon.valid_pixels) == (POLYGON_PIXELS, POLYGON_PIXELS)
+    assert monsoon.valid_fraction == 1.0
+    assert monsoon.stats["vv_db"]["p50"] == pytest.approx(-10.969, abs=1e-3)
+    assert monsoon.stats["vh_vv_db"]["p50"] == pytest.approx(-6.990, abs=1e-3)
+    assert monsoon.stats["rvi"]["p50"] == pytest.approx(4 * 0.016 / 0.096, abs=1e-3)
+    assert monsoon.provider == "fake-sar"
 
     stored = await sql("SELECT params, outputs FROM analysis_runs WHERE id=:id", id=result.run_id)
     assert stored[0].outputs["sentinel1"]["ingested"] == 2
@@ -488,6 +507,41 @@ async def test_sentinel1_fills_monsoon_and_cloudy_gaps_in_run_outputs(
     s1 = again.outputs["sentinel1"]
     assert (s1["already_recorded"], s1["ingested"], s1["failed_count"]) == (2, 0, 1)
     assert sar.loads == ["S1A_20240801_12"]
+    assert again.new_sar_dates == []
+    n = await sql("SELECT count(*) AS n FROM sar_observations WHERE project_id=:p", p=project_id)
+    assert n[0].n == 2
+
+
+async def test_sentinel1_concurrent_duplicate_is_stored_once(
+    client: Any, make_actor: Any, sql: Any, sessionmaker: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two runs racing on the same pass: the unique (project, acquisition_key) keeps one row."""
+    _, project_id = await _project(make_actor, sql)
+    s2_source, sar = _monsoon_year()
+    kwargs: dict[str, Any] = {
+        "start": date(2024, 1, 1),
+        "end": date(2024, 8, 31),
+        "sar_source": sar,
+        "sar_policy": geo.Sentinel1Policy(),
+    }
+    await geo.ingest_project(sessionmaker, s2_source, project_id, **kwargs)
+
+    async def nothing_recorded(session: Any, project_id: uuid.UUID) -> set[str]:
+        return set()  # as if the other run had not committed yet when this one looked
+
+    monkeypatch.setattr(geo, "_recorded_sar_keys", nothing_recorded)
+    again = await geo.ingest_project(sessionmaker, s2_source, project_id, **kwargs)
+    s1 = again.outputs["sentinel1"]
+    assert (s1["already_recorded"], s1["ingested"], s1["observation_keys"]) == (2, 0, [])
+    n = await sql("SELECT count(*) AS n FROM sar_observations WHERE project_id=:p", p=project_id)
+    assert n[0].n == 2
+
+
+def test_parse_trigger() -> None:
+    assert geo.parse_trigger("monsoon") == (SarTrigger.MONSOON, None)
+    assert geo.parse_trigger("low_clear:S2_X") == (SarTrigger.CLOUD_GAP, "S2_X")
+    with pytest.raises(ValueError, match="unknown Sentinel-1 trigger"):
+        geo.parse_trigger("bogus")
 
 
 async def test_sentinel1_search_failure_is_recorded_not_raised(
@@ -507,7 +561,8 @@ async def test_sentinel1_search_failure_is_recorded_not_raised(
     )
     assert result.status == AnalysisStatus.SUCCEEDED
     assert "SAS token refused" in result.outputs["sentinel1"]["error"]
-    assert result.outputs["sentinel1"]["observations"] == []
+    assert result.outputs["sentinel1"]["observation_keys"] == []
+    assert result.new_sar_dates == []
 
 
 async def test_nightly_passes_the_sentinel1_policy_through(
@@ -529,3 +584,73 @@ async def test_nightly_passes_the_sentinel1_policy_through(
         p=project_id,
     )
     assert run[0].outputs["sentinel1"]["ingested"] == 2
+
+
+async def _sar_history(sql: Any, project_id: uuid.UUID, vh_db: float = -15.0) -> None:
+    """Healthy monsoon passes 2019-2023 (four per year, relative orbit 85) straight into the table."""
+    for year in range(2019, 2024):
+        for i, md in enumerate(("06-10", "07-04", "08-09", "09-14")):
+            await insert_sar_observation(sql, project_id, f"{year}-{md}", vh_db=vh_db + 0.1 * i)
+
+
+def _low_monsoon() -> FakeSarSource:
+    # VH ~ -21 dB vs a -15 dB baseline: 6 dB below on three passes in a row
+    return FakeSarSource(
+        [sar_pass(d, vv=0.05, vh=0.008) for d in ("2024-06-05", "2024-06-17", "2024-06-29")]
+    )
+
+
+async def test_nightly_raises_one_medium_sar_alert_when_enabled(
+    client: Any, make_actor: Any, sql: Any, sessionmaker: Any
+) -> None:
+    admin, project_id = await _project(make_actor, sql)
+    await _sar_history(sql, project_id)
+    kwargs: dict[str, Any] = {
+        "today": date(2024, 6, 30),
+        "backfill_start": date(2024, 6, 1),
+        "sar_source": _low_monsoon(),
+        "sar_policy": geo.Sentinel1Policy(),
+        "sar_alert_rules": SarAlertRules(),
+    }
+    summary = await geo.ingest_new_scenes(sessionmaker, FakeSceneSource([]), **kwargs)
+    assert (summary["failed"], summary["alerts"]) == ([], 1)
+    alerts = await sql("SELECT * FROM alerts WHERE project_id=:p", p=project_id)
+    assert len(alerts) == 1
+    a = alerts[0]
+    assert (a.kind, a.metric, a.severity) == ("sar_backscatter_drop", "vh_db_p50", "medium")
+    assert a.observed_on == date(2024, 6, 29)
+    assert a.observed_value == pytest.approx(-20.97, abs=0.01)
+    assert a.expected["heuristic"] is True
+    assert a.expected["n"] == 20
+    raised = await sql("SELECT data FROM audit_log WHERE action='alert.raised'")
+    assert raised[0].data["kind"] == "sar_backscatter_drop"
+
+    listed = (await admin.get(f"/projects/{project_id}/alerts")).json()
+    assert [x["kind"] for x in listed] == ["sar_backscatter_drop"]
+
+    # re-running finds the passes already stored: nothing new, no duplicate alert
+    again = await geo.ingest_new_scenes(sessionmaker, FakeSceneSource([]), **kwargs)
+    assert again["alerts"] == 0
+    direct = await geo.detect_sar_alerts(
+        sessionmaker, project_id, since=None, rules=SarAlertRules()
+    )
+    assert direct == []  # deduplicated by (project, kind, metric, date)
+
+
+async def test_nightly_sar_alerts_are_off_by_default(
+    client: Any, make_actor: Any, sql: Any, sessionmaker: Any
+) -> None:
+    _, project_id = await _project(make_actor, sql)
+    await _sar_history(sql, project_id)
+    summary = await geo.ingest_new_scenes(
+        sessionmaker,
+        FakeSceneSource([]),
+        today=date(2024, 6, 30),
+        backfill_start=date(2024, 6, 1),
+        sar_source=_low_monsoon(),
+        sar_policy=geo.Sentinel1Policy(),
+    )
+    assert summary["alerts"] == 0
+    n = await sql("SELECT count(*) AS n FROM sar_observations WHERE project_id=:p", p=project_id)
+    assert n[0].n == 23  # the passes are still stored
+    assert (await sql("SELECT count(*) AS n FROM alerts"))[0].n == 0

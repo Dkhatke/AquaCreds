@@ -6,7 +6,7 @@ from datetime import date, datetime
 from typing import Any
 
 import pytest
-from api_testlib import project_payload
+from api_testlib import insert_sar_observation, project_payload
 
 
 class Setup:
@@ -181,6 +181,54 @@ async def test_timeseries_points_with_filters(setup: Setup, sql: Any) -> None:
     bad = await setup.member.get(f"/projects/{pid}/timeseries", params={"index": "bogus"})
     assert bad.status_code == 422
     assert (await setup.outsider.get(f"/projects/{pid}/timeseries")).status_code == 404
+
+
+async def test_timeseries_serves_sentinel1_indices(setup: Setup, sql: Any) -> None:
+    pid = setup.project_id
+    await _observation(sql, pid, "2024-07-01", 0.95, 0.75)  # optical, never in a SAR series
+    await insert_sar_observation(sql, pid, "2024-07-05", vh_db=-15.2, rvi=0.61)
+    await insert_sar_observation(sql, pid, "2024-07-17", vh_db=-16.0, valid_fraction=0.4)
+    await insert_sar_observation(sql, pid, "2024-08-10", vh_db=-14.8, relative_orbit=12)
+
+    r = await setup.member.get(f"/projects/{pid}/timeseries", params={"index": "vh_db"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert (body["index"], body["sensor"]) == ("vh_db", "sentinel-1-rtc")
+    assert "dB" in body["units"]
+    assert "not compar" in body["note"]
+    points = body["points"]
+    assert [p["date"] for p in points] == ["2024-07-05", "2024-07-17", "2024-08-10"]
+    first = points[0]
+    assert (first["item_id"], first["p50"], first["valid_fraction"]) == (
+        "S1A_20240705_120000",
+        -15.2,
+        1.0,
+    )
+    assert (first["clear_fraction"], first["cloud_cover"]) == (None, None)
+    assert (first["orbit_state"], first["relative_orbit"]) == ("ascending", 85)
+    assert points[2]["relative_orbit"] == 12
+
+    valid_only = await setup.member.get(
+        f"/projects/{pid}/timeseries", params={"index": "vh_db", "min_clear": 0.6}
+    )
+    assert [p["date"] for p in valid_only.json()["points"]] == ["2024-07-05", "2024-08-10"]
+    window = await setup.member.get(
+        f"/projects/{pid}/timeseries",
+        params={"index": "rvi", "from": "2024-07-01", "to": "2024-07-31"},
+    )
+    assert [p["p50"] for p in window.json()["points"]] == [0.61, 0.6]
+    ratio = await setup.member.get(
+        f"/projects/{pid}/timeseries", params={"index": "vh_vv_ratio_db"}
+    )
+    assert {p["p50"] for p in ratio.json()["points"]} == {-7.0}
+    vv = (await setup.member.get(f"/projects/{pid}/timeseries", params={"index": "vv_db"})).json()
+    assert vv["points"][0]["p50"] == pytest.approx(-8.2)
+
+    optical = (await setup.member.get(f"/projects/{pid}/timeseries")).json()
+    assert optical["sensor"] == "sentinel-2-l2a"
+    assert [p["date"] for p in optical["points"]] == ["2024-07-01"]
+    assert optical["points"][0]["valid_fraction"] is None
+    assert (await setup.outsider.get(f"/projects/{pid}/timeseries?index=rvi")).status_code == 404
 
 
 async def _alert(sql: Any, project_id: str, day: str = "2024-01-20") -> str:

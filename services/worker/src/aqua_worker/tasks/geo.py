@@ -14,7 +14,10 @@ Design (IMPLEMENTATION_PLAN Phase 4, RESEARCH_NOTES Q2):
   detected by platform + MGRS tile + date and stored once.
 - Sentinel-1 RTC (optional `sar` source): acquisitions in the monsoon months, or within ±N days of a
   Sentinel-2 scene below the clear-fraction floor, are reduced to per-polygon backscatter
-  statistics and stored under `outputs["sentinel1"]` (no table of their own yet).
+  statistics and stored in `sar_observations` (unique per project + acquisition key, ON CONFLICT DO
+  NOTHING); the run outputs keep counts and the keys ingested. With SAR alerts enabled
+  (GEO_SAR_ALERTS_ENABLED, default off) the nightly job also runs the `sar_backscatter_drop`
+  heuristic on newly stored passes.
 
 Each task is an async core function with injected dependencies (sessionmaker, scene source,
 storage) and a thin Celery wrapper.
@@ -25,7 +28,7 @@ import tempfile
 import uuid
 import warnings
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -48,6 +51,8 @@ from aqua_core.models import (
     AnalysisStatus,
     Project,
     ProjectStatus,
+    SarObservation,
+    SarTrigger,
     SceneObservation,
 )
 from aqua_core.models._types import utcnow
@@ -56,8 +61,13 @@ from aqua_core.storage import ObjectStorage, S3ObjectStorage
 from aqua_worker.alerts import (
     DEFAULT_RULES,
     METRIC_NDVI_P50,
+    METRIC_VH_DB_P50,
+    AlertCandidate,
     AlertRules,
     Observation,
+    SarAlertRules,
+    SarPoint,
+    detect_sar_backscatter_drop,
     detect_vegetation_loss,
 )
 from aqua_worker.scenes import (
@@ -280,24 +290,22 @@ def select_sar(
     return selected
 
 
-async def _recorded_sar_keys(
-    session: AsyncSession, project_id: uuid.UUID, run_id: uuid.UUID
-) -> set[str]:
-    """Sentinel-1 acquisitions already stored in earlier runs' outputs for this project."""
-    rows = (
-        await session.scalars(
-            select(AnalysisRun.outputs["sentinel1"]["observations"]).where(
-                AnalysisRun.project_id == project_id, AnalysisRun.id != run_id
-            )
-        )
-    ).all()
-    return {
-        str(obs["key"])
-        for observations in rows
-        if isinstance(observations, list)
-        for obs in observations
-        if isinstance(obs, dict) and "key" in obs
-    }
+async def _recorded_sar_keys(session: AsyncSession, project_id: uuid.UUID) -> set[str]:
+    """Sentinel-1 acquisitions already stored for this project."""
+    rows = await session.scalars(
+        select(SarObservation.acquisition_key).where(SarObservation.project_id == project_id)
+    )
+    return set(rows.all())
+
+
+def parse_trigger(trigger: str) -> tuple[SarTrigger, str | None]:
+    """`select_sar` trigger → (stored trigger, cloudy Sentinel-2 item id or None)."""
+    if trigger == "monsoon":
+        return SarTrigger.MONSOON, None
+    prefix = "low_clear:"
+    if trigger.startswith(prefix):
+        return SarTrigger.CLOUD_GAP, trigger.removeprefix(prefix)
+    raise ValueError(f"unknown Sentinel-1 trigger {trigger!r}")
 
 
 async def _ingest_sar(
@@ -309,13 +317,13 @@ async def _ingest_sar(
     geometry: BaseGeometry,
     start: date,
     end: date,
-) -> None:
+) -> list[date]:
     """Sentinel-1 pass of `ingest_project`: progress is committed after every acquisition.
     Failures are recorded in `outputs["sentinel1"]`; they never fail the Sentinel-2 run.
 
     Low-clear triggers come from every stored Sentinel-2 scene in the window (this run's and
     earlier ones), so enabling Sentinel-1 on a project with an existing series still fills its
-    cloudy gaps on the next backfill."""
+    cloudy gaps on the next backfill. Returns the acquisition dates newly stored."""
     from aqua_geo.fallback import describe
     from aqua_geo.sentinel1 import SPECKLE_NOTE
 
@@ -331,16 +339,18 @@ async def _ingest_sar(
         "ingested": 0,
         "failed_count": 0,
         "failed": [],
-        "observations": [],
+        "table": SarObservation.__tablename__,
+        "observation_keys": [],  # acquisitions stored by this run (rows in `table`)
     }
     outputs["sentinel1"] = sar
+    new_dates: list[date] = []
     try:
         found = await asyncio.to_thread(source.search, geometry, start, end)
     except Exception as exc:
         log.warning("geo.sar.search_failed", run_id=str(run.id), error=_err(exc))
         sar["error"] = describe(exc)
-        return
-    recorded = await _recorded_sar_keys(session, run.project_id, run.id)
+        return new_dates
+    recorded = await _recorded_sar_keys(session, run.project_id)
     margin = timedelta(days=policy.window_days)
     low_clear = [
         (r.acquired_on, r.item_id)
@@ -368,26 +378,41 @@ async def _ingest_sar(
             if len(sar["failed"]) < MAX_RECORDED_FAILURES:
                 sar["failed"].append({"key": acq.key, "error": _err(exc)})
         else:
-            sar["observations"].append(
-                {
-                    "key": acq.key,
-                    "item_ids": list(acq.item_ids),
-                    "acquired_at": acq.acquired_at.astimezone(UTC).isoformat(),
-                    "acquired_on": acq.acquired_at.astimezone(UTC).date().isoformat(),
-                    "platform": acq.platform,
-                    "orbit_state": acq.orbit_state,
-                    "relative_orbit": acq.relative_orbit,
-                    "provider": acq.provider,
-                    "trigger": trigger,
-                    "polygon_pixels": st.polygon_pixels,
-                    "valid_pixels": st.valid_pixels,
-                    "valid_fraction": st.valid_fraction,
-                    "stats": st.stats,
-                }
+            acquired = acq.acquired_at.astimezone(UTC)
+            kind, trigger_item = parse_trigger(trigger)
+            inserted = await session.scalar(
+                insert(SarObservation)
+                .values(
+                    id=uuid.uuid4(),
+                    project_id=run.project_id,
+                    run_id=run.id,
+                    acquisition_key=acq.key,
+                    item_ids=list(acq.item_ids),
+                    acquired_at=acquired,
+                    acquired_on=acquired.date(),
+                    platform=acq.platform,
+                    orbit_state=acq.orbit_state,
+                    relative_orbit=acq.relative_orbit,
+                    trigger=kind,
+                    trigger_item_id=trigger_item,
+                    provider=acq.provider,
+                    polygon_pixels=st.polygon_pixels,
+                    valid_pixels=st.valid_pixels,
+                    valid_fraction=st.valid_fraction,
+                    stats=st.stats,
+                )
+                .on_conflict_do_nothing(constraint="uq_sar_observation_acquisition")
+                .returning(SarObservation.id)
             )
-            sar["ingested"] += 1
+            if inserted is None:  # a concurrent run stored it first
+                sar["already_recorded"] += 1
+            else:
+                sar["ingested"] += 1
+                sar["observation_keys"].append(acq.key)
+                new_dates.append(acquired.date())
         run.outputs = _snapshot(outputs)
         await session.commit()
+    return new_dates
 
 
 def _snapshot(outputs: dict[str, Any]) -> dict[str, Any]:
@@ -402,7 +427,8 @@ class IngestResult:
     run_id: uuid.UUID
     status: AnalysisStatus
     outputs: dict[str, Any]
-    new_dates: list[date]
+    new_dates: list[date]  # Sentinel-2 acquisitions newly stored
+    new_sar_dates: list[date] = field(default_factory=list)  # Sentinel-1 passes newly stored
 
 
 async def ingest_project(
@@ -521,8 +547,11 @@ async def ingest_project(
             run.outputs = _snapshot(outputs)
             await session.commit()
 
+        new_sar_dates: list[date] = []
         if sar_source is not None and sar_policy is not None:
-            await _ingest_sar(session, run, outputs, sar_source, sar_policy, geometry, start, end)
+            new_sar_dates = await _ingest_sar(
+                session, run, outputs, sar_source, sar_policy, geometry, start, end
+            )
 
         if new_dates:
             outputs["first_new_acquired"] = min(new_dates).isoformat()
@@ -537,7 +566,7 @@ async def ingest_project(
             error="every scene failed to load" if failed_all else None,
         )
         log.info("geo.ingest.done", run_id=str(run.id), status=status.value, **_counts(outputs))
-        return IngestResult(run.id, status, outputs, new_dates)
+        return IngestResult(run.id, status, outputs, new_dates, new_sar_dates)
 
 
 def _err(exc: BaseException) -> str:
@@ -586,46 +615,96 @@ async def detect_alerts(
         )
         observations = [Observation(r[0], r[1], r[2], r[3]) for r in rows]
         candidates = detect_vegetation_loss(observations, rules, since=since, existing=existing)
-        created: list[uuid.UUID] = []
-        for c in candidates:
-            alert_id = await session.scalar(
-                insert(Alert)
-                .values(
-                    id=uuid.uuid4(),
-                    project_id=project_id,
-                    run_id=run_id,
-                    kind=c.kind,
-                    metric=c.metric,
-                    observed_on=c.observed_on,
-                    observed_value=c.observed_value,
-                    expected=c.expected,
-                    severity=c.severity,
-                    message=c.message,
+        return await _store_alerts(session, project_id, run_id, candidates)
+
+
+async def detect_sar_alerts(
+    sessionmaker: async_sessionmaker[AsyncSession],
+    project_id: uuid.UUID,
+    *,
+    since: date | None,
+    rules: SarAlertRules,
+    run_id: uuid.UUID | None = None,
+) -> list[uuid.UUID]:
+    """Run the Sentinel-1 `sar_backscatter_drop` heuristic (aqua_worker.alerts) over the project's
+    stored passes; store new alerts (always medium severity)."""
+    async with sessionmaker() as session:
+        rows = (
+            await session.execute(
+                select(
+                    SarObservation.acquired_on,
+                    SarObservation.valid_fraction,
+                    SarObservation.stats["vh_db"]["p50"].as_float(),
+                    SarObservation.acquisition_key,
+                    SarObservation.relative_orbit,
                 )
-                .on_conflict_do_nothing(constraint="uq_alert_observation")
-                .returning(Alert.id)
+                .where(SarObservation.project_id == project_id)
+                .order_by(SarObservation.acquired_on, SarObservation.acquisition_key)
             )
-            if alert_id is None:
-                continue
-            created.append(alert_id)
-            await audit.record(
-                session,
-                actor_id=None,
-                action="alert.raised",
-                entity_type="project",
-                entity_id=project_id,
-                data={
-                    "alert_id": str(alert_id),
-                    "kind": c.kind.value,
-                    "observed_on": c.observed_on.isoformat(),
-                    "severity": c.severity.value,
-                    "observed_value": c.observed_value,
-                },
+        ).all()
+        existing = set(
+            (
+                await session.scalars(
+                    select(Alert.observed_on).where(
+                        Alert.project_id == project_id,
+                        Alert.kind == AlertKind.SAR_BACKSCATTER_DROP,
+                        Alert.metric == METRIC_VH_DB_P50,
+                    )
+                )
+            ).all()
+        )
+        points = [SarPoint(r[0], r[1], r[2], r[3], r[4]) for r in rows]
+        candidates = detect_sar_backscatter_drop(points, rules, since=since, existing=existing)
+        return await _store_alerts(session, project_id, run_id, candidates)
+
+
+async def _store_alerts(
+    session: AsyncSession,
+    project_id: uuid.UUID,
+    run_id: uuid.UUID | None,
+    candidates: Sequence[AlertCandidate],
+) -> list[uuid.UUID]:
+    """Insert alert candidates (deduplicated by (project, kind, metric, date)), audit-logged."""
+    created: list[uuid.UUID] = []
+    for c in candidates:
+        alert_id = await session.scalar(
+            insert(Alert)
+            .values(
+                id=uuid.uuid4(),
+                project_id=project_id,
+                run_id=run_id,
+                kind=c.kind,
+                metric=c.metric,
+                observed_on=c.observed_on,
+                observed_value=c.observed_value,
+                expected=c.expected,
+                severity=c.severity,
+                message=c.message,
             )
-        await session.commit()
-        if created:
-            log.warning("geo.alerts.raised", project_id=str(project_id), count=len(created))
-        return created
+            .on_conflict_do_nothing(constraint="uq_alert_observation")
+            .returning(Alert.id)
+        )
+        if alert_id is None:
+            continue
+        created.append(alert_id)
+        await audit.record(
+            session,
+            actor_id=None,
+            action="alert.raised",
+            entity_type="project",
+            entity_id=project_id,
+            data={
+                "alert_id": str(alert_id),
+                "kind": c.kind.value,
+                "observed_on": c.observed_on.isoformat(),
+                "severity": c.severity.value,
+                "observed_value": c.observed_value,
+            },
+        )
+    await session.commit()
+    if created:
+        log.warning("geo.alerts.raised", project_id=str(project_id), count=len(created))
+    return created
 
 
 # ---------------------------------------------------------------- nightly
@@ -641,9 +720,11 @@ async def ingest_new_scenes(
     rules: AlertRules = DEFAULT_RULES,
     sar_source: SarSource | None = None,
     sar_policy: Sentinel1Policy | None = None,
+    sar_alert_rules: SarAlertRules | None = None,
 ) -> dict[str, Any]:
     """For every active project: ingest scenes acquired since its latest observation (or since
-    `backfill_start` if it has none), then run loss detection on the new observations."""
+    `backfill_start` if it has none), then run loss detection on the new observations (and, with
+    `sar_alert_rules`, the Sentinel-1 heuristic on newly stored passes)."""
     async with sessionmaker() as session:
         rows = (
             await session.execute(
@@ -682,6 +763,15 @@ async def ingest_new_scenes(
                     rules=rules,
                 )
                 summary["alerts"] += len(alerts)
+            if sar_alert_rules is not None and result.new_sar_dates:
+                sar_alerts = await detect_sar_alerts(
+                    sessionmaker,
+                    project_id,
+                    since=min(result.new_sar_dates),
+                    rules=sar_alert_rules,
+                    run_id=result.run_id,
+                )
+                summary["alerts"] += len(sar_alerts)
         except Exception as exc:  # one broken project must not stop the others
             log.error("geo.nightly.project_failed", project_id=str(project_id), error=_err(exc))
             summary["failed"].append({"project_id": str(project_id), "error": _err(exc)})
@@ -910,6 +1000,7 @@ def ingest_new_scenes_task() -> dict[str, Any]:
                 today=_today(),
                 backfill_start=settings.geo_backfill_start,
                 max_cloud=settings.geo_max_scene_cloud_pct,
+                sar_alert_rules=SarAlertRules.from_settings(settings),
                 **_sar_kwargs(settings),
             )
         )

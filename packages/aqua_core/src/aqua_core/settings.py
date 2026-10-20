@@ -93,13 +93,22 @@ class Settings(BaseSettings):
     )
     # Sentinel-1 RTC (Planetary Computer `sentinel-1-rtc`) during ingestion: acquisitions in the
     # monsoon months, and within ±window days of a Sentinel-2 scene whose clear fraction is below
-    # the floor, are reduced to per-polygon backscatter statistics (stored in the run outputs).
+    # the floor, are reduced to per-polygon backscatter statistics (table `sar_observations`).
     geo_s1_enabled: bool = True
     geo_s1_monsoon_months: Annotated[list[int], NoDecode] = Field(
         default_factory=lambda: [6, 7, 8, 9]
     )
     geo_s1_clear_floor: float = Field(default=0.3, ge=0, le=1)
     geo_s1_window_days: int = Field(default=6, ge=0, le=30)
+    # Sentinel-1 backscatter-drop alerts (aqua_worker.alerts.detect_sar_backscatter_drop). A
+    # HEURISTIC, off by default: VH dB P50 below the project's own same-season (monsoon months)
+    # baseline from earlier years, same relative orbit, by `drop_db` on `consecutive` acquisitions
+    # in a row. Severity is never above medium; it needs optical or field confirmation.
+    geo_sar_alerts_enabled: bool = False
+    geo_sar_alert_drop_db: float = Field(default=3.0, gt=0, le=20)
+    geo_sar_alert_consecutive: int = Field(default=3, ge=1, le=20)
+    geo_sar_alert_min_history: int = Field(default=6, ge=1, le=200)
+    geo_sar_alert_min_valid_fraction: float = Field(default=0.6, ge=0, le=1)
 
     # ---------------------------------------------------------------- blockchain (Phase 6)
     chain_rpc_url: str = "http://localhost:8545"

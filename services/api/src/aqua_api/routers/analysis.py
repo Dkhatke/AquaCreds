@@ -1,5 +1,9 @@
 """Satellite analysis: trigger backfills/composites, read runs, the per-scene time series, alerts.
 
+The time series serves Sentinel-2 optical indices (`scene_observations`) and Sentinel-1 backscatter
+metrics (`sar_observations`) through the same endpoint; the two are not comparable (see
+`aqua_api.schemas.analysis.NOT_COMPARABLE`).
+
 Heavy work runs in the worker `geo` queue; the API only records an `AnalysisRun` (queued) and
 enqueues the task by name with the run id, so the client can poll `GET /analysis-runs/{id}`.
 """
@@ -21,6 +25,10 @@ from aqua_api.deps import (
     org_role,
 )
 from aqua_api.schemas.analysis import (
+    NOT_COMPARABLE,
+    SAR_INDICES,
+    SAR_STATS_KEY,
+    SAR_UNITS,
     AlertOut,
     AnalysisRunOut,
     BackfillRequest,
@@ -39,6 +47,7 @@ from aqua_core.models import (
     PlatformRole,
     Project,
     ProjectStatus,
+    SarObservation,
     SceneObservation,
     User,
 )
@@ -250,11 +259,24 @@ async def timeseries(
     index: TimeseriesIndex = "ndvi",
     date_from: Annotated[date | None, Query(alias="from")] = None,
     date_to: Annotated[date | None, Query(alias="to")] = None,
-    min_clear: Annotated[float, Query(ge=0, le=1)] = 0.0,
+    min_clear: Annotated[
+        float,
+        Query(
+            ge=0,
+            le=1,
+            description="Minimum clear fraction (Sentinel-2) or valid fraction (Sentinel-1)",
+        ),
+    ] = 0.0,
 ) -> TimeseriesOut:
     """Per-scene zonal statistics of one index. Every point carries its clear fraction so
-    clients can tell a real decline from a cloudy scene (filter with `min_clear`)."""
+    clients can tell a real decline from a cloudy scene (filter with `min_clear`).
+
+    Sentinel-1 indices (`vh_db`, `vv_db`, `vh_vv_ratio_db`, `rvi`) return one point per radar
+    pass with its valid fraction: per-polygon P50 (plus mean/P10/P90) after a 3×3 speckle filter.
+    Radar backscatter and optical indices are NOT comparable and must not be mixed."""
     await _project(session, project_id, user, settings)
+    if index in SAR_INDICES:
+        return await _sar_timeseries(session, project_id, index, date_from, date_to, min_clear)
     query = (
         select(SceneObservation)
         .where(SceneObservation.project_id == project_id)
@@ -283,7 +305,65 @@ async def timeseries(
             )
         )
     return TimeseriesOut(
-        project_id=project_id, index=index, min_clear_fraction=min_clear, points=points
+        project_id=project_id,
+        index=index,
+        sensor="sentinel-2-l2a",
+        units="unitless spectral index (surface reflectance)",
+        note=NOT_COMPARABLE,
+        min_clear_fraction=min_clear,
+        points=points,
+    )
+
+
+async def _sar_timeseries(
+    session: AsyncSession,
+    project_id: uuid.UUID,
+    index: TimeseriesIndex,
+    date_from: date | None,
+    date_to: date | None,
+    min_valid: float,
+) -> TimeseriesOut:
+    query = (
+        select(SarObservation)
+        .where(
+            SarObservation.project_id == project_id,
+            SarObservation.valid_fraction >= min_valid,
+        )
+        .order_by(SarObservation.acquired_at, SarObservation.acquisition_key)
+    )
+    if date_from:
+        query = query.where(SarObservation.acquired_on >= date_from)
+    if date_to:
+        query = query.where(SarObservation.acquired_on <= date_to)
+    key = SAR_STATS_KEY[index]
+    points = []
+    for obs in await session.scalars(query):
+        stats = obs.stats.get(key) or {}
+        points.append(
+            TimeseriesPoint(
+                date=obs.acquired_on,
+                acquired_at=obs.acquired_at,
+                item_id=obs.acquisition_key,
+                clear_fraction=None,
+                cloud_cover=None,
+                valid_fraction=obs.valid_fraction,
+                orbit_state=obs.orbit_state,
+                relative_orbit=obs.relative_orbit,
+                valid_pixels=int(stats.get("valid_pixels", 0)),
+                mean=stats.get("mean"),
+                p10=stats.get("p10"),
+                p50=stats.get("p50"),
+                p90=stats.get("p90"),
+            )
+        )
+    return TimeseriesOut(
+        project_id=project_id,
+        index=index,
+        sensor="sentinel-1-rtc",
+        units=SAR_UNITS[index],
+        note=NOT_COMPARABLE,
+        min_clear_fraction=min_valid,
+        points=points,
     )
 
 

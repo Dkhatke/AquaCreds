@@ -826,6 +826,10 @@ export interface paths {
      * Timeseries
      * @description Per-scene zonal statistics of one index. Every point carries its clear fraction so
      *     clients can tell a real decline from a cloudy scene (filter with `min_clear`).
+     *
+     *     Sentinel-1 indices (`vh_db`, `vv_db`, `vh_vv_ratio_db`, `rvi`) return one point per radar
+     *     pass with its valid fraction: per-polygon P50 (plus mean/P10/P90) after a 3×3 speckle filter.
+     *     Radar backscatter and optical indices are NOT comparable and must not be mixed.
      */
     get: operations["timeseries_api_v1_projects__project_id__timeseries_get"];
     put?: never;
@@ -883,6 +887,9 @@ export interface paths {
     /**
      * Project Timeseries
      * @description Project-level zonal statistics per Sentinel-2 scene (clear scenes only).
+     *
+     *     `rvi` and `vh_db` return Sentinel-1 per-pass polygon medians (P50 aggregates only, passes with
+     *     valid fraction >= `min_clear`). Radar and optical values are not comparable.
      */
     get: operations["project_timeseries_api_v1_public_projects__project_id__timeseries_get"];
     put?: never;
@@ -1213,7 +1220,7 @@ export interface components {
      * AlertKind
      * @enum {string}
      */
-    AlertKind: "vegetation_loss";
+    AlertKind: "vegetation_loss" | "sar_backscatter_drop";
     /** AlertOut */
     AlertOut: {
       /** Acknowledged At */
@@ -2681,6 +2688,8 @@ export interface components {
       index: string;
       /** Min Clear Fraction */
       min_clear_fraction: number;
+      /** Note */
+      note: string;
       /** Points */
       points: components["schemas"]["PublicTimeseriesPoint"][];
       /**
@@ -2688,11 +2697,22 @@ export interface components {
        * Format: uuid
        */
       project_id: string;
+      /**
+       * Sensor
+       * @default sentinel-2-l2a
+       * @enum {string}
+       */
+      sensor: "sentinel-2-l2a" | "sentinel-1-rtc";
     };
-    /** PublicTimeseriesPoint */
+    /**
+     * PublicTimeseriesPoint
+     * @description Sentinel-2: one clear scene. Sentinel-1 (`rvi`, `vh_db`): one radar pass, P50 only (mean and
+     *     percentiles are null), `item_id` is the acquisition key and `valid_fraction` replaces
+     *     `clear_fraction`.
+     */
     PublicTimeseriesPoint: {
       /** Clear Fraction */
-      clear_fraction: number;
+      clear_fraction: number | null;
       /**
        * Date
        * Format: date
@@ -2708,6 +2728,8 @@ export interface components {
       p50: number | null;
       /** P90 */
       p90: number | null;
+      /** Valid Fraction */
+      valid_fraction?: number | null;
       /** Valid Pixels */
       valid_pixels: number;
     };
@@ -3316,9 +3338,22 @@ export interface components {
        * Index
        * @enum {string}
        */
-      index: "ndvi" | "evi" | "mvi" | "ndwi" | "mndwi" | "ndmi" | "cmri";
+      index:
+        | "ndvi"
+        | "evi"
+        | "mvi"
+        | "ndwi"
+        | "mndwi"
+        | "ndmi"
+        | "cmri"
+        | "vh_db"
+        | "vv_db"
+        | "vh_vv_ratio_db"
+        | "rvi";
       /** Min Clear Fraction */
       min_clear_fraction: number;
+      /** Note */
+      note: string;
       /** Points */
       points: components["schemas"]["TimeseriesPoint"][];
       /**
@@ -3326,8 +3361,20 @@ export interface components {
        * Format: uuid
        */
       project_id: string;
+      /**
+       * Sensor
+       * @enum {string}
+       */
+      sensor: "sentinel-2-l2a" | "sentinel-1-rtc";
+      /** Units */
+      units: string;
     };
-    /** TimeseriesPoint */
+    /**
+     * TimeseriesPoint
+     * @description One Sentinel-2 scene or one Sentinel-1 pass. For Sentinel-1, `item_id` is the acquisition
+     *     key, `clear_fraction`/`cloud_cover` are null and `valid_fraction` is the share of polygon
+     *     pixels with valid backscatter; for Sentinel-2 the SAR-only fields are null.
+     */
     TimeseriesPoint: {
       /**
        * Acquired At
@@ -3335,7 +3382,7 @@ export interface components {
        */
       acquired_at: string;
       /** Clear Fraction */
-      clear_fraction: number;
+      clear_fraction: number | null;
       /** Cloud Cover */
       cloud_cover: number | null;
       /**
@@ -3347,12 +3394,18 @@ export interface components {
       item_id: string;
       /** Mean */
       mean: number | null;
+      /** Orbit State */
+      orbit_state?: string | null;
       /** P10 */
       p10: number | null;
       /** P50 */
       p50: number | null;
       /** P90 */
       p90: number | null;
+      /** Relative Orbit */
+      relative_orbit?: number | null;
+      /** Valid Fraction */
+      valid_fraction?: number | null;
       /** Valid Pixels */
       valid_pixels: number;
     };
@@ -5208,9 +5261,21 @@ export interface operations {
   timeseries_api_v1_projects__project_id__timeseries_get: {
     parameters: {
       query?: {
-        index?: "ndvi" | "evi" | "mvi" | "ndwi" | "mndwi" | "ndmi" | "cmri";
+        index?:
+          | "ndvi"
+          | "evi"
+          | "mvi"
+          | "ndwi"
+          | "mndwi"
+          | "ndmi"
+          | "cmri"
+          | "vh_db"
+          | "vv_db"
+          | "vh_vv_ratio_db"
+          | "rvi";
         from?: string | null;
         to?: string | null;
+        /** @description Minimum clear fraction (Sentinel-2) or valid fraction (Sentinel-1) */
         min_clear?: number;
       };
       header?: never;
@@ -5310,7 +5375,7 @@ export interface operations {
   project_timeseries_api_v1_public_projects__project_id__timeseries_get: {
     parameters: {
       query?: {
-        index?: "ndvi" | "evi" | "mvi" | "ndwi" | "mndwi" | "ndmi" | "cmri";
+        index?: "ndvi" | "evi" | "mvi" | "ndwi" | "mndwi" | "ndmi" | "cmri" | "rvi" | "vh_db";
         min_clear?: number;
       };
       header?: never;
