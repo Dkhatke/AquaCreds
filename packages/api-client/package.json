@@ -1,0 +1,33 @@
+{
+  "name": "@aquacreds/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typed AquaCreds API client (generated OpenAPI types + openapi-fetch). Framework-agnostic: used by apps/web (Next.js) and apps/mobile (Expo).",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.d.ts",
+    "./openapi.json": "./openapi.json"
+  },
+  "files": [
+    "src",
+    "openapi.json"
+  ],
+  "scripts": {
+    "generate": "pnpm --filter @aquacreds/openapi-codegen run generate",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "biome check .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "openapi-fetch": "0.17.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "26.6.5",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}

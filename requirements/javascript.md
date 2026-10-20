@@ -1,17 +1,24 @@
 # JavaScript / TypeScript / Solidity packages
 
-Latest stable versions checked on 2026-10-19. The real pins will live in each app's `package.json` and
-the root `pnpm-lock.yaml`. Install everything with `pnpm install` from the repo root once the apps exist.
+Exact pins live in the root `package.json`, each workspace package's `package.json`, and
+`pnpm-lock.yaml` (checked 2026-10-20). Install everything with `pnpm install` from the repo root.
+Node 24+ is required (CI uses Node 26). Node 25+ no longer ships corepack, so install pnpm with
+`npm i -g pnpm@12.14.0` or run it via `npx pnpm@12.14.0`.
 
-## Monorepo tooling
-| Package | Version |
-|---|---|
-| pnpm | 12.14 |
-| turbo | 2.11 |
-| typescript | 7.0 |
-| openapi-typescript | 7.13 |
-| openapi-fetch | 0.17 |
-| zod | 4.6 |
+## Monorepo tooling (pinned)
+| Package | Version | Where |
+|---|---|---|
+| pnpm | 12.14.0 | root `packageManager` |
+| turbo | 2.11.9 | root |
+| typescript | 7.0.2 | root, `packages/api-client` (typecheck) |
+| typescript (codegen only) | 5.9.3 | `tools/openapi-codegen` (openapi-typescript needs the TS 5 compiler API; TS 7 has none) |
+| @biomejs/biome | 2.5.15 | lint + format (ESLint's typescript-eslint does not support TS 7 yet) |
+| openapi-typescript | 7.13.0 | `tools/openapi-codegen` |
+| openapi-fetch | 0.17.0 | `packages/api-client` |
+| vitest | 5.0.5 | `packages/api-client` |
+| vite | 8.3.4 | `packages/api-client` (vitest peer) |
+| @types/node | 26.6.5 | `packages/api-client` |
+| zod | 4.6.7 | not yet installed: add to the apps (form validation) |
 
 ## Web: `apps/web` (Next.js)
 | Package | Version | Purpose |

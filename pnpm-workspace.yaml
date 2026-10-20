@@ -1,0 +1,12 @@
+# JS/TS workspace. Python packages under packages/aqua_* and services/* are managed by uv.
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "!packages/aqua_*"
+  - "tools/*"
+
+# Exact versions on `pnpm add`, and fail (not warn) on peer-dependency mismatches.
+savePrefix: ""
+strictPeerDependencies: true
+autoInstallPeers: true
+engineStrict: true

@@ -82,6 +82,8 @@ package = false
 
 [tool.uv.workspace]
 members = ["packages/*", "services/*"]
+# TypeScript package (pnpm workspace), not a Python project.
+exclude = ["packages/api-client"]
 
 [tool.uv.sources]
 aqua-core = { workspace = true }

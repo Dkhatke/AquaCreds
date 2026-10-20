@@ -1,0 +1,15 @@
+{
+  "name": "@aquacreds/openapi-codegen",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Generates packages/api-client/src/schema.d.ts from openapi.json. Kept separate because openapi-typescript needs the TypeScript 5 compiler API, which TypeScript 7 (native) does not ship.",
+  "type": "module",
+  "scripts": {
+    "generate": "openapi-typescript ../../packages/api-client/openapi.json --output ../../packages/api-client/src/schema.d.ts && biome format --write ../../packages/api-client/src/schema.d.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}

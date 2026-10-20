@@ -72,3 +72,7 @@ htmlcov/
 
 # Foundry dependencies (Soldeer)
 contracts/dependencies/
+
+# pnpm / vitest
+.pnpm-store/
+coverage/

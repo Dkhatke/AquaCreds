@@ -1,0 +1,57 @@
+name: Frontend
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  js:
+    name: API client drift, typecheck, lint, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: System libraries for WeasyPrint (in case API modules import aqua_mrv)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core
+      # Version comes from the root package.json "packageManager" field.
+      - uses: pnpm/action-setup@v6.1.0
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: "26"
+          cache: pnpm
+      - name: Install JS workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Export OpenAPI schema from FastAPI
+        run: uv run --frozen --no-dev --all-packages python scripts/export_openapi.py
+      - name: Regenerate TypeScript types
+        run: pnpm --filter @aquacreds/api-client run generate
+      - name: Fail if the committed client is out of date
+        run: |
+          if ! git diff --exit-code packages/api-client \
+             || [ -n "$(git status --porcelain packages/api-client)" ]; then
+            echo "::error::packages/api-client is stale. Run 'pnpm gen:api' and commit the result."
+            exit 1
+          fi
+
+      - name: Biome (repo-wide, includes root configs)
+        run: pnpm exec biome ci .
+      - name: Typecheck, lint, test
+        run: pnpm exec turbo run typecheck lint test

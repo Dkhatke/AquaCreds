@@ -38,6 +38,21 @@ make test lint                # tests, ruff, mypy
 Workflow: never commit to `main`; use a feature branch and open a PR. `pre-commit install` enables the
 lint/format/secret-scan hooks.
 
+## TypeScript workspace and API client
+Prerequisites: Node 24+ and pnpm 12 (`npm i -g pnpm@12.14.0`, or `npx pnpm@12.14.0 …`; Node 25+ no
+longer bundles corepack). pnpm workspaces + Turborepo; Biome for lint/format.
+
+```bash
+pnpm install                  # JS workspace (apps/*, packages/api-client, tools/*)
+pnpm gen:api                  # FastAPI → packages/api-client/openapi.json → src/schema.d.ts
+pnpm check                    # turbo: lint + typecheck + test
+```
+
+`@aquacreds/api-client` (no React dependency; used by web and mobile) wraps `openapi-fetch` with bearer
+injection, single-flight refresh on 401 (rotating refresh tokens), logout on refresh failure, typed
+helpers for the main flows and a presigned-upload helper (SHA-256 via SubtleCrypto). Any API change
+must be followed by `pnpm gen:api` and committing the result: the `Frontend` CI workflow fails on drift.
+
 ## Production deployment
 Free hosting on an Oracle Cloud Always Free ARM VM (Docker Compose + Caddy, Cloudflare R2, nightly
 backups, tag-triggered deploys): see the runbook [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
@@ -58,6 +73,9 @@ Create the first registry admin: `docker compose exec api aqua-api create-user -
 packages/aqua_core   shared settings, logging, DB + storage helpers
 services/api         FastAPI app (+ Alembic migrations, `aqua-api` CLI)
 services/worker      Celery workers (queues: default, geo, ml, chain, reports)
+packages/api-client  TypeScript API client generated from the OpenAPI schema (pnpm)
+tools/openapi-codegen  openapi-typescript runner (needs TypeScript 5 compiler API)
+scripts/             export_openapi.py (deterministic OpenAPI export)
 infra/docker         multi-stage, multi-arch Dockerfile (targets: api, worker, dev)
 compose.yaml         local dev stack
 docs/                plan, stack, datasets, research notes, design prompts, context
