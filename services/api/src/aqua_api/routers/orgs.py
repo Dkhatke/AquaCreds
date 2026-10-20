@@ -7,7 +7,7 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
-from aqua_api.deps import CurrentUser, SessionDep, can_read_all_projects, org_role
+from aqua_api.deps import CurrentUser, SessionDep, SettingsDep, can_read_all_projects, org_role
 from aqua_api.schemas.identity import MemberAdd, MemberOut, OrgCreate, OrgOut
 from aqua_api.services import audit
 from aqua_core.models import Membership, Organization, OrgRole, User
@@ -57,9 +57,11 @@ async def list_my_orgs(user: CurrentUser, session: SessionDep) -> list[Organizat
 
 
 @router.get("/{org_id}", response_model=OrgOut)
-async def get_org(org_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Organization:
+async def get_org(
+    org_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> Organization:
     org = await _get_org(session, org_id)
-    if org_role(user, org_id) is None and not can_read_all_projects(user):
+    if org_role(user, org_id) is None and not can_read_all_projects(user, settings):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Organisation not found")
     return org
 

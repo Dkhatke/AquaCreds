@@ -71,6 +71,26 @@ MFA_REQUIRED_DETAIL = (
 )
 
 
+def mfa_required_for(user: User, settings: Settings) -> bool:
+    """True when this account must have TOTP enabled to use its platform role."""
+    return settings.staff_mfa_required and user.platform_role in STAFF_ROLES
+
+
+def staff_mfa_satisfied(user: User, settings: Settings) -> bool:
+    """False only for a staff account without TOTP while MFA_REQUIRED_FOR_STAFF is in effect."""
+    return not mfa_required_for(user, settings) or user.mfa_enabled_at is not None
+
+
+def effective_platform_role(user: User, settings: Settings) -> PlatformRole:
+    """The platform role this request may exercise. A staff account that has not met the MFA
+    requirement is treated as an ordinary user (it still sees its own organisations), so staff
+    privileges never apply without the second factor. Staff-only endpoints use
+    `require_platform_role`, which answers 403 with `MFA_REQUIRED_DETAIL` instead."""
+    if not staff_mfa_satisfied(user, settings):
+        return PlatformRole.USER
+    return user.platform_role
+
+
 def require_platform_role(
     *roles: PlatformRole,
 ) -> Callable[..., Coroutine[Any, Any, User]]:
@@ -80,11 +100,7 @@ def require_platform_role(
     async def _check(user: CurrentUser, settings: SettingsDep) -> User:
         if user.platform_role not in roles:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient platform role")
-        if (
-            settings.staff_mfa_required
-            and user.platform_role in STAFF_ROLES
-            and user.mfa_enabled_at is None
-        ):
+        if not staff_mfa_satisfied(user, settings):
             raise HTTPException(status.HTTP_403_FORBIDDEN, MFA_REQUIRED_DETAIL)
         return user
 
@@ -98,5 +114,7 @@ def org_role(user: User, org_id: uuid.UUID) -> OrgRole | None:
     return None
 
 
-def can_read_all_projects(user: User) -> bool:
-    return user.platform_role in {PlatformRole.VERIFIER, PlatformRole.REGISTRY_ADMIN}
+def can_read_all_projects(user: User, settings: Settings) -> bool:
+    """Staff (verifier, registry_admin) read every organisation's projects, but only once the
+    MFA requirement for staff is met (see `effective_platform_role`)."""
+    return effective_platform_role(user, settings) in STAFF_ROLES

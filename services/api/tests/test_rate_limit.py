@@ -100,6 +100,19 @@ async def test_mfa_verify_limited_per_ip(client: httpx.AsyncClient) -> None:
     )
 
 
+async def test_recovery_code_regeneration_limited_per_ip(client: httpx.AsyncClient) -> None:
+    email = "regen.limit@example.org"
+    assert (await _register(client, email)).status_code == 201
+    login = await client.post("/auth/login", json={"email": email, "password": PASSWORD})
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    for _ in range(3):
+        r = await client.post("/auth/mfa/recovery-codes", json={"code": "123456"}, headers=headers)
+        assert r.status_code == 409  # MFA not enabled; still counted
+    _assert_429(
+        await client.post("/auth/mfa/recovery-codes", json={"code": "123456"}, headers=headers)
+    )
+
+
 async def test_security_headers_on_json_responses(client: httpx.AsyncClient) -> None:
     r = await client.get("/auth/me")
     assert r.headers["x-content-type-options"] == "nosniff"

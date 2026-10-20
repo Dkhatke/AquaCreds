@@ -15,6 +15,7 @@ from aqua_api.deps import (
     SettingsDep,
     StorageDep,
     can_read_all_projects,
+    effective_platform_role,
     org_role,
 )
 from aqua_api.schemas.project import (
@@ -113,13 +114,16 @@ async def _validated_boundary(
     return geom, area_ha
 
 
-async def _load(session: AsyncSession, project_id: uuid.UUID, user: User) -> Project:
+async def _load(
+    session: AsyncSession, project_id: uuid.UUID, user: User, settings: Settings
+) -> Project:
     project = await session.get(Project, project_id)
     if project is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     is_member = org_role(user, project.org_id) is not None
-    staff_visible = can_read_all_projects(user) and (
-        project.status != ProjectStatus.DRAFT or user.platform_role == PlatformRole.REGISTRY_ADMIN
+    role = effective_platform_role(user, settings)
+    staff_visible = can_read_all_projects(user, settings) and (
+        project.status != ProjectStatus.DRAFT or role == PlatformRole.REGISTRY_ADMIN
     )
     if not (is_member or staff_visible):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
@@ -185,15 +189,17 @@ async def create_project(
 async def list_projects(
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
     org_id: uuid.UUID | None = None,
     status_filter: Annotated[ProjectStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[ProjectOut]:
     query = select(Project).order_by(Project.created_at.desc()).limit(limit).offset(offset)
-    if user.platform_role == PlatformRole.REGISTRY_ADMIN:
+    role = effective_platform_role(user, settings)
+    if role == PlatformRole.REGISTRY_ADMIN:
         pass
-    elif user.platform_role == PlatformRole.VERIFIER:
+    elif role == PlatformRole.VERIFIER:
         query = query.where(Project.status != ProjectStatus.DRAFT)
     else:
         my_orgs = select(Membership.org_id).where(Membership.user_id == user.id)
@@ -206,8 +212,10 @@ async def list_projects(
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
-async def get_project(project_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> ProjectOut:
-    return _out(await _load(session, project_id, user))
+async def get_project(
+    project_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> ProjectOut:
+    return _out(await _load(session, project_id, user, settings))
 
 
 @router.patch("/{project_id}", response_model=ProjectOut)
@@ -218,7 +226,7 @@ async def update_project(
     session: SessionDep,
     settings: SettingsDep,
 ) -> ProjectOut:
-    project = await _load(session, project_id, user)
+    project = await _load(session, project_id, user, settings)
     _require_org_admin(user, project)
     _require_editable(project)
     changes = body.model_dump(exclude_unset=True, exclude={"boundary"})
@@ -256,7 +264,7 @@ async def request_document_upload(
     settings: SettingsDep,
     storage: StorageDep,
 ) -> UploadTicket:
-    project = await _load(session, project_id, user)
+    project = await _load(session, project_id, user, settings)
     _require_org_admin(user, project)
     _require_editable(project)
     safe = _SAFE_NAME.sub("_", body.filename)[-120:] or "document"
@@ -283,7 +291,7 @@ async def confirm_document(
     settings: SettingsDep,
     storage: StorageDep,
 ) -> TenureDocument:
-    project = await _load(session, project_id, user)
+    project = await _load(session, project_id, user, settings)
     _require_org_admin(user, project)
     _require_editable(project)
     if not body.object_key.startswith(f"projects/{project.id}/tenure/"):
@@ -331,7 +339,7 @@ async def confirm_document(
 async def submit_project(
     project_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> ProjectOut:
-    project = await _load(session, project_id, user)
+    project = await _load(session, project_id, user, settings)
     _require_org_admin(user, project)
     issues = [{"code": i.code, "message": i.message} for i in submission_issues(project)]
     overlaps = await find_overlaps(

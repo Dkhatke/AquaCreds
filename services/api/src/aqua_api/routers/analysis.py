@@ -12,7 +12,14 @@ from fastapi import APIRouter, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from aqua_api.deps import CurrentUser, SessionDep, can_read_all_projects, org_role
+from aqua_api.deps import (
+    CurrentUser,
+    SessionDep,
+    SettingsDep,
+    can_read_all_projects,
+    effective_platform_role,
+    org_role,
+)
 from aqua_api.schemas.analysis import (
     AlertOut,
     AnalysisRunOut,
@@ -36,6 +43,7 @@ from aqua_core.models import (
     User,
 )
 from aqua_core.models._types import utcnow
+from aqua_core.settings import Settings
 
 router = APIRouter(tags=["satellite analysis"])
 
@@ -52,20 +60,22 @@ GEO_QUEUE = "geo"
 # ---------------------------------------------------------------- helpers
 
 
-async def _project(session: AsyncSession, project_id: uuid.UUID, user: User) -> Project:
+async def _project(
+    session: AsyncSession, project_id: uuid.UUID, user: User, settings: Settings
+) -> Project:
     project = await session.get(Project, project_id)
     if project is None or (
-        org_role(user, project.org_id) is None and not can_read_all_projects(user)
+        org_role(user, project.org_id) is None and not can_read_all_projects(user, settings)
     ):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     return project
 
 
-def _require_admin(user: User, project: Project) -> None:
-    """Org admins of the project's organisation, or registry admins."""
+def _require_admin(user: User, project: Project, settings: Settings) -> None:
+    """Org admins of the project's organisation, or registry admins (with MFA when required)."""
     if (
         org_role(user, project.org_id) != OrgRole.ADMIN
-        and user.platform_role != PlatformRole.REGISTRY_ADMIN
+        and effective_platform_role(user, settings) != PlatformRole.REGISTRY_ADMIN
     ):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "Only organisation or registry admins can run analyses"
@@ -134,12 +144,13 @@ async def request_backfill(
     request: Request,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
     body: BackfillRequest | None = None,
 ) -> AnalysisRun:
     """Ingest every Sentinel-2 scene since `start_date` (default 2017-01-01) into the time
     series. Scenes already ingested are skipped, so re-running is safe."""
-    project = await _project(session, project_id, user)
-    _require_admin(user, project)
+    project = await _project(session, project_id, user, settings)
+    _require_admin(user, project, settings)
     _require_analysable(project)
     start = body.start_date if body else None
     if start and start > date.today():
@@ -176,10 +187,11 @@ async def request_composite(
     request: Request,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
 ) -> AnalysisRun:
     """Dry-season (Nov–Mar) median + percentile composite, stored as a COG."""
-    project = await _project(session, project_id, user)
-    _require_admin(user, project)
+    project = await _project(session, project_id, user, settings)
+    _require_admin(user, project, settings)
     _require_analysable(project)
     if date(body.season_start_year, 11, 1) > date.today():
         raise HTTPException(
@@ -201,11 +213,13 @@ async def request_composite(
 
 
 @router.get("/analysis-runs/{run_id}", response_model=AnalysisRunOut)
-async def get_run(run_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> AnalysisRun:
+async def get_run(
+    run_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> AnalysisRun:
     run = await session.get(AnalysisRun, run_id)
     if run is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Analysis run not found")
-    await _project(session, run.project_id, user)
+    await _project(session, run.project_id, user, settings)
     return run
 
 
@@ -214,9 +228,10 @@ async def list_runs(
     project_id: uuid.UUID,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[AnalysisRun]:
-    await _project(session, project_id, user)
+    await _project(session, project_id, user, settings)
     rows = await session.scalars(
         select(AnalysisRun)
         .where(AnalysisRun.project_id == project_id)
@@ -231,6 +246,7 @@ async def timeseries(
     project_id: uuid.UUID,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
     index: TimeseriesIndex = "ndvi",
     date_from: Annotated[date | None, Query(alias="from")] = None,
     date_to: Annotated[date | None, Query(alias="to")] = None,
@@ -238,7 +254,7 @@ async def timeseries(
 ) -> TimeseriesOut:
     """Per-scene zonal statistics of one index. Every point carries its clear fraction so
     clients can tell a real decline from a cloudy scene (filter with `min_clear`)."""
-    await _project(session, project_id, user)
+    await _project(session, project_id, user, settings)
     query = (
         select(SceneObservation)
         .where(SceneObservation.project_id == project_id)
@@ -276,9 +292,10 @@ async def list_alerts(
     project_id: uuid.UUID,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
     unacknowledged: bool = False,
 ) -> list[Alert]:
-    await _project(session, project_id, user)
+    await _project(session, project_id, user, settings)
     query = select(Alert).where(Alert.project_id == project_id)
     if unacknowledged:
         query = query.where(Alert.acknowledged_at.is_(None))
@@ -287,14 +304,18 @@ async def list_alerts(
 
 
 @router.post("/alerts/{alert_id}/acknowledge", response_model=AlertOut)
-async def acknowledge_alert(alert_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> Alert:
+async def acknowledge_alert(
+    alert_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> Alert:
     """Org admins, verifiers and registry admins confirm they have seen (and are following up
     on) an alert. Acknowledging does not delete it: the alert stays in the project record."""
     alert = await session.get(Alert, alert_id, with_for_update=True)
     if alert is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Alert not found")
-    project = await _project(session, alert.project_id, user)
-    if org_role(user, project.org_id) != OrgRole.ADMIN and not can_read_all_projects(user):
+    project = await _project(session, alert.project_id, user, settings)
+    if org_role(user, project.org_id) != OrgRole.ADMIN and not can_read_all_projects(
+        user, settings
+    ):
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, "Only organisation admins or verifiers can acknowledge"
         )

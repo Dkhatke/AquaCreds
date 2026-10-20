@@ -48,6 +48,7 @@ from aqua_core.models import (
     User,
 )
 from aqua_core.models._types import utcnow
+from aqua_core.settings import Settings
 
 router = APIRouter(tags=["field evidence"])
 
@@ -63,22 +64,24 @@ PERIOD_PROJECT_STATUSES = {
 # ---------------------------------------------------------------- helpers
 
 
-async def _project(session: AsyncSession, project_id: uuid.UUID, user: User) -> Project:
+async def _project(
+    session: AsyncSession, project_id: uuid.UUID, user: User, settings: Settings
+) -> Project:
     project = await session.get(Project, project_id)
     if project is None or (
-        org_role(user, project.org_id) is None and not can_read_all_projects(user)
+        org_role(user, project.org_id) is None and not can_read_all_projects(user, settings)
     ):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     return project
 
 
 async def _period(
-    session: AsyncSession, period_id: uuid.UUID, user: User
+    session: AsyncSession, period_id: uuid.UUID, user: User, settings: Settings
 ) -> tuple[MonitoringPeriod, Project]:
     period = await session.get(MonitoringPeriod, period_id)
     if period is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Monitoring period not found")
-    return period, await _project(session, period.project_id, user)
+    return period, await _project(session, period.project_id, user, settings)
 
 
 def _require(user: User, project: Project, roles: set[OrgRole]) -> None:
@@ -135,9 +138,13 @@ def _plot_out(p: Plot) -> PlotOut:
 
 @router.post("/projects/{project_id}/periods", response_model=PeriodOut, status_code=201)
 async def create_period(
-    project_id: uuid.UUID, body: PeriodCreate, user: CurrentUser, session: SessionDep
+    project_id: uuid.UUID,
+    body: PeriodCreate,
+    user: CurrentUser,
+    session: SessionDep,
+    settings: SettingsDep,
 ) -> MonitoringPeriod:
-    project = await _project(session, project_id, user)
+    project = await _project(session, project_id, user, settings)
     _require(user, project, {OrgRole.ADMIN})
     if project.status not in PERIOD_PROJECT_STATUSES:
         raise HTTPException(
@@ -177,9 +184,9 @@ async def create_period(
 
 @router.get("/projects/{project_id}/periods", response_model=list[PeriodOut])
 async def list_periods(
-    project_id: uuid.UUID, user: CurrentUser, session: SessionDep
+    project_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> list[MonitoringPeriod]:
-    await _project(session, project_id, user)
+    await _project(session, project_id, user, settings)
     rows = await session.scalars(
         select(MonitoringPeriod)
         .where(MonitoringPeriod.project_id == project_id)
@@ -195,7 +202,7 @@ async def list_periods(
 async def issue_nonce(
     period_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> NonceOut:
-    period, project = await _period(session, period_id, user)
+    period, project = await _period(session, period_id, user, settings)
     _require(user, project, FIELD_ROLES)
     _require_open(period)
     token = secrets.token_urlsafe(32)
@@ -221,7 +228,7 @@ async def photo_upload_url(
     settings: SettingsDep,
     storage: StorageDep,
 ) -> UploadTicket:
-    period, project = await _period(session, period_id, user)
+    period, project = await _period(session, period_id, user, settings)
     _require(user, project, FIELD_ROLES)
     _require_open(period)
     ext = "jpg" if body.content_type == "image/jpeg" else "png"
@@ -245,7 +252,7 @@ async def create_submission(
     settings: SettingsDep,
     storage: StorageDep,
 ) -> SubmissionOut:
-    period, project = await _period(session, period_id, user)
+    period, project = await _period(session, period_id, user, settings)
     _require(user, project, FIELD_ROLES)
     _require_open(period)
     if not body.object_key.startswith(f"projects/{project.id}/periods/{period.id}/photos/"):
@@ -323,20 +330,20 @@ async def create_submission(
 
 @router.get("/submissions/{submission_id}", response_model=SubmissionOut)
 async def get_submission(
-    submission_id: uuid.UUID, user: CurrentUser, session: SessionDep
+    submission_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> SubmissionOut:
     sub = await session.get(FieldSubmission, submission_id)
     if sub is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
-    await _project(session, sub.project_id, user)
+    await _project(session, sub.project_id, user, settings)
     return _submission_out(sub)
 
 
 @router.get("/periods/{period_id}/submissions", response_model=list[SubmissionOut])
 async def list_submissions(
-    period_id: uuid.UUID, user: CurrentUser, session: SessionDep
+    period_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> list[SubmissionOut]:
-    await _period(session, period_id, user)
+    await _period(session, period_id, user, settings)
     rows = await session.scalars(
         select(FieldSubmission)
         .where(FieldSubmission.period_id == period_id)
@@ -350,9 +357,13 @@ async def list_submissions(
 
 @router.post("/projects/{project_id}/plots", response_model=PlotOut, status_code=201)
 async def create_plot(
-    project_id: uuid.UUID, body: PlotCreate, user: CurrentUser, session: SessionDep
+    project_id: uuid.UUID,
+    body: PlotCreate,
+    user: CurrentUser,
+    session: SessionDep,
+    settings: SettingsDep,
 ) -> PlotOut:
-    project = await _project(session, project_id, user)
+    project = await _project(session, project_id, user, settings)
     _require(user, project, {OrgRole.ADMIN})
     inside = await session.scalar(
         text(
@@ -386,9 +397,9 @@ async def create_plot(
 
 @router.get("/projects/{project_id}/plots", response_model=list[PlotOut])
 async def list_plots(
-    project_id: uuid.UUID, user: CurrentUser, session: SessionDep
+    project_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> list[PlotOut]:
-    await _project(session, project_id, user)
+    await _project(session, project_id, user, settings)
     rows = await session.scalars(
         select(Plot).where(Plot.project_id == project_id).order_by(Plot.code)
     )
@@ -406,8 +417,9 @@ async def record_measurement(
     body: MeasurementCreate,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
 ) -> PlotMeasurement:
-    period, project = await _period(session, period_id, user)
+    period, project = await _period(session, period_id, user, settings)
     _require(user, project, FIELD_ROLES)
     _require_open(period)
     plot = await session.get(Plot, plot_id)

@@ -21,6 +21,7 @@ from starlette.concurrency import run_in_threadpool
 from aqua_api.deps import (
     CurrentUser,
     SessionDep,
+    SettingsDep,
     StorageDep,
     can_read_all_projects,
     org_role,
@@ -53,6 +54,7 @@ from aqua_core.models import (
     User,
 )
 from aqua_core.models._types import utcnow
+from aqua_core.settings import Settings
 
 router = APIRouter(tags=["mrv reports"])
 
@@ -87,23 +89,30 @@ DECISIONS: dict[str, tuple[ReportStatus, PeriodStatus]] = {
 # ---------------------------------------------------------------- helpers
 
 
-async def _visible_project(session: AsyncSession, project_id: uuid.UUID, user: User) -> Project:
+async def _visible_project(
+    session: AsyncSession, project_id: uuid.UUID, user: User, settings: Settings
+) -> Project:
     project = await session.get(Project, project_id)
     if project is None or (
-        org_role(user, project.org_id) is None and not can_read_all_projects(user)
+        org_role(user, project.org_id) is None and not can_read_all_projects(user, settings)
     ):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     return project
 
 
 async def _visible_report(
-    session: AsyncSession, report_id: uuid.UUID, user: User, *, lock: bool = False
+    session: AsyncSession,
+    report_id: uuid.UUID,
+    user: User,
+    settings: Settings,
+    *,
+    lock: bool = False,
 ) -> tuple[MRVReport, Project]:
     report = await session.get(MRVReport, report_id, with_for_update=lock)
     if report is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found")
     try:
-        project = await _visible_project(session, report.project_id, user)
+        project = await _visible_project(session, report.project_id, user, settings)
     except HTTPException as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found") from exc
     return report, project
@@ -142,6 +151,7 @@ async def request_report(
     request: Request,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
     body: ReportRequest | None = None,
 ) -> ReportRequested:
     """Queue the MRV report for a period (org admins). The report is built in the background;
@@ -151,7 +161,7 @@ async def request_report(
     if period is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Monitoring period not found")
     try:
-        project = await _visible_project(session, period.project_id, user)
+        project = await _visible_project(session, period.project_id, user, settings)
     except HTTPException as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Monitoring period not found") from exc
     if org_role(user, project.org_id) != OrgRole.ADMIN:
@@ -249,12 +259,12 @@ async def request_report(
 
 @router.get("/periods/{period_id}/reports", response_model=list[ReportOut])
 async def list_reports(
-    period_id: uuid.UUID, user: CurrentUser, session: SessionDep
+    period_id: uuid.UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> list[MRVReport]:
     period = await session.get(MonitoringPeriod, period_id)
     if period is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Monitoring period not found")
-    await _visible_project(session, period.project_id, user)
+    await _visible_project(session, period.project_id, user, settings)
     rows = await session.scalars(
         select(MRVReport).where(MRVReport.period_id == period_id).order_by(MRVReport.version.desc())
     )
@@ -263,9 +273,13 @@ async def list_reports(
 
 @router.get("/reports/{report_id}", response_model=ReportDetail)
 async def get_report(
-    report_id: uuid.UUID, user: CurrentUser, session: SessionDep, storage: StorageDep
+    report_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDep,
+    settings: SettingsDep,
+    storage: StorageDep,
 ) -> ReportDetail:
-    report, _ = await _visible_report(session, report_id, user)
+    report, _ = await _visible_report(session, report_id, user, settings)
     stem = f"mrv-report-{report.id}-v{report.version}"
     downloads = ReportDownloads(
         json_url=storage.presign_get(report.json_key, f"{stem}.json"),
@@ -285,9 +299,10 @@ async def review_report(
     request: Request,
     user: Verifier,
     session: SessionDep,
+    settings: SettingsDep,
 ) -> MRVReport:
     """Verifier decision. The verifier must be independent of the project's organisation."""
-    report, project = await _visible_report(session, report_id, user, lock=True)
+    report, project = await _visible_report(session, report_id, user, settings, lock=True)
     if org_role(user, project.org_id) is not None or report.generated_by == user.id:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
@@ -393,11 +408,12 @@ async def verify_report(
     report_id: uuid.UUID,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
     storage: StorageDep,
 ) -> ReportVerification:
     """Recompute SHA-256 of the stored canonical JSON and compare it with the recorded hash and,
     once anchored, with the hash on-chain."""
-    report, _ = await _visible_report(session, report_id, user)
+    report, _ = await _visible_report(session, report_id, user, settings)
     obj = await run_in_threadpool(storage.describe, report.json_key)  # streams + hashes
     stored = obj.sha256 if obj is not None else None
     onchain, source = await _onchain_hash(session, report)
