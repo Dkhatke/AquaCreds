@@ -87,6 +87,7 @@ aqua-api = { workspace = true }
 aqua-worker = { workspace = true }
 aqua-carbon = { workspace = true }
 aqua-geo = { workspace = true }
+aqua-chain = { workspace = true }
 # CPU-only PyTorch wheels on Linux (much smaller); macOS uses PyPI wheels (with MPS).
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
@@ -113,7 +114,7 @@ allowed-confusables = ["×", "−", "–", "ρ", "σ"]
 "**/tests/**" = ["S101", "S105", "S106"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["aqua_core", "aqua_carbon", "aqua_api", "aqua_worker", "aqua_geo"]
+known-first-party = ["aqua_core", "aqua_carbon", "aqua_api", "aqua_worker", "aqua_geo", "aqua_chain"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -123,6 +124,7 @@ files = [
     "packages/aqua_core/src",
     "packages/aqua_carbon/src",
     "packages/aqua_geo/src",
+    "packages/aqua_chain/src",
     "services/api/src",
     "services/worker/src",
 ]
@@ -130,6 +132,7 @@ mypy_path = [
     "packages/aqua_core/src",
     "packages/aqua_carbon/src",
     "packages/aqua_geo/src",
+    "packages/aqua_chain/src",
     "services/api/src",
     "services/worker/src",
 ]
@@ -156,12 +159,14 @@ filterwarnings = [
     # to 10 m; rasterio still warns. Verified harmless (identical medians, ~0.7% bilinear smoothing).
     "ignore::rasterio.errors.NotGeoreferencedWarning",
     "ignore:Use `@` matmul:PendingDeprecationWarning",
+    # aiohttp (web3's async HTTP transport) warns about a no-op option on Python >= 3.12.
+    "ignore:enable_cleanup_closed ignored:DeprecationWarning",
 ]
 
 [tool.coverage.run]
 # SQLAlchemy's asyncio layer runs code on greenlets; without this, coverage misses those lines.
 concurrency = ["greenlet", "thread"]
-source = ["aqua_core", "aqua_carbon", "aqua_api", "aqua_worker", "aqua_geo"]
+source = ["aqua_core", "aqua_carbon", "aqua_api", "aqua_worker", "aqua_geo", "aqua_chain"]
 omit = ["*/migrations/*"]
 
 [tool.coverage.report]

@@ -40,7 +40,10 @@ fmt: ## Auto-fix lint and format
 	uv run ruff check --fix .
 	uv run ruff format .
 
+abis: ## Rebuild contracts and export ABIs/bytecode to packages/aqua_chain (commit the result)
+	uv run python -m aqua_chain.abi_export
+
 test: ## Run the Python test suite
 	uv run pytest
 
-.PHONY: help sync dev down nuke logs smoke migrate revision lint fmt test
+.PHONY: help sync dev down nuke logs smoke migrate revision lint fmt abis test

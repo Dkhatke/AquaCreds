@@ -19,7 +19,9 @@ from aqua_core.settings import Settings
 from aqua_core.storage import StoredObject
 
 POSTGIS_IMAGE = "imresamu/postgis:17-3.6"
+ANVIL_IMAGE = "ghcr.io/foundry-rs/foundry:v1.7.0"
 TABLES = (
+    "chain_events, chain_cursors, chain_transactions, org_wallets, "
     "audit_log, alerts, scene_observations, analysis_runs, "
     "plot_measurements, field_submissions, capture_nonces, plots, monitoring_periods, "
     "tenure_documents, projects, refresh_tokens, memberships, organizations, users"
@@ -91,12 +93,44 @@ def enqueued() -> list[tuple[str, tuple[str, ...], str]]:
     return []
 
 
+@pytest.fixture(scope="session")
+def anvil_url() -> Iterator[str]:
+    """A local Anvil chain (chain id 31337, the public dev mnemonic's accounts prefunded)."""
+    if not _docker_available():
+        pytest.skip("Docker is required for chain integration tests")
+    from testcontainers.core.container import DockerContainer
+    from testcontainers.core.wait_strategies import LogMessageWaitStrategy
+
+    container = (
+        DockerContainer(ANVIL_IMAGE, entrypoint="anvil", command="--host 0.0.0.0 --chain-id 31337")
+        .with_exposed_ports(8545)
+        .waiting_for(LogMessageWaitStrategy("Listening on"))
+    )
+    with container:
+        yield f"http://{container.get_container_host_ip()}:{container.get_exposed_port(8545)}"
+
+
+@pytest.fixture
+def settings_overrides() -> dict[str, Any]:
+    """Extra Settings for the app under test; override in a test module (e.g. chain settings)."""
+    return {}
+
+
 @pytest.fixture
 async def client(
-    database_url: str, storage: FakeStorage, enqueued: list[tuple[str, tuple[str, ...], str]]
+    database_url: str,
+    storage: FakeStorage,
+    enqueued: list[tuple[str, tuple[str, ...], str]],
+    settings_overrides: dict[str, Any],
 ) -> AsyncIterator[httpx.AsyncClient]:
     app = create_app(
-        Settings(_env_file=None, app_env="test", database_url=database_url, jwt_secret="t" * 48)
+        Settings(
+            _env_file=None,
+            app_env="test",
+            database_url=database_url,
+            jwt_secret="t" * 48,
+            **settings_overrides,
+        )
     )
     app.state.storage = storage
     app.state.enqueue = lambda name, *args, queue="default": enqueued.append((name, args, queue))

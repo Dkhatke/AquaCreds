@@ -5,6 +5,7 @@ description = "AquaCreds HTTP API (FastAPI)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "aqua-core",
+    "aqua-chain",
     "fastapi~=0.146.0",
     "uvicorn[standard]~=0.54.0",
     "alembic~=1.20",
@@ -23,6 +24,7 @@ aqua-api = "aqua_api.cli:main"
 
 [tool.uv.sources]
 aqua-core = { workspace = true }
+aqua-chain = { workspace = true }
 
 [build-system]
 requires = ["uv_build>=0.13,<0.14"]

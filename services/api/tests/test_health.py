@@ -57,7 +57,12 @@ async def test_readyz_503_and_reports_failing_dependency(
 async def test_docs_hidden_in_production() -> None:
     app = create_app(
         Settings(
-            _env_file=None, app_env="production", jwt_secret="y" * 40, s3_secret_access_key="z"
+            _env_file=None,
+            app_env="production",
+            jwt_secret="y" * 40,
+            s3_secret_access_key="z",
+            # BIP-39 test vector (no funds); only checks that a non-dev mnemonic is configured.
+            relayer_mnemonic=" ".join(["abandon"] * 11 + ["about"]),
         )
     )
     async with httpx.AsyncClient(

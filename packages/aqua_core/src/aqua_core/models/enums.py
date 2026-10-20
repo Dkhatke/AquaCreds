@@ -107,6 +107,34 @@ class SubmissionKind(StrEnum):
     GENERAL = "general"
 
 
+class ChainTxStatus(StrEnum):
+    """Relayer lifecycle: queued → submitted → confirmed | reverted, or failed (never broadcast,
+    or rejected by the node). `confirmed` only after N block confirmations."""
+
+    QUEUED = "queued"
+    SUBMITTED = "submitted"
+    CONFIRMED = "confirmed"
+    FAILED = "failed"
+    REVERTED = "reverted"
+
+
+class ChainTxPurpose(StrEnum):
+    REGISTER_PROJECT = "register_project"
+    SUBMIT_REPORT = "submit_report"
+    APPROVE_REPORT = "approve_report"
+    REJECT_REPORT = "reject_report"
+    ISSUE_CREDITS = "issue_credits"
+    OTHER = "other"
+
+
+class ChainSigner(StrEnum):
+    """Which platform key signs. Distinct derived accounts enforce separation of duties."""
+
+    REGISTRAR = "registrar"
+    VERIFIER = "verifier"
+    ISSUER = "issuer"
+
+
 class SubmissionStatus(StrEnum):
     PENDING_CHECKS = "pending_checks"
     CHECKED = "checked"  # all automatic checks ran; verifier decides

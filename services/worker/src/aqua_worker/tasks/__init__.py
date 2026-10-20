@@ -1,3 +1,3 @@
-from aqua_worker.tasks import evidence, geo, system
+from aqua_worker.tasks import chain, evidence, geo, system
 
-__all__ = ["evidence", "geo", "system"]
+__all__ = ["chain", "evidence", "geo", "system"]
