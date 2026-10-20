@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import {Script, console} from "forge-std/Script.sol";
 import {AquaCredit} from "../src/AquaCredit.sol";
+import {AquaForwardFund} from "../src/AquaForwardFund.sol";
 import {AquaMarketplace} from "../src/AquaMarketplace.sol";
 import {AquaRegistry} from "../src/AquaRegistry.sol";
 import {MockUSDC} from "../src/MockUSDC.sol";
@@ -14,14 +15,18 @@ import {MockUSDC} from "../src/MockUSDC.sol";
 ///                  --private-key $DEPLOYER_KEY --verify
 ///
 /// Role holders come from env (default: the deployer, for local testing):
-///   ADMIN_ADDRESS     DEFAULT_ADMIN_ROLE + PAUSER_ROLE (use a multisig/hardware wallet in prod)
+///   ADMIN_ADDRESS     DEFAULT_ADMIN_ROLE + PAUSER_ROLE on registry, credit and forward fund
+///                     (use a multisig/hardware wallet in prod)
 ///   REGISTRAR_ADDRESS platform relayer that registers projects and submits reports
 ///   VERIFIER_ADDRESS  accredited verifier (MUST differ from the registrar)
 ///   ISSUER_ADDRESS    registry admin that issues credits after approval
 ///   TREASURY_ADDRESS  marketplace fee recipient
 ///   FEE_BPS           marketplace fee in basis points (default 200 = 2%)
 contract Deploy is Script {
-    function run() external returns (AquaRegistry registry, AquaCredit credit, AquaMarketplace market, MockUSDC usdc) {
+    function run()
+        external
+        returns (AquaRegistry registry, AquaCredit credit, AquaMarketplace market, MockUSDC usdc, AquaForwardFund fund)
+    {
         address deployer = msg.sender;
         address admin = vm.envOr("ADMIN_ADDRESS", deployer);
         address registrar = vm.envOr("REGISTRAR_ADDRESS", deployer);
@@ -38,6 +43,9 @@ contract Deploy is Script {
         credit = new AquaCredit(deployer, registry, uri);
         usdc = new MockUSDC(admin);
         market = new AquaMarketplace(admin, credit, usdc, treasury, feeBps);
+        // Reverse-auction forward funding: reads projects from the registry and vintages from the
+        // credit contract; needs no roles on either. The admin gets its admin + pauser roles directly.
+        fund = new AquaForwardFund(admin, registry, credit, usdc);
 
         registry.grantRole(registry.REGISTRAR_ROLE(), registrar);
         registry.grantRole(registry.VERIFIER_ROLE(), verifier);
@@ -59,5 +67,6 @@ contract Deploy is Script {
         console.log("AquaCredit     ", address(credit));
         console.log("AquaMarketplace", address(market));
         console.log("MockUSDC       ", address(usdc));
+        console.log("AquaForwardFund", address(fund));
     }
 }

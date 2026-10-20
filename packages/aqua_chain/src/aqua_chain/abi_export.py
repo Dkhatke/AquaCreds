@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-CONTRACTS = ("AquaRegistry", "AquaCredit", "AquaMarketplace", "MockUSDC")
+CONTRACTS = ("AquaRegistry", "AquaCredit", "AquaMarketplace", "MockUSDC", "AquaForwardFund")
 ABI_DIR = Path(__file__).parent / "abis"
 
 

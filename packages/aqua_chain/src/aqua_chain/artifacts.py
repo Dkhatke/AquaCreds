@@ -7,7 +7,9 @@ from typing import Any, Literal
 
 from aqua_chain.abi_export import ABI_DIR, CONTRACTS
 
-ContractName = Literal["AquaRegistry", "AquaCredit", "AquaMarketplace", "MockUSDC"]
+ContractName = Literal[
+    "AquaRegistry", "AquaCredit", "AquaMarketplace", "MockUSDC", "AquaForwardFund"
+]
 
 
 @cache
