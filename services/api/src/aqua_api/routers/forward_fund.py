@@ -16,7 +16,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 
-from aqua_api.deps import CurrentUser, SessionDep, can_read_all_projects, org_role
+from aqua_api.deps import CurrentUser, SessionDep, SettingsDep, can_read_all_projects, org_role
 from aqua_api.routers.chain import _client, _relayer, _visible_project
 from aqua_api.schemas.chain import ChainTxOut
 from aqua_api.schemas.forward_fund import (
@@ -236,10 +236,12 @@ async def _onchain_check(request: Request, r: ff.RequestState) -> OnchainCheckOu
     )
 
 
-async def _admin_project(session: SessionDep, project_id: uuid.UUID, user: User) -> Project:
+async def _admin_project(
+    session: SessionDep, project_id: uuid.UUID, user: User, settings: Settings
+) -> Project:
     project = await session.get(Project, project_id)
     role = org_role(user, project.org_id) if project else None
-    if project is None or (role is None and not can_read_all_projects(user)):
+    if project is None or (role is None and not can_read_all_projects(user, settings)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     if role is not OrgRole.ADMIN:
         raise HTTPException(
@@ -368,9 +370,10 @@ async def project_forward_fund(
     request: Request,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
     capacity_of: CapacityDep,
 ) -> ProjectForwardFundOut:
-    project = await _visible_project(session, project_id, user)
+    project = await _visible_project(session, project_id, user, settings)
     book = await _book(request, session)
     key = to_hex(project_id_bytes32(project.id))
     ids = {key: project.id}
@@ -400,9 +403,10 @@ async def submit_offer(
     request: Request,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
     capacity_of: CapacityDep,
 ) -> ChainTransaction:
-    project = await _admin_project(session, project_id, user)
+    project = await _admin_project(session, project_id, user, settings)
     book = await _book(request, session)
     relayer = _relayer(request)
     wallet = await _custodial_owner(session, request, project)
@@ -476,8 +480,9 @@ async def withdraw_offer(
     request: Request,
     user: CurrentUser,
     session: SessionDep,
+    settings: SettingsDep,
 ) -> ChainTransaction:
-    project = await _admin_project(session, project_id, user)
+    project = await _admin_project(session, project_id, user, settings)
     book = await _book(request, session)
     relayer = _relayer(request)
     wallet = await _custodial_owner(session, request, project)
