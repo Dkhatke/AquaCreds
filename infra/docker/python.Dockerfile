@@ -43,6 +43,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY packages/aqua_core packages/aqua_core
 COPY packages/aqua_chain packages/aqua_chain
 COPY packages/aqua_geo packages/aqua_geo
+COPY packages/aqua_carbon packages/aqua_carbon
+COPY packages/aqua_mrv packages/aqua_mrv
 COPY services/worker services/worker
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable --package aqua-worker

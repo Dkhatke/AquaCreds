@@ -21,7 +21,7 @@ from aqua_core.storage import StoredObject
 POSTGIS_IMAGE = "imresamu/postgis:17-3.6"
 ANVIL_IMAGE = "ghcr.io/foundry-rs/foundry:v1.7.0"
 TABLES = (
-    "chain_events, chain_cursors, chain_transactions, org_wallets, "
+    "mrv_reports, chain_events, chain_cursors, chain_transactions, org_wallets, "
     "audit_log, alerts, scene_observations, analysis_runs, "
     "plot_measurements, field_submissions, capture_nonces, plots, monitoring_periods, "
     "tenure_documents, projects, refresh_tokens, memberships, organizations, users"
@@ -59,6 +59,9 @@ class FakeStorage:
 
     def presign_put(self, key: str, content_type: str) -> str:
         return f"http://storage.test/{key}?signature=fake"
+
+    def presign_get(self, key: str, filename: str | None = None) -> str:
+        return f"http://storage.test/{key}?download={filename or ''}&signature=fake"
 
     def describe(self, key: str) -> StoredObject | None:
         if key not in self.objects:

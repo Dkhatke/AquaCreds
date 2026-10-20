@@ -59,6 +59,10 @@ class StoredObject:
 class ObjectStorage(Protocol):
     def presign_put(self, key: str, content_type: str) -> str: ...
 
+    def presign_get(self, key: str, filename: str | None = None) -> str:
+        """Time-limited download URL (optionally forcing a download file name)."""
+        ...
+
     def describe(self, key: str) -> StoredObject | None:
         """Size, content type and SHA-256 of an object, or None if it does not exist."""
         ...
@@ -83,6 +87,15 @@ class S3ObjectStorage:
             "put_object",
             Params={"Bucket": self._settings.s3_bucket, "Key": key, "ContentType": content_type},
             ExpiresIn=self._settings.upload_url_ttl_s,
+        )
+        return url
+
+    def presign_get(self, key: str, filename: str | None = None) -> str:
+        params: dict[str, str] = {"Bucket": self._settings.s3_bucket, "Key": key}
+        if filename:
+            params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
+        url: str = self._public.generate_presigned_url(
+            "get_object", Params=params, ExpiresIn=self._settings.upload_url_ttl_s
         )
         return url
 
