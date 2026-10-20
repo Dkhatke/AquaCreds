@@ -85,3 +85,64 @@ stages:
       hash: md5
       md5: db826752b3ac86f9d8dfbfbf39998418
       size: 1731
+  features_extract:
+    cmd: uv run python -u ml/pipelines/features_extract.py
+    deps:
+    - path: data/processed/labels.parquet
+      hash: md5
+      md5: 594f8e9a7fd7d5cc52c7f0db7fb308b2
+      size: 309483
+    - path: ml/pipelines/features_extract.py
+      hash: md5
+      md5: 606e135a5caf1c242d38160073535743
+      size: 22658
+    - path: packages/aqua_geo/src/aqua_geo/composite.py
+      hash: md5
+      md5: b86fab32108a14c121d4746a7eaa3bb5
+      size: 2310
+    - path: packages/aqua_geo/src/aqua_geo/features.py
+      hash: md5
+      md5: fc1712fb4f0237641fda7d36f43ffa3f
+      size: 3977
+    - path: packages/aqua_geo/src/aqua_geo/indices.py
+      hash: md5
+      md5: 1d7892f6a106e0a92f62f3fe8e050588
+      size: 3605
+    - path: packages/aqua_geo/src/aqua_geo/sentinel2.py
+      hash: md5
+      md5: 114ee496fab9eaa4dce4489768a2fd18
+      size: 11336
+    outs:
+    - path: data/processed/features.parquet
+      hash: md5
+      md5: d5f790fb047a28f7c0b5fe1195bbd252
+      size: 2242002
+    - path: data/processed/features_summary.json
+      hash: md5
+      md5: 3ea73109b87668b3bfd8d02b251d3fe7
+      size: 2524
+  train_classifier:
+    cmd: uv run python -u ml/pipelines/train_classifier.py
+    deps:
+    - path: data/processed/features.parquet
+      hash: md5
+      md5: d5f790fb047a28f7c0b5fe1195bbd252
+      size: 2242002
+    - path: ml/pipelines/classifier_eval.py
+      hash: md5
+      md5: b670bacf7a79f60a55b14c3628cbbf37
+      size: 4808
+    - path: ml/pipelines/train_classifier.py
+      hash: md5
+      md5: 2d3b7818805ca25d2525f0e80b09af73
+      size: 19222
+    outs:
+    - path: ml/artifacts/ecosystem_classifier_v1
+      hash: md5
+      md5: 7e299cc16c29feefb075a61a2beb1053.dir
+      size: 3653073
+      nfiles: 3
+    - path: ml/model_cards/ecosystem_classifier_v1_metrics.json
+      hash: md5
+      md5: b1ce55687f9846ac97a8fe6f6be9f03c
+      size: 24494

@@ -140,6 +140,24 @@ Planetary Computer URLs re-signed per tile (tokens expire after ~45 min).
 5. Cap points per H3 cell (balances the Sundarbans against small sites).
 6. Hold out the Gulf of Kutch region entirely as the geographic test set.
 
+**Classifier features (`ml/pipelines/features_extract.py`, run 2026-10-19/20):** Sentinel-2
+L2A, dry season Nov 2020 – Mar 2021, read at every label point (salt_marsh excluded) with the
+Planetary Computer data-API point endpoint (server-side COG sampling). Window reads were not
+viable: this machine measured 0.3–1 MB/s from the COG stores, and the labels touch ~3,600
+distinct 10 m blocks (~90 GB for 12 scenes). Per point: the 12 least-cloudy scenes whose
+footprint covers it (one per date), DNs converted with `aqua_geo.sentinel2.scale_and_mask` and
+aggregated with `aqua_geo.features.pixel_features` (production code), plus Copernicus DEM
+GLO-30 elevation. Result: **14,114 / 14,114 points, 813 / 813 H3 cells, 0 failed cells, 0 failed
+requests** (183,482 point requests, 105 transient retries). Every point has ≥ 3 clear
+observations (median 12, p10 11, minimum scenes 5), so none was dropped. Class balance is
+unchanged from the labels: mangrove 4,801 · water 4,763 · terrestrial_other 2,662 ·
+cropland_aquaculture 1,396 · tidal_flat 282 · built_bare 210. Elevation is missing for 8
+offshore water points (no DEM tile over open sea), filled with 0 m at training. Runtime: the
+active request time was ~2.5–3 h at ~19 req/s (client-capped at 20 req/s, after Planetary
+Computer rate-limited the run at ~38 req/s); the wall time was 9.6 h because the laptop slept
+mid-run. Peak RSS 261 MB. 20 m bands are sampled at their native pixel (production resamples
+them bilinearly to 10 m). Sentinel-1 was not extracted in v1 (another ~100k requests).
+
 ---
 
 ## 3. Biomass and carbon references (regression training/validation)

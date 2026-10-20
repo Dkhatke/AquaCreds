@@ -42,3 +42,32 @@ stages:
     metrics:
       - data/processed/labels_summary.json:
           cache: false
+
+  # Sentinel-2 dry-season 2020-21 features + DEM at every label point (Planetary Computer point
+  # API, ~2-3 h, resumable via data/interim/features_parts). See ml/pipelines/features_extract.py.
+  features_extract:
+    cmd: uv run python -u ml/pipelines/features_extract.py
+    deps:
+      - ml/pipelines/features_extract.py
+      - packages/aqua_geo/src/aqua_geo/features.py
+      - packages/aqua_geo/src/aqua_geo/indices.py
+      - packages/aqua_geo/src/aqua_geo/composite.py
+      - packages/aqua_geo/src/aqua_geo/sentinel2.py
+      - data/processed/labels.parquet
+    outs:
+      - data/processed/features.parquet
+    metrics:
+      - data/processed/features_summary.json:
+          cache: false
+
+  train_classifier:
+    cmd: uv run python -u ml/pipelines/train_classifier.py
+    deps:
+      - ml/pipelines/train_classifier.py
+      - ml/pipelines/classifier_eval.py
+      - data/processed/features.parquet
+    outs:
+      - ml/artifacts/ecosystem_classifier_v1
+    metrics:
+      - ml/model_cards/ecosystem_classifier_v1_metrics.json:
+          cache: false

@@ -449,6 +449,7 @@ ml = [
     { name = "numpy" },
     { name = "odc-stac" },
     { name = "onnx" },
+    { name = "onnxmltools" },
     { name = "onnxruntime" },
     { name = "open-clip-torch" },
     { name = "optuna" },
@@ -471,6 +472,7 @@ ml = [
     { name = "segmentation-models-pytorch" },
     { name = "shap" },
     { name = "shapely" },
+    { name = "skl2onnx" },
     { name = "statsmodels" },
     { name = "timm" },
     { name = "torch", version = "2.14.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
@@ -521,6 +523,7 @@ ml = [
     { name = "numpy", specifier = "~=2.5" },
     { name = "odc-stac", specifier = "~=0.5.3" },
     { name = "onnx", specifier = "~=1.23" },
+    { name = "onnxmltools", specifier = "~=1.16" },
     { name = "onnxruntime", specifier = "~=1.31" },
     { name = "open-clip-torch", specifier = "~=3.3" },
     { name = "optuna", specifier = "~=5.0" },
@@ -543,6 +546,7 @@ ml = [
     { name = "segmentation-models-pytorch", specifier = "~=0.5.0" },
     { name = "shap", specifier = "~=0.54.0" },
     { name = "shapely", specifier = "~=2.2" },
+    { name = "skl2onnx", specifier = "~=1.20" },
     { name = "statsmodels", specifier = "~=0.15.0" },
     { name = "timm", specifier = "~=1.0" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = "~=2.14" },
@@ -3627,6 +3631,21 @@ wheels = [
 ]
 
 [[package]]
+name = "onnxmltools"
+version = "1.16.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "onnx" },
+    { name = "protobuf" },
+    { name = "skl2onnx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/41/3e/85a40b6e56a8aaa45bffc9eb00f93182b87841b4dc5a4198ea609993e17c/onnxmltools-1.16.0.tar.gz", hash = "sha256:cd76e0a7ba6a3c4ca4acf3b4c7973cda6a70f2edc146ab11d4efc3dfbee6805a", size = 208397, upload-time = "2026-01-30T12:45:06.1Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/e6/6713d9a089a6861b4bf748f02a6238cb2759968aadf672dccef3e960376b/onnxmltools-1.16.0-py3-none-any.whl", hash = "sha256:7b27196e7dcc0d9de29110f211e7941ad1c71dd97606baa729144d9acd105d3c", size = 303991, upload-time = "2026-01-30T12:45:04.809Z" },
+]
+
+[[package]]
 name = "onnxruntime"
 version = "1.31.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5587,6 +5606,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68a0e064b6af791aa332cf192da575fd474ed7d6f16a2/six-1.17.0.tar.gz", hash = "sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81", size = 34031, upload-time = "2024-12-04T17:35:28.174Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
+]
+
+[[package]]
+name = "skl2onnx"
+version = "1.20.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "onnx" },
+    { name = "scikit-learn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cb/39/a5015fefb613d5172541740540851a301c53392b57051cf4d313cb6d5718/skl2onnx-1.20.0.tar.gz", hash = "sha256:c74ea827d92ba186fe659695e8fc989cd97bfc320edce3d32b9936a5878da10a", size = 956369, upload-time = "2026-01-30T10:52:07.694Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/d3/b0db77025a4683ec1b9aafc301b78c7e2e2059a1e2543e918435f3d03582/skl2onnx-1.20.0-py3-none-any.whl", hash = "sha256:30cac34803d1776c14b336ae945e48ef28debfc339215acde1cc04b963ed3f7b", size = 317169, upload-time = "2026-01-30T10:52:05.824Z" },
 ]
 
 [[package]]
