@@ -95,7 +95,7 @@ Legend: ✅ chosen · 🔁 kept as baseline / fallback · ❌ rejected
 
 | Concern | ✅ Choice | Alternatives |
 |---|---|---|
-| Imagery catalogue | Microsoft Planetary Computer STAC (`sentinel-2-l2a`, `sentinel-1-rtc`, `cop-dem-glo-30`, `esa-worldcover`) | 🔁 Element 84 Earth Search (`sentinel-2-c1-l2a`, AWS); 🔁 Copernicus Data Space Ecosystem (official ESA, quota-limited); ❌ Google Earth Engine for production (noncommercial quota tiers from Apr 2026, licensing for commercial use) |
+| Imagery catalogue | Microsoft Planetary Computer STAC (`sentinel-2-l2a`, `sentinel-1-rtc`, `cop-dem-glo-30`, `esa-worldcover`) | 🔁 Element 84 Earth Search v1 (`sentinel-2-l2a`, AWS; per-item `earthsearch:boa_offset_applied` decides the BOA offset; `sentinel-2-c1-l2a` is opt-in only, as its DNs keep the +1000 offset); 🔁 Copernicus Data Space Ecosystem (official ESA, quota-limited); ❌ Google Earth Engine for production (noncommercial quota tiers from Apr 2026, licensing for commercial use) |
 | Loading | `odc-stac` + `pystac-client` → xarray/dask | 🔁 `stackstac` |
 | Raster I/O | `rasterio` 1.5, `rioxarray`, `rio-cogeo` | — |
 | Vector | `geopandas` 1.2, `shapely` 2.2, `pyproj`, `pyogrio` | — |

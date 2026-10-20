@@ -12,7 +12,14 @@ import pytest
 import rasterio
 from api_testlib import BHITARKANIKA, project_payload, square
 from conftest import FakeStorage
-from geo_fakes import POLYGON_PIXELS, FakeSceneSource, scene
+from geo_fakes import (
+    POLYGON_PIXELS,
+    FakeSarSource,
+    FakeScene,
+    FakeSceneSource,
+    sar_pass,
+    scene,
+)
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from aqua_core.db import session_factory
@@ -357,3 +364,168 @@ def test_season_helpers() -> None:
     assert geo.season_label(2025) == "2025-26"
     assert geo.season_label(2099) == "2099-00"
     assert geo.season_window(2025) == (date(2025, 11, 1), date(2026, 3, 31))
+
+
+# ---------------------------------------------------------------- provider fallback
+
+
+async def test_scene_served_by_the_fallback_provider_records_that_provider(
+    client: Any, make_actor: Any, sql: Any, sessionmaker: Any
+) -> None:
+    _, project_id = await _project(make_actor, sql)
+    flaky = scene("2024-01-10", fail=True)
+    source = FakeSceneSource([flaky, scene("2024-01-15")], fallback_provider="fake-alt")
+    source.search_errors = [{"provider": "down-primary", "error": "APIError: 503"}]
+    result = await geo.ingest_project(
+        sessionmaker, source, project_id, start=date(2024, 1, 1), end=date(2024, 2, 1)
+    )
+    assert result.status == AnalysisStatus.SUCCEEDED
+    out = result.outputs
+    assert (out["ingested"], out["failed_count"]) == (2, 0)
+    assert out["providers_used"] == {"fake": 1, "fake-alt": 1}
+    assert out["search_provider"] == "fake"
+    assert out["search_fallbacks"] == [{"provider": "down-primary", "error": "APIError: 503"}]
+    (fb,) = out["provider_fallbacks"]
+    assert (fb["item_id"], fb["from"], fb["to"]) == (flaky.item_id, "fake", "fake-alt")
+    rows = await sql(
+        "SELECT item_id, provider FROM scene_observations WHERE project_id=:p ORDER BY item_id",
+        p=project_id,
+    )
+    assert [(r.item_id, r.provider) for r in rows] == [
+        (f"{flaky.item_id}_ALT", "fake-alt"),
+        (scene("2024-01-15").item_id, "fake"),
+    ]
+
+
+async def test_same_acquisition_from_another_provider_is_stored_once(
+    client: Any, make_actor: Any, sql: Any, sessionmaker: Any
+) -> None:
+    _, project_id = await _project(make_actor, sql)
+    day = date(2024, 1, 14)
+    pc = FakeSceneSource(
+        [FakeScene("S2B_MSIL2A_20240114T044139_R033_T45QVC_20240114T081709", day)],
+        name="planetary-computer",
+    )
+    await geo.ingest_project(sessionmaker, pc, project_id, start=day, end=day)
+    es = FakeSceneSource(
+        [
+            FakeScene("S2B_45QVC_20240114_0_L2A", day),  # same scene, Earth Search id
+            FakeScene("S2A_45QVC_20240119_0_L2A", date(2024, 1, 19)),
+        ],
+        name="earth-search",
+    )
+    again = await geo.ingest_project(sessionmaker, es, project_id, start=day, end=date(2024, 1, 31))
+    assert (again.outputs["already_ingested"], again.outputs["ingested"]) == (1, 1)
+    assert es.loads == [["S2A_45QVC_20240119_0_L2A"]]
+
+
+# ---------------------------------------------------------------- Sentinel-1
+
+
+def _monsoon_year() -> tuple[FakeSceneSource, FakeSarSource]:
+    s2_source = FakeSceneSource([scene("2024-01-10", cloudy=0.8), scene("2024-01-20")])
+    sar = FakeSarSource(
+        [
+            sar_pass("2024-01-12"),  # 2 days after a cloudy S2 scene
+            sar_pass("2024-01-30"),  # dry season, no cloudy S2 scene nearby: skipped
+            sar_pass("2024-07-05", vv=0.08, vh=0.016),  # monsoon
+            sar_pass("2024-08-01", fail=True),  # monsoon, read times out
+        ]
+    )
+    return s2_source, sar
+
+
+async def test_sentinel1_fills_monsoon_and_cloudy_gaps_in_run_outputs(
+    client: Any, make_actor: Any, sql: Any, sessionmaker: Any
+) -> None:
+    _, project_id = await _project(make_actor, sql)
+    s2_source, sar = _monsoon_year()
+    result = await geo.ingest_project(
+        sessionmaker,
+        s2_source,
+        project_id,
+        start=date(2024, 1, 1),
+        end=date(2024, 8, 31),
+        sar_source=sar,
+        sar_policy=geo.Sentinel1Policy(),
+    )
+    assert result.status == AnalysisStatus.SUCCEEDED  # an S1 failure never fails the S2 run
+    s1 = result.outputs["sentinel1"]
+    assert (s1["found"], s1["selected"], s1["ingested"], s1["failed_count"]) == (4, 3, 2, 1)
+    assert "simulated RTC read timeout" in s1["failed"][0]["error"]
+    assert s1["policy"] == {"monsoon_months": [6, 7, 8, 9], "clear_floor": 0.3, "window_days": 6}
+    assert s1["collection"] == "sentinel-1-rtc"
+    assert "3x3" in s1["speckle_filter"]
+    obs = {o["acquired_on"]: o for o in s1["observations"]}
+    assert obs["2024-01-12"]["trigger"] == f"low_clear:{scene('2024-01-10').item_id}"
+    monsoon = obs["2024-07-05"]
+    assert monsoon["trigger"] == "monsoon"
+    assert (monsoon["polygon_pixels"], monsoon["valid_fraction"]) == (POLYGON_PIXELS, 1.0)
+    assert monsoon["stats"]["vv_db"]["p50"] == pytest.approx(-10.969, abs=1e-3)
+    assert monsoon["stats"]["vh_vv_db"]["p50"] == pytest.approx(-6.990, abs=1e-3)
+    assert monsoon["stats"]["rvi"]["p50"] == pytest.approx(4 * 0.016 / 0.096, abs=1e-3)
+    assert monsoon["provider"] == "fake-sar"
+
+    stored = await sql("SELECT params, outputs FROM analysis_runs WHERE id=:id", id=result.run_id)
+    assert stored[0].outputs["sentinel1"]["ingested"] == 2
+    assert stored[0].params["sentinel1"]["clear_floor"] == 0.3
+    count = await sql(
+        "SELECT count(*) AS n FROM scene_observations WHERE project_id=:p", p=project_id
+    )
+    assert count[0].n == 2  # Sentinel-1 never enters the Sentinel-2 time-series table
+
+    # a second run skips recorded passes and retries only the failed one
+    sar.loads.clear()
+    again = await geo.ingest_project(
+        sessionmaker,
+        s2_source,
+        project_id,
+        start=date(2024, 1, 1),
+        end=date(2024, 8, 31),
+        sar_source=sar,
+        sar_policy=geo.Sentinel1Policy(),
+    )
+    s1 = again.outputs["sentinel1"]
+    assert (s1["already_recorded"], s1["ingested"], s1["failed_count"]) == (2, 0, 1)
+    assert sar.loads == ["S1A_20240801_12"]
+
+
+async def test_sentinel1_search_failure_is_recorded_not_raised(
+    client: Any, make_actor: Any, sql: Any, sessionmaker: Any
+) -> None:
+    _, project_id = await _project(make_actor, sql)
+    s2_source, sar = _monsoon_year()
+    sar.search_error = PermissionError("HTTP 403: SAS token refused")
+    result = await geo.ingest_project(
+        sessionmaker,
+        s2_source,
+        project_id,
+        start=date(2024, 1, 1),
+        end=date(2024, 8, 31),
+        sar_source=sar,
+        sar_policy=geo.Sentinel1Policy(),
+    )
+    assert result.status == AnalysisStatus.SUCCEEDED
+    assert "SAS token refused" in result.outputs["sentinel1"]["error"]
+    assert result.outputs["sentinel1"]["observations"] == []
+
+
+async def test_nightly_passes_the_sentinel1_policy_through(
+    client: Any, make_actor: Any, sql: Any, sessionmaker: Any
+) -> None:
+    _, project_id = await _project(make_actor, sql)
+    s2_source, sar = _monsoon_year()
+    summary = await geo.ingest_new_scenes(
+        sessionmaker,
+        s2_source,
+        today=date(2024, 8, 31),
+        backfill_start=date(2024, 1, 1),
+        sar_source=sar,
+        sar_policy=geo.Sentinel1Policy(),
+    )
+    assert summary["failed"] == []
+    run = await sql(
+        "SELECT outputs FROM analysis_runs WHERE project_id=:p AND kind='incremental'",
+        p=project_id,
+    )
+    assert run[0].outputs["sentinel1"]["ingested"] == 2

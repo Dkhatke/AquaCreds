@@ -156,7 +156,12 @@ disallow_any_unimported = false
 [tool.pytest.ini_options]
 testpaths = ["packages", "services", "ml/tests"]
 addopts = "--import-mode=importlib -ra"
-pythonpath = ["services/api/tests", "ml/pipelines", "services/worker/tests"]
+pythonpath = [
+    "services/api/tests",
+    "ml/pipelines",
+    "services/worker/tests",
+    "packages/aqua_geo/tests",
+]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [

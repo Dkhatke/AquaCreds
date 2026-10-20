@@ -121,7 +121,8 @@ def calls(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, tuple[Any, ...], d
 
     run_id = uuid.uuid4()
     monkeypatch.setattr(geo, "_with_db", fake_with_db)
-    monkeypatch.setattr(geo, "StacSceneSource", lambda: "SOURCE")
+    monkeypatch.setattr(geo, "StacSceneSource", lambda **kw: "SOURCE")
+    monkeypatch.setattr(geo, "StacSarSource", lambda: "SAR")
     monkeypatch.setattr(geo, "S3ObjectStorage", lambda settings: "STORAGE")
     monkeypatch.setattr(
         geo,
@@ -144,6 +145,8 @@ def test_backfill_wrapper_parses_arguments(calls: list[Any]) -> None:
     assert kwargs["run_id"] == rid
     assert kwargs["kind"].value == "backfill"
 
+    assert (kwargs["sar_source"], kwargs["sar_policy"]) == ("SAR", geo.Sentinel1Policy())
+
     geo.backfill_project.run(str(pid), "", None)  # API sends "" for the default start
     assert calls[1][2]["start"] == date(2017, 1, 1)
     assert calls[1][2]["run_id"] is None
@@ -152,6 +155,7 @@ def test_backfill_wrapper_parses_arguments(calls: list[Any]) -> None:
 def test_nightly_and_composite_wrappers(calls: list[Any]) -> None:
     assert geo.ingest_new_scenes_task.run() == {"projects": 0}
     assert calls[0][2]["backfill_start"] == date(2017, 1, 1)
+    assert calls[0][2]["sar_source"] == "SAR"
     pid = uuid.uuid4()
     assert geo.build_composite_task.run(str(pid), "2024", None) == {"cog_key": "k"}
     assert calls[1][1] == ("SESSIONMAKER", "SOURCE", "STORAGE", pid, 2024)
@@ -204,6 +208,14 @@ def test_stac_source_signs_right_before_loading(monkeypatch: pytest.MonkeyPatch)
     assert signed == ["S2B_MSIL2A_20240110"]
     assert loaded.epsg == 32645
     assert loaded.inside == "MASK"
+
+
+def test_sentinel1_can_be_disabled_in_settings(
+    calls: list[Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(geo, "get_settings", lambda: Settings(_env_file=None, geo_s1_enabled=False))
+    geo.backfill_project.run(str(uuid.uuid4()), None, None)
+    assert (calls[0][2]["sar_source"], calls[0][2]["sar_policy"]) == (None, None)
 
 
 @pytest.mark.skipif(

@@ -29,7 +29,7 @@ class SceneStats:
     index_stats: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
-def _summary(values: np.ndarray[Any, Any]) -> dict[str, Any]:
+def summarize(values: np.ndarray[Any, Any]) -> dict[str, Any]:
     valid = values[np.isfinite(values)]
     if valid.size == 0:
         return {"valid_pixels": 0}
@@ -73,7 +73,7 @@ def scene_statistics(
         if name in _CLIP:
             low, high = _CLIP[name]
             values = np.clip(values, low, high)
-        stats[name] = _summary(values)
+        stats[name] = summarize(values)
     return SceneStats(
         polygon_pixels=polygon_pixels,
         clear_pixels=clear_pixels,

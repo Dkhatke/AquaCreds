@@ -36,6 +36,10 @@ def _is_fernet_key(key: str) -> bool:
         return False
 
 
+# Must match aqua_geo.sentinel2.PROVIDERS (aqua_core does not import aqua_geo; a test checks it).
+GEO_STAC_PROVIDER_NAMES = ("planetary-computer", "earth-search", "earth-search-c1")
+
+
 def _split_csv(value: object) -> object:
     if isinstance(value, str):
         return [item.strip() for item in value.split(",") if item.strip()]
@@ -82,6 +86,20 @@ class Settings(BaseSettings):
     geo_nightly_hour_utc: int = Field(default=20, ge=0, le=23)  # 20:00 UTC = 01:30 IST
     geo_max_scene_cloud_pct: float = Field(default=80.0, gt=0, le=100)  # tile-level pre-filter
     geo_composite_max_cloud_pct: float = Field(default=40.0, gt=0, le=100)
+    # Sentinel-2 STAC catalogues in fallback order (comma-separated). The next one is tried on
+    # timeouts, HTTP 5xx/429 and auth errors (401/403); see aqua_geo.fallback.
+    geo_stac_providers: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["planetary-computer", "earth-search"]
+    )
+    # Sentinel-1 RTC (Planetary Computer `sentinel-1-rtc`) during ingestion: acquisitions in the
+    # monsoon months, and within ±window days of a Sentinel-2 scene whose clear fraction is below
+    # the floor, are reduced to per-polygon backscatter statistics (stored in the run outputs).
+    geo_s1_enabled: bool = True
+    geo_s1_monsoon_months: Annotated[list[int], NoDecode] = Field(
+        default_factory=lambda: [6, 7, 8, 9]
+    )
+    geo_s1_clear_floor: float = Field(default=0.3, ge=0, le=1)
+    geo_s1_window_days: int = Field(default=6, ge=0, le=30)
 
     # ---------------------------------------------------------------- blockchain (Phase 6)
     chain_rpc_url: str = "http://localhost:8545"
@@ -139,10 +157,33 @@ class Settings(BaseSettings):
     # client address, e.g. the Docker network Caddy runs on. Empty = use the TCP peer address.
     trusted_proxy_ips: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
-    @field_validator("cors_origins", "trusted_proxy_ips", mode="before")
+    @field_validator(
+        "cors_origins",
+        "trusted_proxy_ips",
+        "geo_stac_providers",
+        "geo_s1_monsoon_months",
+        mode="before",
+    )
     @classmethod
     def _split_lists(cls, value: object) -> object:
         return _split_csv(value)
+
+    @field_validator("geo_stac_providers")
+    @classmethod
+    def _known_stac_providers(cls, value: list[str]) -> list[str]:
+        unknown = [name for name in value if name not in GEO_STAC_PROVIDER_NAMES]
+        if unknown or not value or len(set(value)) != len(value):
+            raise ValueError(
+                f"GEO_STAC_PROVIDERS must list distinct names from {GEO_STAC_PROVIDER_NAMES}"
+            )
+        return value
+
+    @field_validator("geo_s1_monsoon_months")
+    @classmethod
+    def _valid_months(cls, value: list[int]) -> list[int]:
+        if any(not 1 <= m <= 12 for m in value):
+            raise ValueError("GEO_S1_MONSOON_MONTHS must be month numbers 1-12")
+        return sorted(set(value))
 
     @field_validator("trusted_proxy_ips")
     @classmethod

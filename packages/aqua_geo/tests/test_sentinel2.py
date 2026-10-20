@@ -31,8 +31,11 @@ def test_boa_offset_depends_on_baseline_and_provider() -> None:
     assert s2.boa_offset(_item("05.11"), s2.PLANETARY_COMPUTER) == 1000.0
     assert s2.boa_offset(_item("04.00"), s2.PLANETARY_COMPUTER) == 1000.0
     assert s2.boa_offset(_item("03.01"), s2.PLANETARY_COMPUTER) == 0.0
-    assert s2.boa_offset(_item("05.11"), s2.EARTH_SEARCH) == 0.0  # Collection 1 is harmonised
+    # Earth Search: harmonised only where the item says so (see test_providers for recorded items)
+    assert s2.boa_offset(_item("05.11"), s2.EARTH_SEARCH) == 1000.0
+    assert s2.boa_offset(_item("05.11"), s2.EARTH_SEARCH_C1) == 1000.0  # C1 keeps the offset
     flagged = _item("05.11", **{"earthsearch:boa_offset_applied": True})
+    assert s2.boa_offset(flagged, s2.EARTH_SEARCH) == 0.0
     assert s2.boa_offset(flagged, s2.PLANETARY_COMPUTER) == 0.0
 
 
