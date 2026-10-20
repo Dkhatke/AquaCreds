@@ -1,0 +1,150 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "stac_version": "1.0.0",
+   "stac_extensions": [],
+   "id": "S2B_MSIL2A_20240114T044139_R033_T45QVC_20240114T081709",
+   "collection": "sentinel-2-l2a",
+   "bbox": [
+    86.040717,
+    19.8054934,
+    87.0937862,
+    20.8002152
+   ],
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       86.040717,
+       20.4765142
+      ],
+      [
+       86.0539744,
+       20.5334325
+      ],
+      [
+       86.0885809,
+       20.6818321
+      ],
+      [
+       86.115604,
+       20.7977425
+      ],
+      [
+       87.0937862,
+       20.8002152
+      ],
+      [
+       87.0931907,
+       19.8080225
+      ],
+      [
+       86.0448445,
+       19.8054934
+      ],
+      [
+       86.040717,
+       20.4765142
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "datetime": "2024-01-14T04:41:39.024000Z",
+    "platform": "Sentinel-2B",
+    "proj:epsg": 32645,
+    "s2:mgrs_tile": "45QVC",
+    "constellation": "Sentinel 2",
+    "s2:granule_id": "S2B_OPER_MSI_L2A_TL_MSFT_20240114T081710_A035809_T45QVC_N05.10",
+    "eo:cloud_cover": 4.1265,
+    "sat:orbit_state": "descending",
+    "sat:relative_orbit": 33,
+    "s2:processing_baseline": "05.10"
+   },
+   "assets": {
+    "B02": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R10m/T45QVC_20240114T044139_B02_10m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "B03": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R10m/T45QVC_20240114T044139_B03_10m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "B04": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R10m/T45QVC_20240114T044139_B04_10m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "B05": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R20m/T45QVC_20240114T044139_B05_20m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "B06": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R20m/T45QVC_20240114T044139_B06_20m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "B07": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R20m/T45QVC_20240114T044139_B07_20m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "B08": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R10m/T45QVC_20240114T044139_B08_10m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "B11": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R20m/T45QVC_20240114T044139_B11_20m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "B12": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R20m/T45QVC_20240114T044139_B12_20m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "B8A": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R20m/T45QVC_20240114T044139_B8A_20m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    },
+    "SCL": {
+     "href": "https://sentinel2l2a01.blob.core.windows.net/sentinel2-l2/45/Q/VC/2024/01/14/S2B_MSIL2A_20240114T044139_N0510_R033_T45QVC_20240114T081709.SAFE/GRANULE/L2A_T45QVC_A035809_20240114T044648/IMG_DATA/R20m/T45QVC_20240114T044139_SCL_20m.tif",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ]
+    }
+   },
+   "links": []
+  }
+ ],
+ "links": []
+}

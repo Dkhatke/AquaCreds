@@ -17,13 +17,71 @@ Status column: ✅ verified source/licence on 2026-10-19 · ⚠️ must re-check
 
 | Dataset | Use | Resolution / period | Access | Licence | Status |
 |---|---|---|---|---|---|
-| **Sentinel-2 L2A** (surface reflectance) | Main optical features (bands, indices, composites) | 10–20 m, 5-day revisit, 2017→ | Planetary Computer STAC `sentinel-2-l2a` (COGs; anonymous, optional key for higher limits). Fallbacks: Earth Search `sentinel-2-c1-l2a` (AWS), Copernicus Data Space Ecosystem | Copernicus open data (attribution) | ✅ |
-| **Sentinel-1 RTC** (radar backscatter) | Cloud-free structure/inundation features (VV, VH, ratio, temporal std) | 10 m, 6–12 day | Planetary Computer `sentinel-1-rtc`; fallback CDSE GRD + own RTC | Copernicus open data | ⚠️ check PC access terms for RTC |
+| **Sentinel-2 L2A** (surface reflectance) | Main optical features (bands, indices, composites) | 10–20 m, 5-day revisit, 2017→ | Planetary Computer STAC `sentinel-2-l2a` (COGs; anonymous, optional key for higher limits). Automatic fallback: Earth Search v1 `sentinel-2-l2a` (AWS public COGs; see §1.1). Manual: Earth Search `sentinel-2-c1-l2a`, Copernicus Data Space Ecosystem | Copernicus open data (attribution) | ✅ |
+| **Sentinel-1 RTC** (radar backscatter) | Cloud-free structure/inundation features (VV, VH, ratio, temporal std) | 10 m, 6–12 day | Planetary Computer `sentinel-1-rtc` (see §1.2); no automatic fallback (Earth Search has GRD only; CDSE GRD + own RTC would be a new pipeline) | CC BY 4.0 (Catalyst RTC of Copernicus data) | ✅ 2026-10-20 |
 | **Copernicus DEM GLO-30** | Elevation, slope (mangroves sit near mean sea level) | 30 m | Planetary Computer `cop-dem-glo-30` | Copernicus DEM licence (free) | ✅ |
 | **Landsat 8/9 C2 L2** | Historical baselines before 2017 (optional) | 30 m, 2013→ | Planetary Computer `landsat-c2-l2` | Public domain (USGS) | ✅ |
 
 **Preprocessing rules** (see IMPLEMENTATION_PLAN §6.2): SCL cloud/shadow mask; BOA offset −1000 for
-processing baseline ≥ 04.00; ÷10000 to reflectance; seasonal medians; ≥ 3 clear observations per pixel.
+processing baseline ≥ 04.00 unless the provider already removed it (§1.1); ÷10000 to reflectance;
+seasonal medians; ≥ 3 clear observations per pixel.
+
+### 1.1 Sentinel-2 STAC providers and fallback
+
+`GEO_STAC_PROVIDERS` (default `planetary-computer,earth-search`) is the ordered list the worker tries.
+A search or read that fails with a timeout, connection error, HTTP 5xx/408/429 or HTTP 401/403 moves
+to the next provider; HTTP 400/404 and other errors are raised (they are bugs or configuration errors,
+which another catalogue would only hide). Each stored scene records the provider that served it
+(`scene_observations.provider`); run outputs list `providers_used`, `search_fallbacks` and
+`provider_fallbacks`. Code: `aqua_geo.fallback`, `aqua_geo.sentinel2.PROVIDERS`,
+`aqua_worker.scenes.StacSceneSource`.
+
+Conventions, verified on 2026-10-20 against live STAC items over Bhitarkanika (MGRS 45QVC; recorded,
+trimmed copies are the test fixtures in `packages/aqua_geo/tests/fixtures/stac/`):
+
+| | Planetary Computer `sentinel-2-l2a` | Earth Search v1 `sentinel-2-l2a` (`earthsearch:` items) | Earth Search `sentinel-2-c1-l2a` |
+|---|---|---|---|
+| Name in settings | `planetary-computer` | `earth-search` | `earth-search-c1` (not in the default list) |
+| Asset keys | `B02` … `B12`, `B8A`, `SCL` | `blue`, `green`, `red`, `rededge1-3`, `nir`, `nir08`, `swir16`, `swir22`, `scl` (plus `*-jp2` duplicates, unused) | same keys as Earth Search `sentinel-2-l2a` |
+| Signing | SAS token (`planetary_computer.sign`) right before each read | none (public S3 over HTTPS) | none |
+| BOA offset in DNs | present for baseline ≥ 04.00 (PC runs its own L2A; never harmonised) | **removed** when `earthsearch:boa_offset_applied: true` (e.g. every 2024–2026 item checked); **present** when the flag is false (e.g. 2022-02-13, baseline 04.00) | present (all items are baseline ≥ 05.00) |
+| `raster:bands` scale/offset | not given | 0.0001 / −0.1 on every item, **even flagged ones**: not reliable, never used | 0.0001 / −0.1, consistent with the GeoTIFF offset tag |
+| Item id / `datetime` | `S2B_MSIL2A_20240114T044139_R033_T45QVC_…`; datatake start (04:41:39) | `S2B_45QVC_20240114_0_L2A`; granule sensing time (04:52:56) | `S2B_T45QVC_20240114T044648_L2A` |
+
+Evidence for the offset rule: the same 2024-01-14 T45QVC scene read through a 32×32 window was
+exactly 1000 DN lower in Earth Search `sentinel-2-l2a` (flag true; red 943–1616) than in
+`sentinel-2-c1-l2a` (1943–2616). Earth Search `sentinel-2-l2a` also lists some scenes twice
+(`…_0_L2A` baseline 03.01 and its `…_1_L2A` 05.00 reprocessing, e.g. 2021-12-05): the highest
+baseline is kept. Because ids and timestamps differ per provider, the same acquisition is identified
+by platform + MGRS tile + UTC date (`aqua_geo.sentinel2.scene_key`) and stored once even if a later
+run is served by another provider. Collection 1 is a manual option only: it had no items over
+Bhitarkanika for February 2022 when checked.
+
+### 1.2 Sentinel-1 RTC (monsoon gap filling)
+
+- **Source:** Planetary Computer `sentinel-1-rtc` (Catalyst RTC from ESA GRD, PlanetDEM, IW mode),
+  assets `vv`/`vh` = terrain-corrected γ⁰ in **linear** power, float32 COGs at 10 m in UTM, nodata
+  −32768. Over India the passes are VV+VH dual-pol (S1A and S1C).
+- **Licence:** CC BY 4.0. Attribution: "Contains modified Copernicus Sentinel data, processed by
+  Catalyst; hosted by Microsoft Planetary Computer".
+- **Access terms:** the collection is flagged `msft:requires_account: true` and its description says
+  "A Planetary Computer account is required to retrieve SAS tokens to read the RTC data". On
+  2026-10-20 an anonymous token still allowed a ranged read (HTTP 206) and the opt-in smoke test
+  passed without a key, but that is not guaranteed: set `PC_SDK_SUBSCRIPTION_KEY` (free PC account)
+  in production. A refused token surfaces as an HTTP 401/403 error recorded in
+  `outputs.sentinel1.error` / `failed`, never as missing data presented as valid.
+- **When it is ingested** (`GEO_S1_*` settings): acquisitions in the monsoon months
+  (`GEO_S1_MONSOON_MONTHS`, default 6,7,8,9), and acquisitions within ±`GEO_S1_WINDOW_DAYS` (6) of a
+  stored Sentinel-2 scene whose polygon clear fraction is below `GEO_S1_CLEAR_FLOOR` (0.3).
+  `GEO_S1_ENABLED=false` turns it off.
+- **Per acquisition** (one pass = every slice of one absolute orbit): VV and VH clipped to the polygon
+  in UTM at 10 m; 3×3 NaN-aware median on linear γ⁰ against speckle (single passes have only ~4.4
+  equivalent looks); then VV/VH in dB, VH/VV (linear and dB), and RVI = 4·VH/(VV+VH); per-polygon
+  mean/P10/P50/P90 and valid fraction. The P50 (a per-polygon median) is the headline value; temporal
+  medians belong to seasonal composites. Code: `aqua_geo.sentinel1`.
+- **Storage:** no table yet. Results go to `analysis_runs.outputs.sentinel1.observations` (one entry
+  per pass with its STAC item ids, orbit, trigger and statistics); later runs skip passes already
+  recorded there. A dedicated `sar_observations` table is a pending migration.
 
 ---
 
@@ -178,7 +236,7 @@ to avoid leakage.
 | Account | For |
 |---|---|
 | NASA Earthdata | GEDI L4A, Simard (ORNL DAAC) |
-| Microsoft Planetary Computer (optional API key) | Higher STAC/SAS limits |
+| Microsoft Planetary Computer (API key; optional for Sentinel-2, required by the terms for `sentinel-1-rtc`) | Higher STAC/SAS limits; Sentinel-1 RTC |
 | Copernicus Data Space Ecosystem | Fallback imagery |
 | GBIF | Image occurrence downloads |
 | Hugging Face | Model weights (BioCLIP 2, DINOv2) |

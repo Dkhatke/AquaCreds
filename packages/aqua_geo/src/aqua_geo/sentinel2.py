@@ -3,11 +3,13 @@
 Key correctness rules (each one was wrong or missing in the SIH prototype):
 1. Read only pixels inside the project polygon (COG windowed reads), never whole 100 km tiles.
 2. Convert DN to surface reflectance: (DN − offset) / 10000, where offset = 1000 for products with
-   processing baseline ≥ 04.00 (from 25 Jan 2022) unless the provider already harmonised them.
+   processing baseline ≥ 04.00 (from 25 Jan 2022) unless the provider already harmonised them
+   (see `boa_offset` for the per-provider conventions, verified against live STAC items).
 3. Mask clouds, cloud shadow, cirrus, snow, saturated and no-data pixels using the SCL layer.
 4. Work in the local UTM zone at 10 m.
 """
 
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date
@@ -72,13 +74,62 @@ PLANETARY_COMPUTER = Provider(
     already_harmonised=False,
 )
 
+# Element 84 Earth Search v1, collection `sentinel-2-l2a` (public COGs on AWS, no signing). Asset
+# keys are common band names (`red`, `nir`, `scl`, ...), so the canonical names map to themselves.
+# Its DNs are harmonised per item: `earthsearch:boa_offset_applied: true` means Element 84 already
+# removed the +1000 offset (checked 2026-10-20: the same 2024-01-14 T45QVC scene reads 1000 DN lower
+# here than in `sentinel-2-c1-l2a`); items with baseline >= 04.00 and the flag false (e.g. Feb 2022)
+# still carry it. Its `raster:bands` scale/offset (0.0001 / -0.1) is NOT reliable for flagged items
+# and is never used.
 EARTH_SEARCH = Provider(
     name="earth-search",
     stac_url="https://earth-search.aws.element84.com/v1",
-    collection="sentinel-2-c1-l2a",  # Collection 1: offsets already removed
+    collection="sentinel-2-l2a",
     asset_names={name: name for name in BANDS} | {"scl": "scl"},
-    already_harmonised=True,
+    already_harmonised=False,  # decided per item from earthsearch:boa_offset_applied
 )
+
+# Earth Search `sentinel-2-c1-l2a` (ESA Collection 1 reprocessing, baseline >= 05.00). Same asset
+# keys; DNs are NOT harmonised (raster:bands offset -0.1 and the GeoTIFF offset tag agree), so the
+# baseline rule applies. Coverage still has gaps (no Feb 2022 items over Bhitarkanika), hence it is
+# not in the default fallback list.
+EARTH_SEARCH_C1 = Provider(
+    name="earth-search-c1",
+    stac_url="https://earth-search.aws.element84.com/v1",
+    collection="sentinel-2-c1-l2a",
+    asset_names={name: name for name in BANDS} | {"scl": "scl"},
+    already_harmonised=False,
+)
+
+PROVIDERS: dict[str, Provider] = {
+    p.name: p for p in (PLANETARY_COMPUTER, EARTH_SEARCH, EARTH_SEARCH_C1)
+}
+
+
+def providers_from_names(names: Sequence[str]) -> list[Provider]:
+    """Resolve an ordered list of provider names (settings `GEO_STAC_PROVIDERS`)."""
+    unknown = [n for n in names if n not in PROVIDERS]
+    if unknown:
+        raise ValueError(f"unknown STAC provider(s) {unknown}; known: {sorted(PROVIDERS)}")
+    if not names:
+        raise ValueError("at least one STAC provider is required")
+    return [PROVIDERS[n] for n in names]
+
+
+_TILE = re.compile(r"_T?(\d{2}[C-X][A-Z]{2})_")
+
+
+def scene_key(item_id: str, acquired_on: date) -> str:
+    """Provider-independent identity of one Sentinel-2 acquisition: platform + MGRS tile + UTC
+    date, parsed from the item id (Planetary Computer `S2A_MSIL2A_20240114T044139_R033_T45QVC_…`,
+    Earth Search `S2A_45QVC_20240114_0_L2A` / `S2A_T45QVC_20240114T044648_L2A`). Item ids and
+    `datetime` differ between providers (datatake start vs granule sensing time), so the item id
+    alone cannot detect the same scene served by two catalogues. Ids without a tile (synthetic
+    test scenes) are their own key."""
+    tile = _TILE.search(item_id)
+    if not item_id.startswith("S2") or tile is None:
+        return item_id
+    return f"{item_id[:3]}_{tile.group(1)}_{acquired_on:%Y%m%d}"
 
 
 def utm_epsg(lon: float, lat: float) -> int:
@@ -87,7 +138,11 @@ def utm_epsg(lon: float, lat: float) -> int:
 
 
 def boa_offset(item: pystac.Item, provider: Provider) -> float:
-    """Offset to subtract from DNs for this item (0 if already harmonised)."""
+    """Offset to subtract from DNs for this item (0 if already harmonised).
+
+    Planetary Computer: never harmonised, so 1000 for baseline >= 04.00. Earth Search
+    `sentinel-2-l2a`: 0 when `earthsearch:boa_offset_applied` is true, otherwise the baseline rule.
+    Earth Search `sentinel-2-c1-l2a`: the baseline rule (all Collection 1 items are >= 05.00)."""
     props = item.properties
     if provider.already_harmonised or props.get("earthsearch:boa_offset_applied") is True:
         return 0.0

@@ -1,0 +1,297 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "stac_version": "1.0.0",
+   "stac_extensions": [],
+   "id": "S1A_IW_GRDH_1SDV_20240726T122030_20240726T122055_054932_06B0EA_rtc",
+   "collection": "sentinel-1-rtc",
+   "bbox": [
+    85.50926758451781,
+    19.87171951011947,
+    88.18182846472045,
+    21.80247666103058
+   ],
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       87.11776156304472,
+       20.108749940814814
+      ],
+      [
+       88.18182846472045,
+       20.29524366515538
+      ],
+      [
+       87.890764962725,
+       21.80247666103058
+      ],
+      [
+       85.50926758451781,
+       21.37754053421012
+      ],
+      [
+       85.81776149121072,
+       19.87171951011947
+      ],
+      [
+       87.11776156304472,
+       20.108749940814814
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "datetime": "2024-07-26T12:20:42.616060Z",
+    "platform": "SENTINEL-1A",
+    "proj:epsg": 32645,
+    "end_datetime": "2024-07-26 12:20:55.115431+00:00",
+    "constellation": "Sentinel-1",
+    "start_datetime": "2024-07-26 12:20:30.116689+00:00",
+    "sat:orbit_state": "ascending",
+    "sar:polarizations": [
+     "VV",
+     "VH"
+    ],
+    "sat:absolute_orbit": 54932,
+    "sat:relative_orbit": 85,
+    "sar:instrument_mode": "IW",
+    "s1:product_timeliness": "Fast-24h",
+    "sar:looks_equivalent_number": 4.4
+   },
+   "assets": {
+    "vh": {
+     "href": "https://sentinel1euwestrtc.blob.core.windows.net/sentinel1-grd-rtc/GRD/2024/7/26/IW/DV/S1A_IW_GRDH_1SDV_20240726T122030_20240726T122055_054932_06B0EA_1623/measurement/iw-vh.rtc.tiff",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ],
+     "raster:bands": [
+      {
+       "nodata": -32768,
+       "data_type": "float32",
+       "spatial_resolution": 10
+      }
+     ]
+    },
+    "vv": {
+     "href": "https://sentinel1euwestrtc.blob.core.windows.net/sentinel1-grd-rtc/GRD/2024/7/26/IW/DV/S1A_IW_GRDH_1SDV_20240726T122030_20240726T122055_054932_06B0EA_1623/measurement/iw-vv.rtc.tiff",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ],
+     "raster:bands": [
+      {
+       "nodata": -32768,
+       "data_type": "float32",
+       "spatial_resolution": 10
+      }
+     ]
+    }
+   },
+   "links": []
+  },
+  {
+   "type": "Feature",
+   "stac_version": "1.0.0",
+   "stac_extensions": [],
+   "id": "S1A_IW_GRDH_1SDV_20240724T000527_20240724T000556_054895_06AF99_rtc",
+   "collection": "sentinel-1-rtc",
+   "bbox": [
+    85.82011387928912,
+    19.281240344855714,
+    88.53049764476201,
+    21.300200243386456
+   ],
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       88.26780038461074,
+       19.622843127684327
+      ],
+      [
+       88.53049764476201,
+       20.878870989038404
+      ],
+      [
+       86.14960516971698,
+       21.300200243386456
+      ],
+      [
+       85.82011387928912,
+       19.584090778261427
+      ],
+      [
+       86.56436911316733,
+       19.452819009507582
+      ],
+      [
+       86.57811239130412,
+       19.517014310800903
+      ],
+      [
+       87.40169771395277,
+       19.368400386787492
+      ],
+      [
+       87.41403181049606,
+       19.426029510701248
+      ],
+      [
+       88.19639903332336,
+       19.281240344855714
+      ],
+      [
+       88.26780038461074,
+       19.622843127684327
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "datetime": "2024-07-24T00:05:42.243865Z",
+    "platform": "SENTINEL-1A",
+    "proj:epsg": 32645,
+    "end_datetime": "2024-07-24 00:05:56.492440+00:00",
+    "constellation": "Sentinel-1",
+    "start_datetime": "2024-07-24 00:05:27.995289+00:00",
+    "sat:orbit_state": "descending",
+    "sar:polarizations": [
+     "VV",
+     "VH"
+    ],
+    "sat:absolute_orbit": 54895,
+    "sat:relative_orbit": 48,
+    "sar:instrument_mode": "IW",
+    "s1:product_timeliness": "Fast-24h",
+    "sar:looks_equivalent_number": 4.4
+   },
+   "assets": {
+    "vh": {
+     "href": "https://sentinel1euwestrtc.blob.core.windows.net/sentinel1-grd-rtc/GRD/2024/7/24/IW/DV/S1A_IW_GRDH_1SDV_20240724T000527_20240724T000556_054895_06AF99_179E/measurement/iw-vh.rtc.tiff",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ],
+     "raster:bands": [
+      {
+       "nodata": -32768,
+       "data_type": "float32",
+       "spatial_resolution": 10
+      }
+     ]
+    },
+    "vv": {
+     "href": "https://sentinel1euwestrtc.blob.core.windows.net/sentinel1-grd-rtc/GRD/2024/7/24/IW/DV/S1A_IW_GRDH_1SDV_20240724T000527_20240724T000556_054895_06AF99_179E/measurement/iw-vv.rtc.tiff",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ],
+     "raster:bands": [
+      {
+       "nodata": -32768,
+       "data_type": "float32",
+       "spatial_resolution": 10
+      }
+     ]
+    }
+   },
+   "links": []
+  },
+  {
+   "type": "Feature",
+   "stac_version": "1.0.0",
+   "stac_extensions": [],
+   "id": "S1A_IW_GRDH_1SDV_20240714T122030_20240714T122055_054757_06AAD3_rtc",
+   "collection": "sentinel-1-rtc",
+   "bbox": [
+    85.50707759952539,
+    19.871706824285017,
+    88.17991264242742,
+    21.802396746097678
+   ],
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       85.50707759952539,
+       21.37476600302798
+      ],
+      [
+       85.81585149323435,
+       19.871706824285017
+      ],
+      [
+       88.17991264242742,
+       20.29516623946741
+      ],
+      [
+       87.88882971468907,
+       21.802396746097678
+      ],
+      [
+       85.50707759952539,
+       21.37476600302798
+      ]
+     ]
+    ]
+   },
+   "properties": {
+    "datetime": "2024-07-14T12:20:43.348051Z",
+    "platform": "SENTINEL-1A",
+    "proj:epsg": 32645,
+    "end_datetime": "2024-07-14 12:20:55.847442+00:00",
+    "constellation": "Sentinel-1",
+    "start_datetime": "2024-07-14 12:20:30.848661+00:00",
+    "sat:orbit_state": "ascending",
+    "sar:polarizations": [
+     "VV",
+     "VH"
+    ],
+    "sat:absolute_orbit": 54757,
+    "sat:relative_orbit": 85,
+    "sar:instrument_mode": "IW",
+    "s1:product_timeliness": "Fast-24h",
+    "sar:looks_equivalent_number": 4.4
+   },
+   "assets": {
+    "vh": {
+     "href": "https://sentinel1euwestrtc.blob.core.windows.net/sentinel1-grd-rtc/GRD/2024/7/14/IW/DV/S1A_IW_GRDH_1SDV_20240714T122030_20240714T122055_054757_06AAD3_3750/measurement/iw-vh.rtc.tiff",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ],
+     "raster:bands": [
+      {
+       "nodata": -32768,
+       "data_type": "float32",
+       "spatial_resolution": 10
+      }
+     ]
+    },
+    "vv": {
+     "href": "https://sentinel1euwestrtc.blob.core.windows.net/sentinel1-grd-rtc/GRD/2024/7/14/IW/DV/S1A_IW_GRDH_1SDV_20240714T122030_20240714T122055_054757_06AAD3_3750/measurement/iw-vv.rtc.tiff",
+     "type": "image/tiff; application=geotiff; profile=cloud-optimized",
+     "roles": [
+      "data"
+     ],
+     "raster:bands": [
+      {
+       "nodata": -32768,
+       "data_type": "float32",
+       "spatial_resolution": 10
+      }
+     ]
+    }
+   },
+   "links": []
+  }
+ ],
+ "links": []
+}

@@ -6,14 +6,15 @@ outside the "polygon", so 360 pixels are inside.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 
 import numpy as np
 import xarray as xr
 from shapely.geometry.base import BaseGeometry
 
-from aqua_worker.scenes import LoadedScenes, SceneRef
+from aqua_geo.fallback import is_retryable
+from aqua_worker.scenes import LoadedSar, LoadedScenes, SarRef, SceneRef
 
 SIZE = 20
 OUTSIDE_COLS = 2
@@ -44,6 +45,9 @@ class FakeSceneSource:
     searches: list[tuple[date, date]] = field(default_factory=list)
     search_error: Exception | None = None
     chunked: bool = False  # return lazy dask arrays (like the real loader)
+    search_errors: list[dict[str, str]] = field(default_factory=list)
+    # provider that serves a scene again after a retryable read failure (None: no fallback)
+    fallback_provider: str | None = None
 
     def search(
         self, geometry: BaseGeometry, start: date, end: date, *, max_cloud: float
@@ -63,6 +67,19 @@ class FakeSceneSource:
             for s in sorted(self.scenes, key=lambda s: s.when)
             if start <= s.when <= end and s.cloud_cover < max_cloud
         ]
+
+    def fallback_for(
+        self, scene: SceneRef, geometry: BaseGeometry, error: BaseException
+    ) -> SceneRef | None:
+        if (
+            self.fallback_provider is None
+            or scene.provider == self.fallback_provider
+            or not is_retryable(error)
+        ):
+            return None
+        fake: FakeScene = scene.item
+        alt = replace(fake, item_id=f"{fake.item_id}_ALT", fail=False)
+        return replace(scene, item_id=alt.item_id, provider=self.fallback_provider, item=alt)
 
     def load(
         self, scenes: Sequence[SceneRef], geometry: BaseGeometry, *, chunk: int = 1024
@@ -124,3 +141,70 @@ def synthetic(fakes: Sequence[FakeScene]) -> LoadedScenes:
     )
     mask = xr.DataArray(inside, dims=("y", "x"), coords={"y": y, "x": x})
     return LoadedScenes(ds=ds, inside=mask, epsg=EPSG)
+
+
+# ---------------------------------------------------------------- Sentinel-1
+
+
+@dataclass(frozen=True)
+class FakePass:
+    """A synthetic Sentinel-1 pass with constant linear γ⁰ over the grid."""
+
+    key: str
+    when: datetime
+    vv: float = 0.1
+    vh: float = 0.02
+    fail: bool = False
+
+
+def sar_pass(day: str, hour: int = 12, **kw: object) -> FakePass:
+    when = datetime.fromisoformat(day).replace(hour=hour, tzinfo=UTC)
+    return FakePass(f"S1A_{when:%Y%m%d}_{hour:02d}", when, **kw)  # type: ignore[arg-type]
+
+
+@dataclass
+class FakeSarSource:
+    passes: list[FakePass] = field(default_factory=list)
+    name: str = "fake-sar"
+    collection: str = "sentinel-1-rtc"
+    search_error: Exception | None = None
+    loads: list[str] = field(default_factory=list)
+
+    def search(self, geometry: BaseGeometry, start: date, end: date) -> list[SarRef]:
+        if self.search_error:
+            raise self.search_error
+        return [
+            SarRef(
+                key=p.key,
+                acquired_at=p.when,
+                platform="S1A",
+                orbit_state="ascending",
+                relative_orbit=85,
+                item_ids=(f"{p.key}_rtc",),
+                provider=self.name,
+                item=p,
+            )
+            for p in sorted(self.passes, key=lambda p: p.when)
+            if start <= p.when.date() <= end
+        ]
+
+    def load(self, acquisition: SarRef, geometry: BaseGeometry) -> LoadedSar:
+        fake: FakePass = acquisition.item
+        self.loads.append(fake.key)
+        if fake.fail:
+            raise TimeoutError(f"simulated RTC read timeout for {fake.key}")
+        grid = synthetic([])
+        inside = grid.inside
+        shape = (1, SIZE, SIZE)
+        dims = ("time", "y", "x")
+        ds = xr.Dataset(
+            {
+                "vv": (dims, np.full(shape, fake.vv, dtype="float32")),
+                "vh": (dims, np.full(shape, fake.vh, dtype="float32")),
+            },
+            coords={
+                "time": [np.datetime64(fake.when.date().isoformat())],
+                **{k: grid.ds.coords[k].values for k in ("y", "x")},
+            },
+        )
+        return LoadedSar(ds=ds, inside=inside, epsg=EPSG)

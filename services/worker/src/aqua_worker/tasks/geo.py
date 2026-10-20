@@ -8,6 +8,13 @@ Design (IMPLEMENTATION_PLAN Phase 4, RESEARCH_NOTES Q2):
   NOTHING); scenes already stored are skipped before any pixel is read. A failed scene is not
   stored, so the next run retries it. Alerts are unique per (project, kind, metric, date).
 - Every run is recorded in `analysis_runs` (params, progress, failures, outputs) for provenance.
+- Provider fallback: the scene source tries STAC catalogues in order (GEO_STAC_PROVIDERS); each
+  stored scene names the provider that served it, and the run outputs count scenes per provider and
+  list every fallback. The same acquisition served by two providers (different item ids) is
+  detected by platform + MGRS tile + date and stored once.
+- Sentinel-1 RTC (optional `sar` source): acquisitions in the monsoon months, or within ±N days of a
+  Sentinel-2 scene below the clear-fraction floor, are reduced to per-polygon backscatter
+  statistics and stored under `outputs["sentinel1"]` (no table of their own yet).
 
 Each task is an async core function with injected dependencies (sessionmaker, scene source,
 storage) and a thin Celery wrapper.
@@ -53,7 +60,14 @@ from aqua_worker.alerts import (
     Observation,
     detect_vegetation_loss,
 )
-from aqua_worker.scenes import SceneRef, SceneSource, StacSceneSource
+from aqua_worker.scenes import (
+    SarRef,
+    SarSource,
+    SceneRef,
+    SceneSource,
+    StacSarSource,
+    StacSceneSource,
+)
 
 log = get_logger("aqua_worker.geo")
 
@@ -172,6 +186,218 @@ def _scene_statistics(source: SceneSource, scene: SceneRef, geometry: BaseGeomet
 
 
 @dataclass
+class ServedScene:
+    ref: SceneRef  # the item actually read (may come from a fallback provider)
+    stats: Any
+    fallbacks: list[dict[str, str]]
+
+
+def _serve_scene(source: SceneSource, scene: SceneRef, geometry: BaseGeometry) -> ServedScene:
+    """`_scene_statistics`, retrying the same acquisition on the next provider when a read fails
+    with a timeout, 5xx or auth error (thread)."""
+    from aqua_geo.fallback import describe
+
+    ref = scene
+    fallbacks: list[dict[str, str]] = []
+    while True:
+        try:
+            return ServedScene(ref, _scene_statistics(source, ref, geometry), fallbacks)
+        except Exception as exc:
+            alternative = source.fallback_for(ref, geometry, exc)
+            if alternative is None:
+                raise
+            fallbacks.append(
+                {
+                    "item_id": ref.item_id,
+                    "from": ref.provider,
+                    "to": alternative.provider,
+                    "served_item_id": alternative.item_id,
+                    "error": describe(exc),
+                }
+            )
+            ref = alternative
+
+
+def _sar_statistics(source: SarSource, acquisition: SarRef, geometry: BaseGeometry) -> Any:
+    """Load ONE Sentinel-1 pass clipped to the polygon and reduce it to statistics (thread)."""
+    import dask
+
+    from aqua_geo.sentinel1 import acquisition_statistics
+
+    loaded = source.load(acquisition, geometry)
+    with dask.config.set(scheduler="threads", num_workers=GEO_THREADS):
+        ds = loaded.ds.load()
+        inside = loaded.inside.load()
+    if ds.sizes.get("time", 1) != 1:
+        raise ValueError(f"{acquisition.key}: expected one time step, got {ds.sizes['time']}")
+    return acquisition_statistics(ds, inside)
+
+
+@dataclass(frozen=True)
+class Sentinel1Policy:
+    """When Sentinel-1 is ingested alongside Sentinel-2 (settings GEO_S1_*)."""
+
+    monsoon_months: tuple[int, ...] = (6, 7, 8, 9)
+    clear_floor: float = 0.3
+    window_days: int = 6
+
+    @classmethod
+    def from_settings(cls, settings: Any) -> "Sentinel1Policy | None":
+        if not settings.geo_s1_enabled:
+            return None
+        return cls(
+            monsoon_months=tuple(settings.geo_s1_monsoon_months),
+            clear_floor=settings.geo_s1_clear_floor,
+            window_days=settings.geo_s1_window_days,
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "monsoon_months": list(self.monsoon_months),
+            "clear_floor": self.clear_floor,
+            "window_days": self.window_days,
+        }
+
+
+def select_sar(
+    acquisitions: Sequence[SarRef],
+    policy: Sentinel1Policy,
+    low_clear: Sequence[tuple[date, str]],
+) -> list[tuple[SarRef, str]]:
+    """Acquisitions to ingest, each with its trigger: "monsoon" when acquired in a monsoon month,
+    else "low_clear:<S2 item id>" when within ±window_days of a Sentinel-2 scene whose clear
+    fraction is below the floor. `low_clear` is [(S2 acquisition date, S2 item id)]."""
+    window = timedelta(days=policy.window_days)
+    selected: list[tuple[SarRef, str]] = []
+    for acq in acquisitions:
+        day = acq.acquired_at.astimezone(UTC).date()
+        if day.month in policy.monsoon_months:
+            selected.append((acq, "monsoon"))
+            continue
+        near = [(abs(day - d), item_id) for d, item_id in low_clear if abs(day - d) <= window]
+        if near:
+            selected.append((acq, f"low_clear:{min(near)[1]}"))
+    return selected
+
+
+async def _recorded_sar_keys(
+    session: AsyncSession, project_id: uuid.UUID, run_id: uuid.UUID
+) -> set[str]:
+    """Sentinel-1 acquisitions already stored in earlier runs' outputs for this project."""
+    rows = (
+        await session.scalars(
+            select(AnalysisRun.outputs["sentinel1"]["observations"]).where(
+                AnalysisRun.project_id == project_id, AnalysisRun.id != run_id
+            )
+        )
+    ).all()
+    return {
+        str(obs["key"])
+        for observations in rows
+        if isinstance(observations, list)
+        for obs in observations
+        if isinstance(obs, dict) and "key" in obs
+    }
+
+
+async def _ingest_sar(
+    session: AsyncSession,
+    run: AnalysisRun,
+    outputs: dict[str, Any],
+    source: SarSource,
+    policy: Sentinel1Policy,
+    geometry: BaseGeometry,
+    start: date,
+    end: date,
+) -> None:
+    """Sentinel-1 pass of `ingest_project`: progress is committed after every acquisition.
+    Failures are recorded in `outputs["sentinel1"]`; they never fail the Sentinel-2 run.
+
+    Low-clear triggers come from every stored Sentinel-2 scene in the window (this run's and
+    earlier ones), so enabling Sentinel-1 on a project with an existing series still fills its
+    cloudy gaps on the next backfill."""
+    from aqua_geo.fallback import describe
+    from aqua_geo.sentinel1 import SPECKLE_NOTE
+
+    sar: dict[str, Any] = {
+        "provider": source.name,
+        "collection": source.collection,
+        "units": "terrain-corrected gamma0; *_db = 10*log10(linear); rvi = 4*VH/(VV+VH) linear",
+        "speckle_filter": SPECKLE_NOTE,
+        "policy": policy.as_dict(),
+        "found": 0,
+        "selected": 0,
+        "already_recorded": 0,
+        "ingested": 0,
+        "failed_count": 0,
+        "failed": [],
+        "observations": [],
+    }
+    outputs["sentinel1"] = sar
+    try:
+        found = await asyncio.to_thread(source.search, geometry, start, end)
+    except Exception as exc:
+        log.warning("geo.sar.search_failed", run_id=str(run.id), error=_err(exc))
+        sar["error"] = describe(exc)
+        return
+    recorded = await _recorded_sar_keys(session, run.project_id, run.id)
+    margin = timedelta(days=policy.window_days)
+    low_clear = [
+        (r.acquired_on, r.item_id)
+        for r in (
+            await session.execute(
+                select(SceneObservation.acquired_on, SceneObservation.item_id)
+                .where(
+                    SceneObservation.project_id == run.project_id,
+                    SceneObservation.acquired_on.between(start - margin, end + margin),
+                    SceneObservation.clear_fraction < policy.clear_floor,
+                )
+                .order_by(SceneObservation.acquired_on, SceneObservation.item_id)
+            )
+        ).all()
+    ]
+    chosen = select_sar(found, policy, low_clear)
+    todo = [(a, why) for a, why in chosen if a.key not in recorded]
+    sar.update(found=len(found), selected=len(chosen), already_recorded=len(chosen) - len(todo))
+    for acq, trigger in todo:
+        try:
+            st = await asyncio.to_thread(_sar_statistics, source, acq, geometry)
+        except Exception as exc:
+            log.warning("geo.sar.failed", key=acq.key, error=_err(exc))
+            sar["failed_count"] += 1
+            if len(sar["failed"]) < MAX_RECORDED_FAILURES:
+                sar["failed"].append({"key": acq.key, "error": _err(exc)})
+        else:
+            sar["observations"].append(
+                {
+                    "key": acq.key,
+                    "item_ids": list(acq.item_ids),
+                    "acquired_at": acq.acquired_at.astimezone(UTC).isoformat(),
+                    "acquired_on": acq.acquired_at.astimezone(UTC).date().isoformat(),
+                    "platform": acq.platform,
+                    "orbit_state": acq.orbit_state,
+                    "relative_orbit": acq.relative_orbit,
+                    "provider": acq.provider,
+                    "trigger": trigger,
+                    "polygon_pixels": st.polygon_pixels,
+                    "valid_pixels": st.valid_pixels,
+                    "valid_fraction": st.valid_fraction,
+                    "stats": st.stats,
+                }
+            )
+            sar["ingested"] += 1
+        run.outputs = _snapshot(outputs)
+        await session.commit()
+
+
+def _snapshot(outputs: dict[str, Any]) -> dict[str, Any]:
+    """A copy SQLAlchemy sees as a new value (JSONB is not mutation-tracked)."""
+    import copy
+
+    return copy.deepcopy(outputs)
+
+
+@dataclass
 class IngestResult:
     run_id: uuid.UUID
     status: AnalysisStatus
@@ -189,14 +415,21 @@ async def ingest_project(
     kind: AnalysisKind = AnalysisKind.BACKFILL,
     run_id: uuid.UUID | None = None,
     max_cloud: float = 80.0,
+    sar_source: SarSource | None = None,
+    sar_policy: Sentinel1Policy | None = None,
 ) -> IngestResult:
     """Search scenes in [start, end] and store per-scene zonal statistics, one scene at a time,
-    skipping scenes already stored for this project."""
-    params = {
+    skipping scenes already stored for this project. With `sar_source` and `sar_policy`, also
+    ingest the Sentinel-1 acquisitions the policy selects (see `select_sar`)."""
+    from aqua_geo.sentinel2 import scene_key
+
+    sar_enabled = sar_source is not None and sar_policy is not None
+    params: dict[str, Any] = {
         "start": start.isoformat(),
         "end": end.isoformat(),
         "max_cloud_pct": max_cloud,
         "provider": source.name,
+        "sentinel1": sar_policy.as_dict() if sar_enabled and sar_policy else None,
     }
     async with sessionmaker() as session:
         geometry = await _project_geometry(session, project_id)
@@ -209,16 +442,26 @@ async def ingest_project(
             await _fail_run(session, run.id, exc)
             raise
 
-        stored = set(
-            (
-                await session.scalars(
-                    select(SceneObservation.item_id).where(
-                        SceneObservation.project_id == project_id
-                    )
-                )
-            ).all()
-        )
-        todo = [s for s in scenes if s.item_id not in stored]
+        stored_rows = (
+            await session.execute(
+                select(
+                    SceneObservation.item_id,
+                    SceneObservation.acquired_on,
+                    SceneObservation.provider,
+                ).where(SceneObservation.project_id == project_id)
+            )
+        ).all()
+        stored = {r.item_id for r in stored_rows}
+        # same acquisition already stored from ANOTHER provider (item ids differ by catalogue)
+        stored_by: dict[str, set[str]] = {}
+        for r in stored_rows:
+            stored_by.setdefault(scene_key(r.item_id, r.acquired_on), set()).add(r.provider)
+
+        def served_elsewhere(s: SceneRef) -> bool:
+            key = scene_key(s.item_id, s.acquired_at.astimezone(UTC).date())
+            return bool(stored_by.get(key, set()) - {s.provider})
+
+        todo = [s for s in scenes if s.item_id not in stored and not served_elsewhere(s)]
         outputs: dict[str, Any] = {
             "scenes_found": len(scenes),
             "already_ingested": len(scenes) - len(todo),
@@ -226,48 +469,60 @@ async def ingest_project(
             "ingested": 0,
             "failed_count": 0,
             "failed": [],
+            "search_provider": scenes[0].provider if scenes else None,
+            "search_fallbacks": list(source.search_errors),
+            "providers_used": {},
+            "provider_fallbacks": [],
         }
-        run.outputs = dict(outputs)
+        run.outputs = _snapshot(outputs)
         await session.commit()
         log.info("geo.ingest.start", project_id=str(project_id), run_id=str(run.id), **params)
 
         new_dates: list[date] = []
         for scene in todo:
             try:
-                stats = await asyncio.to_thread(_scene_statistics, source, scene, geometry)
+                served = await asyncio.to_thread(_serve_scene, source, scene, geometry)
             except Exception as exc:
                 log.warning("geo.scene.failed", item_id=scene.item_id, error=_err(exc))
                 outputs["failed_count"] += 1
                 if len(outputs["failed"]) < MAX_RECORDED_FAILURES:
                     outputs["failed"].append({"item_id": scene.item_id, "error": _err(exc)})
             else:
-                acquired = scene.acquired_at.astimezone(UTC)
+                stats, ref = served.stats, served.ref
+                if len(outputs["provider_fallbacks"]) < MAX_RECORDED_FAILURES:
+                    outputs["provider_fallbacks"].extend(served.fallbacks)
+                acquired = ref.acquired_at.astimezone(UTC)
                 inserted = await session.scalar(
                     insert(SceneObservation)
                     .values(
                         id=uuid.uuid4(),
                         project_id=project_id,
                         run_id=run.id,
-                        item_id=scene.item_id,
+                        item_id=ref.item_id,
                         acquired_at=acquired,
                         acquired_on=acquired.date(),
-                        cloud_cover=scene.cloud_cover,
+                        cloud_cover=ref.cloud_cover,
                         clear_fraction=stats.clear_fraction,
                         clear_pixels=stats.clear_pixels,
                         polygon_pixels=stats.polygon_pixels,
                         index_stats=stats.index_stats,
-                        provider=scene.provider,
-                        processing_baseline=scene.processing_baseline,
+                        provider=ref.provider,
+                        processing_baseline=ref.processing_baseline,
                     )
                     .on_conflict_do_nothing(constraint="uq_scene_observation_item")
                     .returning(SceneObservation.id)
                 )
                 if inserted is not None:  # None: a concurrent run stored it first
                     outputs["ingested"] += 1
+                    used = outputs["providers_used"]
+                    used[ref.provider] = used.get(ref.provider, 0) + 1
                     new_dates.append(acquired.date())
             # progress is committed after every scene, so a crash loses at most one scene
-            run.outputs = {**outputs, "failed": list(outputs["failed"])}
+            run.outputs = _snapshot(outputs)
             await session.commit()
+
+        if sar_source is not None and sar_policy is not None:
+            await _ingest_sar(session, run, outputs, sar_source, sar_policy, geometry, start, end)
 
         if new_dates:
             outputs["first_new_acquired"] = min(new_dates).isoformat()
@@ -384,6 +639,8 @@ async def ingest_new_scenes(
     backfill_start: date,
     max_cloud: float = 80.0,
     rules: AlertRules = DEFAULT_RULES,
+    sar_source: SarSource | None = None,
+    sar_policy: Sentinel1Policy | None = None,
 ) -> dict[str, Any]:
     """For every active project: ingest scenes acquired since its latest observation (or since
     `backfill_start` if it has none), then run loss detection on the new observations."""
@@ -412,6 +669,8 @@ async def ingest_new_scenes(
                 end=today,
                 kind=AnalysisKind.INCREMENTAL,
                 max_cloud=max_cloud,
+                sar_source=sar_source,
+                sar_policy=sar_policy,
             )
             summary["ingested"] += result.outputs["ingested"]
             if result.new_dates:
@@ -527,6 +786,8 @@ async def build_composite(
             "bands": product.bands,
             "scene_count": len(scenes),
             "item_ids": [s.item_id for s in scenes],
+            "served_by": scenes[0].provider,
+            "search_fallbacks": list(source.search_errors),
             "zonal": product.zonal,
         }
         await _finish_run(session, run, AnalysisStatus.SUCCEEDED, outputs)
@@ -607,6 +868,13 @@ def _today() -> date:
     return datetime.now(UTC).date()
 
 
+def _sar_kwargs(settings: Any) -> dict[str, Any]:
+    policy = Sentinel1Policy.from_settings(settings)
+    if policy is None:
+        return {"sar_source": None, "sar_policy": None}
+    return {"sar_source": StacSarSource(), "sar_policy": policy}
+
+
 @shared_task(name="aqua.geo.backfill_project", soft_time_limit=6 * 3600, time_limit=6 * 3600 + 300)
 def backfill_project(
     project_id: str, start_date: str | None = None, run_id: str | None = None
@@ -617,13 +885,14 @@ def backfill_project(
         _with_db(
             lambda sm: ingest_project(
                 sm,
-                StacSceneSource(),
+                StacSceneSource(provider_names=settings.geo_stac_providers),
                 uuid.UUID(project_id),
                 start=start,
                 end=_today(),
                 kind=AnalysisKind.BACKFILL,
                 run_id=uuid.UUID(run_id) if run_id else None,
                 max_cloud=settings.geo_max_scene_cloud_pct,
+                **_sar_kwargs(settings),
             )
         )
     )
@@ -637,10 +906,11 @@ def ingest_new_scenes_task() -> dict[str, Any]:
         _with_db(
             lambda sm: ingest_new_scenes(
                 sm,
-                StacSceneSource(),
+                StacSceneSource(provider_names=settings.geo_stac_providers),
                 today=_today(),
                 backfill_start=settings.geo_backfill_start,
                 max_cloud=settings.geo_max_scene_cloud_pct,
+                **_sar_kwargs(settings),
             )
         )
     )
@@ -655,7 +925,7 @@ def build_composite_task(
         _with_db(
             lambda sm: build_composite(
                 sm,
-                StacSceneSource(),
+                StacSceneSource(provider_names=settings.geo_stac_providers),
                 S3ObjectStorage(settings),
                 uuid.UUID(project_id),
                 int(season_start_year),
