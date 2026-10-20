@@ -278,6 +278,7 @@ async def test_forward_fund_auction_end_to_end(
     assert tx_a["tx_hash"] is None
     assert tx_a["from_address"] == e.wallet.address
     assert tx_a["function"] == "submitOffer"
+    assert (tx_a["signer"], tx_a["purpose"]) == ("org_wallet", "forward_fund_offer")
     assert enqueued[-1] == ("aqua.chain.send", (tx_a["id"],), "chain")
     # a second relay for the same request is refused while the first is in flight
     assert (

@@ -352,10 +352,10 @@ async def queue_submit_offer(
     wallet (the project's registered on-chain owner)."""
     return await relayer.queue(
         session,
-        purpose=ChainTxPurpose.OTHER,
+        purpose=ChainTxPurpose.FORWARD_FUND_OFFER,
         entity_type="project",
         entity_id=str(project_id),
-        signer=ChainSigner.REGISTRAR,
+        signer=ChainSigner.ORG_WALLET,
         contract=CONTRACT,
         function="submitOffer",
         args=[request_id, project_key, price_per_unit, quantity],
@@ -375,10 +375,10 @@ async def queue_withdraw_offer(
 ) -> ChainTransaction:
     return await relayer.queue(
         session,
-        purpose=ChainTxPurpose.OTHER,
+        purpose=ChainTxPurpose.FORWARD_FUND_WITHDRAW,
         entity_type="project",
         entity_id=str(project_id),
-        signer=ChainSigner.REGISTRAR,
+        signer=ChainSigner.ORG_WALLET,
         contract=CONTRACT,
         function="withdrawOffer",
         args=[offer_id],

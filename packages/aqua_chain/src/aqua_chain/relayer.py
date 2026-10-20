@@ -15,10 +15,9 @@ partial unique index on (chain_id, from_address, nonce) backs this up in the dat
 
 Custodial organisation wallets: a transaction queued with `org_wallet=` is signed by that
 organisation's HD-derived wallet (e.g. a forward-fund offer, where the org wallet is the on-chain
-project owner). `from_address` is the org wallet; the key is derived from its `OrgWallet` row at
-submit time. The `signer` column keeps the platform duty that relays it (`registrar`), because
-the `chain_signer` CHECK constraint has no org-wallet value yet.
-TODO(migration): add `org_wallet` to `chain_signer` once the pending migration PRs have landed.
+project owner). Its `signer` is `org_wallet` and `from_address` is the org wallet; the key is
+derived from its `OrgWallet` row at submit time. Platform-role transactions never fall back to an
+org wallet key, and org-wallet transactions never use a platform-role key.
 """
 
 from dataclasses import dataclass
@@ -133,6 +132,8 @@ class Relayer:
         """Create a `queued` transaction in the caller's session (caller commits). With
         `org_wallet`, the transaction is signed by that custodial organisation wallet."""
         from_json_args(artifacts.function_abi(contract, function)["inputs"], args)  # validate
+        if (org_wallet is not None) != (signer == ChainSigner.ORG_WALLET):
+            raise ChainError("signer 'org_wallet' requires org_wallet=, and only it may use one")
         if org_wallet is not None:
             derived = self.signers.derive(org_wallet.derivation_index).address
             if derived.lower() != org_wallet.address.lower():
@@ -300,21 +301,23 @@ class Relayer:
             )
         if self.client.address_of(tx.contract).lower() != tx.to_address.lower():
             return None, f"{tx.contract} address changed since the transaction was queued"
-        role_account = self.signers.account(tx.signer)
-        if role_account.address.lower() == tx.from_address.lower():
-            return role_account, None
+        if tx.signer != ChainSigner.ORG_WALLET:
+            role_account = self.signers.account(tx.signer)
+            if role_account.address.lower() == tx.from_address.lower():
+                return role_account, None
+            return None, f"{tx.signer} key no longer derives {tx.from_address}"
         wallet = await session.scalar(
             select(OrgWallet).where(func.lower(OrgWallet.address) == tx.from_address.lower())
         )
-        if wallet is not None:
-            account = self.signers.derive(wallet.derivation_index)
-            if account.address.lower() == tx.from_address.lower():
-                return account, None
-            return (
-                None,
-                f"org wallet index {wallet.derivation_index} no longer derives {tx.from_address}",
-            )
-        return None, f"{tx.signer} key no longer derives {tx.from_address}"
+        if wallet is None:
+            return None, f"no org wallet {tx.from_address}"
+        account = self.signers.derive(wallet.derivation_index)
+        if account.address.lower() == tx.from_address.lower():
+            return account, None
+        return (
+            None,
+            f"org wallet index {wallet.derivation_index} no longer derives {tx.from_address}",
+        )
 
     async def _next_nonce(self, session: AsyncSession, tx: ChainTransaction) -> int:
         chain_nonce = await self.client.pending_nonce(tx.from_address)
