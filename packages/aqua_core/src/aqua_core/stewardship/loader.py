@@ -9,20 +9,23 @@ import uuid
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aqua_core.models import (
     Alert,
     AlertSeverity,
     FieldSubmission,
+    Membership,
     MonitoringPeriod,
     MRVReport,
+    PlatformRole,
     Plot,
     Project,
     ProjectStatus,
     SceneObservation,
     SubmissionStatus,
+    User,
 )
 from aqua_core.models._types import utcnow
 from aqua_core.stewardship.scoring import (
@@ -41,6 +44,8 @@ from aqua_core.stewardship.scoring import (
     eligibility_for_forward_funding,
     score_project,
 )
+
+INDEPENDENT_ROLES = (PlatformRole.VERIFIER, PlatformRole.REGISTRY_ADMIN)
 
 
 def _p50(stats: dict[str, Any], index: str) -> float | None:
@@ -98,16 +103,32 @@ async def _survival(
         SceneValue(day, clear, _p50(stats or {}, "ndvi"), _p50(stats or {}, "mvi"))
         for day, clear, stats in rows
     ]
-    alerts = await session.scalar(
-        select(func.count())
-        .select_from(Alert)
-        .where(
-            Alert.project_id == project.id,
-            Alert.severity == AlertSeverity.HIGH,
-            Alert.acknowledged_at.is_(None),
-        )
+    # High alerts in the latest window; cleared only by an independent staff acknowledgement.
+    acknowledger_is_member = (
+        select(Membership.user_id)
+        .where(Membership.user_id == User.id, Membership.org_id == project.org_id)
+        .exists()
     )
-    return SurvivalInputs(start, as_of, scenes, int(alerts or 0))
+    independent = and_(
+        Alert.acknowledged_at.is_not(None),
+        User.platform_role.in_(INDEPENDENT_ROLES),
+        ~acknowledger_is_member,
+    )
+    alert_rows = (
+        await session.execute(
+            select(independent.label("cleared"))
+            .select_from(Alert)
+            .outerjoin(User, User.id == Alert.acknowledged_by)
+            .where(
+                Alert.project_id == project.id,
+                Alert.severity == AlertSeverity.HIGH,
+                Alert.observed_on > as_of - window,
+                Alert.observed_on <= as_of,
+            )
+        )
+    ).all()
+    cleared = sum(bool(r.cleared) for r in alert_rows)
+    return SurvivalInputs(start, as_of, scenes, len(alert_rows) - cleared, cleared)
 
 
 async def _evidence(session: AsyncSession, project_id: uuid.UUID) -> EvidenceInputs:

@@ -87,19 +87,31 @@ async def _scene(sql: Any, project_id: str, day: date, clear: float, ndvi: float
     )
 
 
-async def _alert(sql: Any, project_id: str, severity: str, *, acknowledged: bool) -> None:
+async def _alert(
+    sql: Any,
+    project_id: str,
+    severity: str,
+    *,
+    days_ago: int,
+    acknowledged: bool = False,
+    by: uuid.UUID | None = None,
+) -> str:
+    alert_id = str(uuid.uuid4())
     await sql(
         """
         INSERT INTO alerts (id, project_id, kind, metric, observed_on, observed_value, expected,
-            severity, message, acknowledged_at)
-        VALUES (gen_random_uuid(), :p, 'vegetation_loss', 'ndvi_p50', :day, 0.3,
-            CAST('{}' AS jsonb), :sev, 'test', :ack)
+            severity, message, acknowledged_by, acknowledged_at)
+        VALUES (:id, :p, 'vegetation_loss', 'ndvi_p50', :day, 0.3, CAST('{}' AS jsonb), :sev,
+            'test', :by, :ack)
         """,
+        id=alert_id,
         p=project_id,
-        day=TODAY - timedelta(days=10 + (severity == "medium") + 2 * acknowledged),
+        day=TODAY - timedelta(days=days_ago),
         sev=severity,
-        ack=datetime.now(UTC) if acknowledged else None,
+        by=by,
+        ack=datetime.now(UTC) if acknowledged or by else None,
     )
+    return alert_id
 
 
 async def _submission(
@@ -142,9 +154,12 @@ async def test_project_and_org_stewardship_from_seeded_data(make_actor: Any, sql
         await _scene(sql, s.project_id, START - timedelta(days=40 * (i + 1)), 0.9, 0.55)
         await _scene(sql, s.project_id, TODAY - timedelta(days=40 * (i + 1)), 0.9, 0.60)
     await _scene(sql, s.project_id, TODAY - timedelta(days=5), 0.1, 0.05)
-    await _alert(sql, s.project_id, "high", acknowledged=False)
-    await _alert(sql, s.project_id, "high", acknowledged=True)
-    await _alert(sql, s.project_id, "medium", acknowledged=False)
+    # Alerts: one unresolved high (counts), one high cleared by the independent verifier, one
+    # medium, one high older than the latest 365-day window (neither counts).
+    open_alert = await _alert(sql, s.project_id, "high", days_ago=10)
+    await _alert(sql, s.project_id, "high", days_ago=12, by=s.verifier.id)
+    await _alert(sql, s.project_id, "medium", days_ago=11)
+    await _alert(sql, s.project_id, "high", days_ago=400)
     # Evidence (latest period P2): checked 80/90 on two of four plots, 70 without plot, 1 rejected.
     await _submission(sql, s, p2, "checked", 80, s.plot_ids["D01"])
     await _submission(sql, s, p2, "checked", 90, s.plot_ids["D02"])
@@ -176,7 +191,7 @@ async def test_project_and_org_stewardship_from_seeded_data(make_actor: Any, sql
     assert surv["inputs"]["latest_clear_scenes"] == 4
     assert surv["inputs"]["ndvi_p50_delta"] == pytest.approx(0.05)
     assert surv["inputs"]["latest_mvi_p50_median"] == 2.0
-    assert surv["inputs"]["open_high_severity_alerts"] == 1
+    assert surv["inputs"]["unresolved_high_severity_alerts"] == 1
     assert surv["sub_scores"] == {"ndvi_change_score": 100.0, "alert_penalty": 20.0}
     assert surv["score"] == 80.0
 
@@ -198,7 +213,7 @@ async def test_project_and_org_stewardship_from_seeded_data(make_actor: Any, sql
     ff = org["forward_funding"]
     assert ff["criteria_version"] == "forward-funding-v1"
     assert ff["eligible"] is False
-    assert "fail: 1 open high-severity alert(s) (maximum 0)" in ff["reasons"]
+    assert "fail: 1 unresolved high-severity alert(s) (maximum 0)" in ff["reasons"]
 
     # Staff can read; outsiders cannot even see the organisation/project exists.
     assert (await s.verifier.get(f"/orgs/{s.org_id}/stewardship")).status_code == 200
@@ -209,10 +224,54 @@ async def test_project_and_org_stewardship_from_seeded_data(make_actor: Any, sql
     assert (await outsider.get(f"/orgs/{uuid.uuid4()}/stewardship")).status_code == 404
     assert (await s.admin.client.get(f"/projects/{s.project_id}/stewardship")).status_code == 401
 
-    # Acknowledging the alert clears the penalty, so the org becomes eligible.
-    await sql("UPDATE alerts SET acknowledged_at=now() WHERE project_id=:p", p=s.project_id)
-    ff = (await s.admin.get(f"/orgs/{s.org_id}/stewardship")).json()["forward_funding"]
-    assert ff["eligible"] is True, ff
+    # The org's own admin acknowledging its loss alert restores neither the score nor eligibility.
+    r = await s.admin.post(f"/alerts/{open_alert}/acknowledge")
+    assert r.status_code == 200, r.text
+    org = (await s.admin.get(f"/orgs/{s.org_id}/stewardship")).json()
+    assert org["components"]["satellite_survival"] == 80.0
+    assert org["score"] == body["score"]
+    assert org["forward_funding"]["eligible"] is False
+
+    # An independent verifier's acknowledgement clears it: the org becomes eligible.
+    await sql(
+        "UPDATE alerts SET acknowledged_at=NULL, acknowledged_by=NULL WHERE id=:id", id=open_alert
+    )
+    r = await s.verifier.post(f"/alerts/{open_alert}/acknowledge")
+    assert r.status_code == 200, r.text
+    org = (await s.admin.get(f"/orgs/{s.org_id}/stewardship")).json()
+    surv = _component(org["projects"][0], "satellite_survival")
+    assert surv["inputs"]["unresolved_high_severity_alerts"] == 0
+    assert surv["inputs"]["independently_cleared_high_severity_alerts"] == 2
+    assert org["components"]["satellite_survival"] == 100.0
+    assert org["forward_funding"]["eligible"] is True, org["forward_funding"]
+
+
+async def test_only_independent_staff_acknowledgements_clear_alerts(
+    make_actor: Any, sql: Any
+) -> None:
+    s = await setup_project(make_actor, sql)
+    insider = await make_actor("Insider Verifier")
+    await sql("UPDATE users SET platform_role='verifier' WHERE id=:id", id=insider.id)
+    await sql(
+        "INSERT INTO memberships (user_id, org_id, role) VALUES (:u, :o, 'member')",
+        u=insider.id,
+        o=s.org_id,
+    )
+    registry = await make_actor("Registry Admin")
+    await sql("UPDATE users SET platform_role='registry_admin' WHERE id=:id", id=registry.id)
+    p = s.project_id
+    await _alert(sql, p, "high", days_ago=5)  # unacknowledged → counts
+    await _alert(sql, p, "high", days_ago=6, by=s.admin.id)  # own org admin → counts
+    await _alert(sql, p, "high", days_ago=7, by=insider.id)  # verifier inside the org → counts
+    await _alert(sql, p, "high", days_ago=8, acknowledged=True)  # acknowledger unknown → counts
+    await _alert(sql, p, "high", days_ago=9, by=registry.id)  # independent → cleared
+    await _alert(sql, p, "high", days_ago=4, by=s.verifier.id)  # independent verifier → cleared
+    await _alert(sql, p, "medium", days_ago=10)  # not high → ignored
+    await _alert(sql, p, "high", days_ago=366)  # outside the latest window → ignored
+    body = (await s.admin.get(f"/projects/{p}/stewardship")).json()
+    inputs = _component(body, "satellite_survival")["inputs"]
+    assert inputs["unresolved_high_severity_alerts"] == 4
+    assert inputs["independently_cleared_high_severity_alerts"] == 2
 
 
 async def test_insufficient_data_is_flagged_not_scored(

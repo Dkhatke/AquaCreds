@@ -107,7 +107,7 @@ def test_survival_ndvi_change_mapping(baseline: float, latest: float, expected: 
     assert c.score == pytest.approx(expected, abs=0.01)
 
 
-def test_survival_open_high_alerts_reduce_score() -> None:
+def test_survival_unresolved_high_alerts_reduce_score() -> None:
     assert score_survival(survival(alerts=2)).score == 60.0
     assert score_survival(survival(alerts=9)).score == 0.0
 
@@ -268,7 +268,7 @@ def test_org_area_weighting_and_forward_funding() -> None:
         aggregate_org(org_id="o", projects=[alerted], computed_at=NOW)
     )
     assert not ok
-    assert "fail: 1 open high-severity alert(s) (maximum 0)" in reasons
+    assert "fail: 1 unresolved high-severity alert(s) (maximum 0)" in reasons
     empty = aggregate_org(org_id="o", projects=[], computed_at=NOW)
     assert empty.insufficient_data
     assert eligibility_for_forward_funding(empty)[0] is False

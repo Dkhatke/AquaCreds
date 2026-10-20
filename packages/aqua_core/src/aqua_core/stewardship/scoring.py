@@ -27,7 +27,11 @@ Formula (``STEWARDSHIP_V1``; all constants live in :class:`StewardshipParams`)
   than relative change so a bare-mudflat baseline near 0 does not explode the ratio).
 - ``ndvi_score = 100`` if ``Δ ≥ −0.02`` (maintained/increased, within noise); ``0`` if
   ``Δ ≤ −0.10`` (decline beyond threshold); linear in between.
-- ``survival = max(0, ndvi_score − 20 × open high-severity alerts)`` (alerts not yet acknowledged).
+- ``survival = max(0, ndvi_score − 20 × unresolved high-severity alerts)``. An alert is *unresolved*
+  when it is high severity, observed in the latest window, and **not** acknowledged by an
+  independent staff user (platform role verifier / registry_admin who is not a member of the
+  project's organisation). Acknowledgements by the project's own organisation, or with no recorded
+  acknowledger, do not clear the penalty (an org cannot acknowledge away its own loss alerts).
 - MVI p50 medians of the same windows are reported as context only (not scored).
 - Insufficient data: either window lacks clear scenes, or the project is < 12 months old.
 
@@ -49,7 +53,8 @@ each organisation component is the area-weighted mean over projects where it is 
 
 **Forward-funding eligibility** (:func:`eligibility_for_forward_funding`, ``FORWARD_FUNDING_V1``):
 organisation score ≥ 60, continuity and survival both available, organisation survival ≥ 50, at
-least one project with an approved-report streak ≥ 1, and no open high-severity alert.
+least one project with an approved-report streak ≥ 1, and no unresolved high-severity alert (same
+rule as the survival penalty).
 """
 
 import math
@@ -84,7 +89,10 @@ class StewardshipParams:
     window_days: int
     ndvi_tolerance: float  # Δ ≥ −tolerance → 100
     ndvi_decline_threshold: float  # Δ ≤ −threshold → 0
+    # per unresolved high-severity alert observed in the latest window (cleared only by an
+    # acknowledgement from independent staff: verifier/registry_admin outside the project's org)
     high_alert_penalty: float
+    alert_rule: str
     # evidence
     evidence_weights: dict[str, float]
 
@@ -102,6 +110,10 @@ STEWARDSHIP_V1 = StewardshipParams(
     ndvi_tolerance=0.02,
     ndvi_decline_threshold=0.10,
     high_alert_penalty=20.0,
+    alert_rule=(
+        "high-severity alerts observed in the latest window count unless acknowledged by a "
+        "verifier/registry_admin who is not a member of the project's organisation"
+    ),
     evidence_weights={"trust": 0.50, "acceptance": 0.25, "plot_coverage": 0.25},
 )
 
@@ -143,7 +155,8 @@ class SurvivalInputs:
     project_start: date
     as_of: date
     scenes: Sequence[SceneValue]  # baseline + latest windows (others are ignored)
-    open_high_alerts: int
+    unresolved_high_alerts: int  # see StewardshipParams.high_alert_penalty for the rule
+    independently_cleared_high_alerts: int = 0  # context only
 
 
 @dataclass(frozen=True)
@@ -305,7 +318,9 @@ def score_survival(
         "latest_ndvi_p50_median": late_ndvi,
         "baseline_mvi_p50_median": mvi(base_ok),
         "latest_mvi_p50_median": mvi(late_ok),
-        "open_high_severity_alerts": inp.open_high_alerts,
+        "alert_window": [latest_from.isoformat(), latest_to.isoformat()],
+        "unresolved_high_severity_alerts": inp.unresolved_high_alerts,
+        "independently_cleared_high_severity_alerts": inp.independently_cleared_high_alerts,
     }
     missing: list[str] = []
     if latest_from < inp.project_start:
@@ -315,8 +330,10 @@ def score_survival(
     if len(late_ok) < params.min_clear_scenes:
         missing.append(f"latest 12 months have fewer than {params.min_clear_scenes} clear scenes")
     notes = list(missing)
-    if inp.open_high_alerts:
-        notes.append(f"{inp.open_high_alerts} open high-severity vegetation-loss alert(s)")
+    if inp.unresolved_high_alerts:
+        notes.append(
+            f"{inp.unresolved_high_alerts} unresolved high-severity vegetation-loss alert(s)"
+        )
     if missing or base_ndvi is None or late_ndvi is None:
         return ComponentScore(SURVIVAL, weight, None, True, {}, inputs, notes)
 
@@ -329,7 +346,7 @@ def score_survival(
         ndvi_score = 0.0
     else:
         ndvi_score = 100.0 * (delta + drop) / (drop - tol)
-    alert_penalty = inp.open_high_alerts * params.high_alert_penalty
+    alert_penalty = inp.unresolved_high_alerts * params.high_alert_penalty
     return ComponentScore(
         SURVIVAL,
         weight,
@@ -526,11 +543,11 @@ def eligibility_for_forward_funding(
     ]
     checks.append((max(streaks, default=0) >= 1, "at least one project with an approved report"))
     alerts = sum(
-        int(c.inputs.get("open_high_severity_alerts", 0))
+        int(c.inputs.get("unresolved_high_severity_alerts", 0))
         for p in org.projects
         for c in p.components
         if c.name == SURVIVAL
     )
-    checks.append((alerts == 0, f"{alerts} open high-severity alert(s) (maximum 0)"))
+    checks.append((alerts == 0, f"{alerts} unresolved high-severity alert(s) (maximum 0)"))
     reasons = [f"{'pass' if ok else 'fail'}: {msg}" for ok, msg in checks]
     return all(ok for ok, _ in checks), reasons
