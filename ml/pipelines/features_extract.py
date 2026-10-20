@@ -37,7 +37,7 @@ import time
 import warnings
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -72,8 +72,7 @@ REQUEST_ATTEMPTS = 6
 SEARCH_ATTEMPTS = 5
 OUTSIDE = "outside dataset bounds"
 
-# Search only: the data API reads the COGs itself, so items need no SAS signing here.
-PC_UNSIGNED = replace(s2.PLANETARY_COMPUTER, sign=lambda item: item)
+PC = s2.PLANETARY_COMPUTER
 
 ID_COLS = ["lon", "lat", "label", "source", "ref_year", "map_derived", "h3", "split"]
 
@@ -101,7 +100,7 @@ def scenes_from_items(items: Sequence[pystac.Item]) -> list[Scene]:
                 day=str(item.properties["datetime"])[:10],
                 cloud=float(item.properties.get("eo:cloud_cover", 100.0)),
                 footprint=shape(item.geometry),
-                offset=s2.boa_offset(item, PC_UNSIGNED),
+                offset=s2.boa_offset(item, PC),
             )
         )
     return out
@@ -258,11 +257,10 @@ def search_items(collection: str, geometry: Polygon, throttle: Throttle) -> list
     for attempt in range(SEARCH_ATTEMPTS):
         throttle.wait()
         try:
-            if collection == s2.PLANETARY_COMPUTER.collection:
-                return s2.search(
-                    geometry, SEASON_START, SEASON_END, provider=PC_UNSIGNED, max_cloud=80.0
-                )
-            client = Client.open(PC_UNSIGNED.stac_url, timeout=STAC_TIMEOUT_S)
+            # sign=False: the data API reads the COGs server-side, so no SAS token is needed.
+            if collection == PC.collection:
+                return s2.search(geometry, SEASON_START, SEASON_END, max_cloud=80.0, sign=False)
+            client = Client.open(PC.stac_url, timeout=STAC_TIMEOUT_S)
             return list(client.search(collections=[collection], intersects=geometry).items())
         except Exception as exc:  # pystac-client raises several unrelated types
             last = exc
