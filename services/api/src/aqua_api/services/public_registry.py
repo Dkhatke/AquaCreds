@@ -38,7 +38,16 @@ from aqua_api.schemas.public import (
     VintageOut,
 )
 from aqua_chain.encoding import project_id_bytes32, to_hex
-from aqua_core.models import ChainEvent, ChainTransaction, Organization, Project, ProjectStatus
+from aqua_core.models import (
+    ChainEvent,
+    ChainTransaction,
+    ChainTxStatus,
+    MRVReport,
+    Organization,
+    Project,
+    ProjectStatus,
+    ReportStatus,
+)
 
 # Drafts are private work in progress; rejected projects never entered the registry.
 HIDDEN_STATUSES = (ProjectStatus.DRAFT, ProjectStatus.REJECTED)
@@ -155,6 +164,41 @@ def _decisions(decided: Iterable[ChainEvent]) -> dict[int, ChainEvent]:
     return out
 
 
+def _hash_hex(value: Any) -> str:
+    return str(value or "").lower().removeprefix("0x")
+
+
+async def mrv_report_links(
+    session: AsyncSession, submitted: Sequence[ChainEvent]
+) -> dict[int, uuid.UUID]:
+    """On-chain reportId → id of the approved MRV report of a public project with the same hash,
+    for the same project key (and the same reportId when the anchor task recorded one)."""
+    hashes = {_hash_hex(e.args.get("reportHash")) for e in submitted} - {""}
+    if not hashes:
+        return {}
+    rows = await session.execute(
+        select(MRVReport.id, MRVReport.report_hash, MRVReport.project_id, MRVReport.chain_report_id)
+        .join(Project, Project.id == MRVReport.project_id)
+        .where(
+            MRVReport.report_hash.in_(sorted(hashes)),
+            MRVReport.status == ReportStatus.APPROVED,
+            Project.status.not_in(HIDDEN_STATUSES),
+        )
+    )
+    by_hash = {row.report_hash: row for row in rows}
+    links: dict[int, uuid.UUID] = {}
+    for event in submitted:
+        row = by_hash.get(_hash_hex(event.args.get("reportHash")))
+        report_id = _int(event.args.get("reportId"))
+        if (
+            row is not None
+            and event.project_key == project_key(row.project_id)
+            and row.chain_report_id in (None, report_id)
+        ):
+            links[report_id] = row.id
+    return links
+
+
 def _report_status(decision: ChainEvent | None) -> ReportChainStatus:
     if decision is None:
         return "submitted"
@@ -172,16 +216,17 @@ async def project_reports(
         project_keys=[key],
     )
     decisions = _decisions(e for e in found if e.event != "ReportSubmitted")
+    submitted = [e for e in found if e.event == "ReportSubmitted"]
+    links = await mrv_report_links(session, submitted)
     reports = []
-    for event in found:
-        if event.event != "ReportSubmitted":
-            continue
+    for event in submitted:
         report_id = _int(event.args.get("reportId"))
         decision = decisions.get(report_id)
         approved = decision is not None and decision.event == "ReportApproved"
         reports.append(
             OnChainReport(
                 report_id=report_id,
+                mrv_report_id=links.get(report_id),
                 period_start=_int(event.args.get("periodStart")),
                 period_end=_int(event.args.get("periodEnd")),
                 report_hash=str(event.args.get("reportHash", "")),
@@ -342,7 +387,46 @@ def certificate_verification(
 
 
 async def verify_hash(session: AsyncSession, chain_id: int, sha256_hex: str) -> list[HashMatch]:
-    """ReportSubmitted events whose reportHash equals the given SHA-256 (lower-case hex)."""
+    """Matches for a SHA-256 (lower-case hex): ReportSubmitted events whose reportHash equals it
+    (`source="chain"`), then approved MRV reports of public projects with that hash that no indexed
+    event matches yet (`source="registry_db"`). Unapproved reports are never matched."""
+    matches = await _chain_matches(session, chain_id, sha256_hex)
+    linked = {m.mrv_report_id for m in matches if m.mrv_report_id is not None}
+    rows = await session.execute(
+        select(MRVReport, Project)
+        .join(Project, Project.id == MRVReport.project_id)
+        .where(
+            MRVReport.report_hash == sha256_hex,
+            MRVReport.status == ReportStatus.APPROVED,
+            Project.status.not_in(HIDDEN_STATUSES),
+        )
+    )
+    for report, project in rows:
+        if report.id in linked:
+            continue
+        anchored = False
+        if report.submit_tx_id is not None:
+            tx = await session.get(ChainTransaction, report.submit_tx_id)
+            anchored = tx is not None and tx.status is ChainTxStatus.CONFIRMED and bool(tx.tx_hash)
+        matches.append(
+            HashMatch(
+                source="registry_db",
+                anchored=anchored,
+                report_id=report.chain_report_id,
+                mrv_report_id=report.id,
+                project=ProjectRef(
+                    id=project.id, name=project.name, project_key=project_key(project.id)
+                ),
+                period_start=report.period_start_year,
+                period_end=report.period_end_year,
+                status="approved",
+                chain=None,
+            )
+        )
+    return matches
+
+
+async def _chain_matches(session: AsyncSession, chain_id: int, sha256_hex: str) -> list[HashMatch]:
     found = await events(
         session, chain_id, ["ReportSubmitted"], arg_equals=("reportHash", "0x" + sha256_hex)
     )
@@ -352,9 +436,13 @@ async def verify_hash(session: AsyncSession, chain_id: int, sha256_hex: str) -> 
     decided = await events(session, chain_id, ["ReportApproved", "ReportRejected"])
     decisions = _decisions(e for e in decided if str(_int(e.args.get("reportId"))) in report_ids)
     refs = await project_refs(session, chain_id, (e.project_key or "" for e in found))
+    links = await mrv_report_links(session, found)
     return [
         HashMatch(
+            source="chain",
+            anchored=True,
             report_id=_int(e.args.get("reportId")),
+            mrv_report_id=links.get(_int(e.args.get("reportId"))),
             project=refs.get(e.project_key or "")
             or ProjectRef(id=None, name=None, project_key=e.project_key or ""),
             period_start=_int(e.args.get("periodStart")),
