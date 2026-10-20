@@ -1,12 +1,15 @@
 """Public transparency registry (Phase 8): read-only, no login.
 
-Anyone can inspect non-draft, non-rejected projects, credit vintages and retirements, verify an
-MRV report hash against the chain, and fetch a QR code for a retirement certificate.
+Anyone can inspect non-draft, non-rejected projects, their approved MRV reports, credit vintages
+and retirements, verify an MRV report hash against the chain (or the registry while anchoring is
+pending), and fetch a QR code for a retirement certificate.
 
 Privacy (RESEARCH_NOTES Q1, IMPLEMENTATION_PLAN §8): responses are built only from the allow-listed
 schemas in `aqua_api.schemas.public`: project-level facts, aggregates, hashes and on-chain
 records. No user identities, photo object keys/URLs, photo coordinates, tenure documents or audit
-log entries are ever returned.
+log entries are ever returned. Only approved MRV reports are public; their PDF is served through
+a short-lived presigned URL behind a stable redirect, their JSON record only as an allow-listed
+public variant (see `aqua_api.services.public_reports`), and the CSV export not at all.
 
 Caching: JSON responses carry `Cache-Control: public, max-age=60` and a weak ETag (304 on
 `If-None-Match`); QR images are cached for a day.
@@ -15,23 +18,30 @@ Caching: JSON responses carry `Cache-Control: public, max-age=60` and a weak ETa
 import hashlib
 import io
 import uuid
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import segno
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import func, select
+from starlette.concurrency import run_in_threadpool
 
-from aqua_api.deps import SessionDep, SettingsDep
+from aqua_api.deps import SessionDep, SettingsDep, StorageDep
 from aqua_api.schemas.analysis import TimeseriesIndex
 from aqua_api.schemas.public import (
     BoundaryInfo,
     Page,
     PeriodSummary,
+    ProjectRef,
     PublicProjectDetail,
     PublicProjectSummary,
+    PublicRecordVariant,
+    PublicReport,
+    PublicReportDetail,
     PublicTimeseries,
     PublicTimeseriesPoint,
+    ReportDownloadLinks,
     RetirementDetail,
     RetirementOut,
     VerifyHashOut,
@@ -40,10 +50,12 @@ from aqua_api.schemas.public import (
     normalise_sha256,
 )
 from aqua_api.services import public_registry as reg
+from aqua_api.services import public_reports as pub_reports
 from aqua_core.models import (
     ChainEvent,
     Ecosystem,
     MonitoringPeriod,
+    MRVReport,
     Organization,
     Project,
     ProjectStatus,
@@ -79,6 +91,16 @@ async def _public_project(
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
     return row[0], row[1]
+
+
+def _links(request: Request) -> pub_reports.LinksFor:
+    def links(report_id: uuid.UUID) -> ReportDownloadLinks:
+        return ReportDownloadLinks(
+            pdf_url=str(request.url_for("public_report_pdf", report_id=report_id)),
+            record_url=str(request.url_for("public_report_record", report_id=report_id)),
+        )
+
+    return links
 
 
 # ---------------------------------------------------------------- projects
@@ -154,6 +176,7 @@ async def get_project(
         alerts=await reg.alert_counts(session, project.id),
         registration=registration,
         reports=await reg.project_reports(session, chain_id, project.id),
+        mrv_reports=await pub_reports.project_reports(session, project.id, _links(request)),
         vintages=await reg.vintages(session, chain_id, project_id=project.id),
     )
     return cached(request, detail)
@@ -199,6 +222,94 @@ async def project_timeseries(
         PublicTimeseries(
             project_id=project_id, index=index, min_clear_fraction=min_clear, points=points
         ),
+    )
+
+
+# ---------------------------------------------------------------- MRV reports
+
+
+async def _approved(
+    session: SessionDep, request: Request, report_id: uuid.UUID
+) -> tuple[MRVReport, PublicReport]:
+    found = await pub_reports.approved_report(session, report_id, _links(request))
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found")
+    return found
+
+
+async def _record(storage: StorageDep, report: MRVReport) -> dict[str, Any]:
+    """The stored canonical record (hash-checked); storage or integrity failures are a 502."""
+    try:
+        data = await run_in_threadpool(
+            storage.get_bytes, report.json_key, pub_reports.MAX_RECORD_BYTES
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, f"MRV record unavailable ({type(exc).__name__})"
+        ) from exc
+    try:
+        return pub_reports.parse_record(data, report.report_hash)
+    except (pub_reports.RecordUnavailableError, ValueError) as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+
+@router.get("/reports/{report_id}", response_model=PublicReportDetail)
+async def get_report(
+    report_id: uuid.UUID, request: Request, session: SessionDep, storage: StorageDep
+) -> Response:
+    """An approved MRV report with the methodology profile and software versions read from its
+    stored record (hash-checked). Unapproved reports are 404."""
+    report, public = await _approved(session, request, report_id)
+    project = await session.get(Project, report.project_id)
+    if project is None:  # pragma: no cover - FK guarantees it
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found")
+    record = await _record(storage, report)
+    detail = PublicReportDetail(
+        **public.model_dump(),
+        project=ProjectRef(
+            id=project.id, name=project.name, project_key=reg.project_key(project.id)
+        ),
+        project_methodology=project.methodology,
+        tree_stock_tco2e=report.tree_stock_tco2e,
+        tccc_tco2e=report.tccc_tco2e,
+        traceability=pub_reports.traceability(record),
+    )
+    return cached(request, detail)
+
+
+@router.get("/reports/{report_id}/record.json", name="public_report_record")
+async def get_report_record(
+    report_id: uuid.UUID, request: Request, session: SessionDep, storage: StorageDep
+) -> Response:
+    """Public variant of the hashed record: notes, the full-precision boundary and plot
+    coordinates are removed (listed in `redacted`)."""
+    report, _ = await _approved(session, request, report_id)
+    variant, redacted = pub_reports.public_record(await _record(storage, report))
+    return cached(
+        request,
+        PublicRecordVariant(
+            report_id=report.id,
+            full_record_sha256=report.report_hash,
+            redacted=redacted,
+            record=variant,
+        ),
+    )
+
+
+@router.get(
+    "/reports/{report_id}/report.pdf",
+    name="public_report_pdf",
+    status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    response_class=RedirectResponse,
+)
+async def get_report_pdf(
+    report_id: uuid.UUID, request: Request, session: SessionDep, storage: StorageDep
+) -> RedirectResponse:
+    """Redirect to a short-lived presigned download of the report PDF."""
+    report, _ = await _approved(session, request, report_id)
+    url = storage.presign_get(report.pdf_key, f"mrv-report-{report.id}-v{report.version}.pdf")
+    return RedirectResponse(
+        url, status.HTTP_307_TEMPORARY_REDIRECT, headers={"Cache-Control": "no-store"}
     )
 
 
@@ -319,7 +430,8 @@ async def verify_hash_post(
     body: VerifyHashRequest, request: Request, session: SessionDep, settings: SettingsDep
 ) -> Response:
     """Is this SHA-256 (of a downloaded MRV record's RFC 8785 JSON) anchored on-chain in a
-    ReportSubmitted event? Idempotent: one indexed lookup, no writes."""
+    ReportSubmitted event (`source="chain"`), or the hash of an approved report in this registry
+    whose anchoring is not indexed yet (`source="registry_db"`)? Idempotent: no writes."""
     return await _verify(request, session, settings.chain_id, body.sha256_hex)
 
 

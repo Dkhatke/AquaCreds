@@ -369,6 +369,7 @@ async def test_project_detail_aggregates(world: World, client: httpx.AsyncClient
     assert d["alerts"]["high"] == 1
     assert d["reports"] == []
     assert d["vintages"] == []
+    assert d["mrv_reports"] == []
 
     series = (await client.get(f"/public/projects/{pid}/timeseries")).json()
     assert len(series["points"]) == 4  # the cloudy scene is filtered (min_clear 0.5)
@@ -603,6 +604,8 @@ async def test_verify_hash(world: World, client: httpx.AsyncClient, sql: Any) ->
     assert body["sha256_hex"] == digest
     (match,) = body["matches"]
     assert (match["report_id"], match["status"]) == (1, "approved")
+    assert (match["source"], match["anchored"]) == ("chain", True)
+    assert match["mrv_report_id"] is None  # no MRV report in this registry has the hash
     assert match["project"]["id"] == pid
     assert (match["period_start"], match["period_end"]) == (2026, 2029)
     again = await client.get("/public/verify-hash", params={"sha256_hex": digest})

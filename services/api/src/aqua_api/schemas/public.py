@@ -112,6 +112,8 @@ class AlertCounts(BaseModel):
 
 class OnChainReport(BaseModel):
     report_id: int
+    # The approved MRV report in this registry whose hash and project match (null if none).
+    mrv_report_id: uuid.UUID | None
     period_start: int  # year
     period_end: int  # year
     report_hash: str  # 0x + SHA-256 of the RFC 8785 MRV record
@@ -137,6 +139,7 @@ class PublicProjectDetail(PublicProjectSummary):
     alerts: AlertCounts
     registration: ProjectRegistration | None
     reports: list[OnChainReport]
+    mrv_reports: list["PublicReport"]  # approved MRV reports only
     vintages: list["VintageOut"]
 
 
@@ -237,18 +240,102 @@ def normalise_sha256(value: str) -> str:
 
 
 class HashMatch(BaseModel):
-    report_id: int
+    """`source="chain"`: a ReportSubmitted event carries the hash (`anchored` is true).
+    `source="registry_db"`: an approved MRV report in this registry has the hash but no indexed
+    ReportSubmitted event matches it yet (`anchored` says whether the relayer has confirmed the
+    submitReport transaction; `chain` is then null)."""
+
+    source: Literal["chain", "registry_db"]
+    anchored: bool
+    report_id: int | None  # on-chain AquaRegistry reportId
+    mrv_report_id: uuid.UUID | None
     project: ProjectRef
     period_start: int
     period_end: int
     status: ReportChainStatus
-    chain: ChainRef
+    chain: ChainRef | None
 
 
 class VerifyHashOut(BaseModel):
     sha256_hex: str
     found: bool
     matches: list[HashMatch]
+
+
+class PublicTx(BaseModel):
+    chain_id: int
+    tx_hash: str
+    block_number: int | None
+    explorer_url: str | None
+
+
+class ReportAnchoring(BaseModel):
+    """On-chain anchoring of an approved MRV report, from the relayer's confirmed transactions.
+
+    Monitoring-period reports are anchored by submitReport + approveReport (`hash_anchored` once
+    submitReport is confirmed). Baseline-period reports only lead to the project registration, so
+    their hash is never submitted on-chain (`hash_anchored` stays false)."""
+
+    hash_anchored: bool
+    chain_report_id: int | None  # AquaRegistry reportId
+    submit_tx: PublicTx | None
+    approve_tx: PublicTx | None
+    completed_at: datetime | None
+
+
+class ReportDownloadLinks(BaseModel):
+    """Stable registry URLs. `pdf_url` redirects to a short-lived presigned download of the PDF;
+    `record_url` serves the public variant of the hashed JSON record (personal and site-precise
+    fields removed). The full canonical JSON and the CSV export are not public."""
+
+    pdf_url: str
+    record_url: str
+
+
+class PublicReport(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    period_id: uuid.UUID
+    period_kind: PeriodKind
+    version: int
+    status: Literal["approved"] = "approved"
+    period_start_year: int
+    period_end_year: int
+    generated_at: datetime
+    decided_at: datetime | None
+    report_hash: str  # hex SHA-256 of the RFC 8785 canonical record (no 0x)
+    lccc_units: int
+    tccc_units: int
+    anchoring: ReportAnchoring
+    downloads: ReportDownloadLinks
+
+
+class ReportTraceability(BaseModel):
+    """Read from the stored canonical record after checking its SHA-256 against `report_hash`."""
+
+    record_schema: str
+    status_label: str
+    methodology_profile: dict[str, Any]
+    software: dict[str, str]  # package → version used for the calculation
+    record_sha256_verified: Literal[True] = True
+
+
+class PublicReportDetail(PublicReport):
+    project: ProjectRef
+    project_methodology: Methodology
+    tree_stock_tco2e: float
+    tccc_tco2e: float
+    traceability: ReportTraceability
+
+
+class PublicRecordVariant(BaseModel):
+    variant: Literal["aquacreds.mrv_report.public/1"] = "aquacreds.mrv_report.public/1"
+    report_id: uuid.UUID
+    # SHA-256 of the *full* canonical record. It cannot be recomputed from this variant; the full
+    # record is available to the project's organisation, verifiers and regulators.
+    full_record_sha256: str
+    redacted: list[str]  # paths removed from the full record, e.g. "plots[].lat"
+    record: dict[str, Any]
 
 
 PublicProjectDetail.model_rebuild()
