@@ -1,0 +1,23 @@
+{
+  "name": "aquacreds",
+  "private": true,
+  "description": "AquaCreds v2 JS/TS workspace root (web, mobile, shared packages). Python lives in the uv workspace.",
+  "packageManager": "pnpm@12.14.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "check": "turbo run lint typecheck test",
+    "format": "biome format --write .",
+    "gen:api": "uv run python scripts/export_openapi.py && pnpm --filter @aquacreds/api-client run generate"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "turbo": "2.11.9",
+    "typescript": "7.0.2"
+  }
+}

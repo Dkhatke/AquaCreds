@@ -5,6 +5,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        args: ["--allow-multiple-documents"]  # pnpm 12 lockfile is multi-document YAML
       - id: check-toml
       - id: check-json
       - id: check-merge-conflict
