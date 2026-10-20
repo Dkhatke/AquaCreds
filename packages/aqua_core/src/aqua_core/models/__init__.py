@@ -20,6 +20,7 @@ from aqua_core.models.enums import (
     PeriodStatus,
     PlatformRole,
     ProjectStatus,
+    ReportStatus,
     SubmissionKind,
     SubmissionStatus,
     TenureType,
@@ -33,6 +34,7 @@ from aqua_core.models.field import (
 )
 from aqua_core.models.identity import Membership, Organization, RefreshToken, User
 from aqua_core.models.project import Project, TenureDocument
+from aqua_core.models.report import MRVReport
 
 __all__ = [
     "Alert",
@@ -52,6 +54,7 @@ __all__ = [
     "DocumentKind",
     "Ecosystem",
     "FieldSubmission",
+    "MRVReport",
     "Membership",
     "Methodology",
     "MonitoringPeriod",
@@ -67,6 +70,7 @@ __all__ = [
     "Project",
     "ProjectStatus",
     "RefreshToken",
+    "ReportStatus",
     "SceneObservation",
     "SubmissionKind",
     "SubmissionStatus",

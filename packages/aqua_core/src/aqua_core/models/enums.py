@@ -162,3 +162,13 @@ class AlertSeverity(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class ReportStatus(StrEnum):
+    """MRV report lifecycle: draft → under_review → changes_requested | approved | rejected."""
+
+    DRAFT = "draft"
+    UNDER_REVIEW = "under_review"
+    CHANGES_REQUESTED = "changes_requested"
+    APPROVED = "approved"
+    REJECTED = "rejected"

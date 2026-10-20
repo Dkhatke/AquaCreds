@@ -88,8 +88,12 @@ def _require(user: User, project: Project, roles: set[OrgRole]) -> None:
         )
 
 
+# A verifier's "request changes" sends the period back to the field team for corrections.
+EDITABLE_PERIOD_STATUSES = frozenset({PeriodStatus.OPEN, PeriodStatus.CHANGES_REQUESTED})
+
+
 def _require_open(period: MonitoringPeriod) -> None:
-    if period.status != PeriodStatus.OPEN:
+    if period.status not in EDITABLE_PERIOD_STATUSES:
         raise HTTPException(status.HTTP_409_CONFLICT, f"Monitoring period is {period.status}")
 
 
@@ -141,7 +145,8 @@ async def create_period(
         )
     open_exists = await session.scalar(
         select(MonitoringPeriod.id).where(
-            MonitoringPeriod.project_id == project_id, MonitoringPeriod.status == PeriodStatus.OPEN
+            MonitoringPeriod.project_id == project_id,
+            MonitoringPeriod.status.in_(EDITABLE_PERIOD_STATUSES),
         )
     )
     if open_exists:

@@ -18,6 +18,7 @@ from aqua_api.routers import (
     orgs,
     projects,
     public,
+    reports,
     system,
 )
 from aqua_core.db import create_engine, session_factory
@@ -64,7 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     app.include_router(health.router)
-    for module in (auth, orgs, projects, field, analysis, audit, chain, system, public):
+    for module in (auth, orgs, projects, field, analysis, reports, audit, chain, system, public):
         app.include_router(module.router, prefix="/api/v1")
     return app
 
