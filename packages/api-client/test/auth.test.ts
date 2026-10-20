@@ -63,6 +63,32 @@ describe("token injection", () => {
     expect(bearer(t.callsTo("GET /api/v1/auth/me")[0]!)).toBe("Bearer A1");
   });
 
+  it("login with two-factor returns the challenge, stores nothing, then verifyMfa stores the pair", async () => {
+    const challenge = { mfa_required: true, mfa_token: "M1", expires_in: 300 };
+    const t = setup({
+      "POST /api/v1/auth/login": () => json(200, challenge),
+      "POST /api/v1/auth/mfa/verify": () => json(200, pair(1)),
+    });
+    await expect(t.client.auth.login("a@b.in", "correct horse")).resolves.toEqual(challenge);
+    expect(await t.store.get()).toBeNull();
+    await t.client.auth.verifyMfa("M1", "123456");
+    expect(JSON.parse(t.callsTo("POST /api/v1/auth/mfa/verify")[0]!.body)).toEqual({
+      mfa_token: "M1",
+      code: "123456",
+    });
+    expect(await t.store.get()).toEqual({ accessToken: "A1", refreshToken: "R1" });
+  });
+
+  it("a rejected MFA code is an error, not a refresh or logout", async () => {
+    const t = setup(
+      { "POST /api/v1/auth/mfa/verify": () => json(401, { detail: "Invalid code" }) },
+      { accessToken: "A0", refreshToken: "R0" },
+    );
+    await expect(t.client.auth.verifyMfa("M1", "000000")).rejects.toMatchObject({ status: 401 });
+    expect(t.callsTo("POST /api/v1/auth/refresh")).toHaveLength(0);
+    expect(t.onLogout).not.toHaveBeenCalled();
+  });
+
   it("anonymous 401 is returned as an error without refresh or logout", async () => {
     const t = setup({ "GET /api/v1/auth/me": () => json(401, { detail: "Not authenticated" }) });
     await expect(t.client.auth.me()).rejects.toMatchObject({

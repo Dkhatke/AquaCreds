@@ -1,6 +1,47 @@
 {
   "components": {
     "schemas": {
+      "AlertCounts": {
+        "properties": {
+          "high": {
+            "title": "High",
+            "type": "integer"
+          },
+          "latest_observed_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Observed On"
+          },
+          "low": {
+            "title": "Low",
+            "type": "integer"
+          },
+          "medium": {
+            "title": "Medium",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "low",
+          "medium",
+          "high",
+          "latest_observed_on"
+        ],
+        "title": "AlertCounts",
+        "type": "object"
+      },
       "AlertKind": {
         "enum": [
           "vegetation_loss"
@@ -287,6 +328,123 @@
         "title": "AuditEntryOut",
         "type": "object"
       },
+      "AwardOut": {
+        "properties": {
+          "award_id": {
+            "title": "Award Id",
+            "type": "integer"
+          },
+          "delivered_quantity": {
+            "title": "Delivered Quantity",
+            "type": "integer"
+          },
+          "deliveries": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryOut"
+            },
+            "title": "Deliveries",
+            "type": "array"
+          },
+          "escrow_left": {
+            "title": "Escrow Left",
+            "type": "integer"
+          },
+          "open_quantity": {
+            "title": "Open Quantity",
+            "type": "integer"
+          },
+          "price_per_unit": {
+            "title": "Price Per Unit",
+            "type": "integer"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "project_key": {
+            "title": "Project Key",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "refundable_after_deadline": {
+            "title": "Refundable After Deadline",
+            "type": "integer"
+          },
+          "refunded": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refunded"
+          },
+          "released": {
+            "title": "Released",
+            "type": "integer"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "integer"
+          },
+          "seller": {
+            "title": "Seller",
+            "type": "string"
+          },
+          "settled": {
+            "title": "Settled",
+            "type": "boolean"
+          },
+          "upfront_buyer_risk": {
+            "const": true,
+            "default": true,
+            "title": "Upfront Buyer Risk",
+            "type": "boolean"
+          },
+          "upfront_paid": {
+            "title": "Upfront Paid",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "award_id",
+          "request_id",
+          "project_key",
+          "project_id",
+          "seller",
+          "quantity",
+          "price_per_unit",
+          "value",
+          "upfront_paid",
+          "delivered_quantity",
+          "released",
+          "open_quantity",
+          "escrow_left",
+          "refundable_after_deadline",
+          "refunded",
+          "settled",
+          "deliveries"
+        ],
+        "title": "AwardOut",
+        "type": "object"
+      },
       "BackfillRequest": {
         "properties": {
           "start_date": {
@@ -303,6 +461,112 @@
           }
         },
         "title": "BackfillRequest",
+        "type": "object"
+      },
+      "BoundaryInfo": {
+        "properties": {
+          "geometry": {
+            "additionalProperties": true,
+            "title": "Geometry",
+            "type": "object"
+          },
+          "simplification": {
+            "title": "Simplification",
+            "type": "string"
+          },
+          "tolerance_deg": {
+            "title": "Tolerance Deg",
+            "type": "number"
+          }
+        },
+        "required": [
+          "geometry",
+          "simplification",
+          "tolerance_deg"
+        ],
+        "title": "BoundaryInfo",
+        "type": "object"
+      },
+      "CapacityOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "integer"
+          },
+          "committed": {
+            "title": "Committed",
+            "type": "integer"
+          },
+          "note": {
+            "default": "Estimated eligibility screen only; it does not make delivery certain.",
+            "title": "Note",
+            "type": "string"
+          },
+          "report_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Report Ids",
+            "type": "array"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "committed",
+          "available",
+          "source",
+          "report_ids"
+        ],
+        "title": "CapacityOut",
+        "type": "object"
+      },
+      "CertificateVerification": {
+        "description": "Everything needed to check a retirement against the chain without trusting AquaCreds:\nlook up `tx_hash` on any explorer/RPC and compare the CreditsRetired log at `log_index`.\n`payload_sha256` is the SHA-256 of the RFC 8785 canonical JSON of `fields`.",
+        "properties": {
+          "certificate_url": {
+            "title": "Certificate Url",
+            "type": "string"
+          },
+          "chain": {
+            "$ref": "#/components/schemas/ChainRef"
+          },
+          "contract": {
+            "const": "AquaCredit",
+            "default": "AquaCredit",
+            "title": "Contract",
+            "type": "string"
+          },
+          "event": {
+            "const": "CreditsRetired",
+            "default": "CreditsRetired",
+            "title": "Event",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": true,
+            "title": "Fields",
+            "type": "object"
+          },
+          "payload_sha256": {
+            "title": "Payload Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "certificate_url",
+          "chain",
+          "fields",
+          "payload_sha256"
+        ],
+        "title": "CertificateVerification",
         "type": "object"
       },
       "ChainEventOut": {
@@ -349,6 +613,57 @@
         "title": "ChainEventOut",
         "type": "object"
       },
+      "ChainRef": {
+        "description": "Where an indexed contract event lives on-chain.",
+        "properties": {
+          "block_hash": {
+            "title": "Block Hash",
+            "type": "string"
+          },
+          "block_number": {
+            "title": "Block Number",
+            "type": "integer"
+          },
+          "chain_id": {
+            "title": "Chain Id",
+            "type": "integer"
+          },
+          "contract_address": {
+            "title": "Contract Address",
+            "type": "string"
+          },
+          "explorer_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explorer Url"
+          },
+          "log_index": {
+            "title": "Log Index",
+            "type": "integer"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chain_id",
+          "contract_address",
+          "tx_hash",
+          "log_index",
+          "block_number",
+          "block_hash",
+          "explorer_url"
+        ],
+        "title": "ChainRef",
+        "type": "object"
+      },
       "ChainReport": {
         "properties": {
           "entries_checked": {
@@ -383,7 +698,8 @@
         "enum": [
           "registrar",
           "verifier",
-          "issuer"
+          "issuer",
+          "org_wallet"
         ],
         "title": "ChainSigner",
         "type": "string"
@@ -660,6 +976,8 @@
           "approve_report",
           "reject_report",
           "issue_credits",
+          "forward_fund_offer",
+          "forward_fund_withdraw",
           "other"
         ],
         "title": "ChainTxPurpose",
@@ -677,6 +995,70 @@
         "title": "ChainTxStatus",
         "type": "string"
       },
+      "ComponentScoreOut": {
+        "properties": {
+          "inputs": {
+            "additionalProperties": true,
+            "title": "Inputs",
+            "type": "object"
+          },
+          "insufficient_data": {
+            "title": "Insufficient Data",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "sub_scores": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Sub Scores",
+            "type": "object"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "weight",
+          "score",
+          "insufficient_data",
+          "sub_scores",
+          "inputs",
+          "notes"
+        ],
+        "title": "ComponentScoreOut",
+        "type": "object"
+      },
       "CompositeRequest": {
         "description": "Dry season starting in November of `season_start_year` (e.g. 2025 → Nov 2025–Mar 2026).",
         "properties": {
@@ -691,6 +1073,39 @@
           "season_start_year"
         ],
         "title": "CompositeRequest",
+        "type": "object"
+      },
+      "DeliveryOut": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "block_number": {
+            "title": "Block Number",
+            "type": "integer"
+          },
+          "released": {
+            "title": "Released",
+            "type": "integer"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "integer"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token_id",
+          "amount",
+          "released",
+          "tx_hash",
+          "block_number"
+        ],
+        "title": "DeliveryOut",
         "type": "object"
       },
       "DocumentConfirm": {
@@ -750,6 +1165,73 @@
         "title": "Ecosystem",
         "type": "string"
       },
+      "EvidenceStats": {
+        "description": "Aggregate field-evidence statistics. Individual submissions are never public.",
+        "properties": {
+          "checked": {
+            "title": "Checked",
+            "type": "integer"
+          },
+          "median_trust_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Trust Score"
+          },
+          "pending_checks": {
+            "title": "Pending Checks",
+            "type": "integer"
+          },
+          "rejected": {
+            "title": "Rejected",
+            "type": "integer"
+          },
+          "submissions_total": {
+            "title": "Submissions Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "submissions_total",
+          "checked",
+          "rejected",
+          "pending_checks",
+          "median_trust_score"
+        ],
+        "title": "EvidenceStats",
+        "type": "object"
+      },
+      "ForwardFundingOut": {
+        "properties": {
+          "criteria_version": {
+            "title": "Criteria Version",
+            "type": "string"
+          },
+          "eligible": {
+            "title": "Eligible",
+            "type": "boolean"
+          },
+          "reasons": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "eligible",
+          "reasons",
+          "criteria_version"
+        ],
+        "title": "ForwardFundingOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -761,6 +1243,124 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HashMatch": {
+        "description": "`source=\"chain\"`: a ReportSubmitted event carries the hash (`anchored` is true).\n`source=\"registry_db\"`: an approved MRV report in this registry has the hash but no indexed\nReportSubmitted event matches it yet (`anchored` says whether the relayer has confirmed the\nsubmitReport transaction; `chain` is then null).",
+        "properties": {
+          "anchored": {
+            "title": "Anchored",
+            "type": "boolean"
+          },
+          "chain": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChainRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mrv_report_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mrv Report Id"
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "integer"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "integer"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectRef"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id"
+          },
+          "source": {
+            "enum": [
+              "chain",
+              "registry_db"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "submitted",
+              "approved",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "anchored",
+          "report_id",
+          "mrv_report_id",
+          "project",
+          "period_start",
+          "period_end",
+          "status",
+          "chain"
+        ],
+        "title": "HashMatch",
+        "type": "object"
+      },
+      "IssuanceOut": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "block_number": {
+            "title": "Block Number",
+            "type": "integer"
+          },
+          "explorer_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explorer Url"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "tx_hash",
+          "block_number",
+          "explorer_url"
+        ],
+        "title": "IssuanceOut",
         "type": "object"
       },
       "LoginIn": {
@@ -930,6 +1530,173 @@
         "title": "Methodology",
         "type": "string"
       },
+      "MfaChallenge": {
+        "description": "Returned by /auth/login instead of tokens when the account has TOTP enabled.",
+        "properties": {
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "mfa_required": {
+            "const": true,
+            "default": true,
+            "title": "Mfa Required",
+            "type": "boolean"
+          },
+          "mfa_token": {
+            "title": "Mfa Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mfa_token",
+          "expires_in"
+        ],
+        "title": "MfaChallenge",
+        "type": "object"
+      },
+      "MfaCodeIn": {
+        "properties": {
+          "code": {
+            "maxLength": 32,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "MfaCodeIn",
+        "type": "object"
+      },
+      "MfaEnabledOut": {
+        "properties": {
+          "recovery_codes": {
+            "description": "Shown once; each code works once",
+            "items": {
+              "type": "string"
+            },
+            "title": "Recovery Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "recovery_codes"
+        ],
+        "title": "MfaEnabledOut",
+        "type": "object"
+      },
+      "MfaSetupOut": {
+        "properties": {
+          "otpauth_uri": {
+            "title": "Otpauth Uri",
+            "type": "string"
+          },
+          "qr_svg": {
+            "description": "Inline SVG QR code of otpauth_uri",
+            "title": "Qr Svg",
+            "type": "string"
+          },
+          "secret": {
+            "description": "Base32 secret for manual entry in an authenticator app",
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "otpauth_uri",
+          "qr_svg"
+        ],
+        "title": "MfaSetupOut",
+        "type": "object"
+      },
+      "MfaStatusOut": {
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "enabled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled At"
+          },
+          "recovery_codes_remaining": {
+            "description": "Unused recovery codes",
+            "title": "Recovery Codes Remaining",
+            "type": "integer"
+          },
+          "required": {
+            "description": "True when this account must have MFA (staff while MFA_REQUIRED_FOR_STAFF)",
+            "title": "Required",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "enabled_at",
+          "recovery_codes_remaining",
+          "required"
+        ],
+        "title": "MfaStatusOut",
+        "type": "object"
+      },
+      "MfaVerifyIn": {
+        "properties": {
+          "code": {
+            "description": "6-digit TOTP or a recovery code",
+            "maxLength": 32,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          },
+          "mfa_token": {
+            "maxLength": 2000,
+            "minLength": 20,
+            "title": "Mfa Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mfa_token",
+          "code"
+        ],
+        "title": "MfaVerifyIn",
+        "type": "object"
+      },
+      "MonthlyIndexValue": {
+        "properties": {
+          "median_p50": {
+            "title": "Median P50",
+            "type": "number"
+          },
+          "month": {
+            "format": "date",
+            "title": "Month",
+            "type": "string"
+          },
+          "scenes": {
+            "title": "Scenes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "month",
+          "median_p50",
+          "scenes"
+        ],
+        "title": "MonthlyIndexValue",
+        "type": "object"
+      },
       "MultiPolygon": {
         "description": "MultiPolygon Model",
         "properties": {
@@ -1038,6 +1805,267 @@
         "title": "NonceOut",
         "type": "object"
       },
+      "OfferIn": {
+        "properties": {
+          "price_per_unit": {
+            "description": "payment-token base units per tCO2e",
+            "exclusiveMinimum": 0.0,
+            "title": "Price Per Unit",
+            "type": "integer"
+          },
+          "quantity": {
+            "description": "whole tCO2e",
+            "exclusiveMinimum": 0.0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "request_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Request Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "request_id",
+          "price_per_unit",
+          "quantity"
+        ],
+        "title": "OfferIn",
+        "type": "object"
+      },
+      "OfferOut": {
+        "properties": {
+          "offer_id": {
+            "title": "Offer Id",
+            "type": "integer"
+          },
+          "price_per_unit": {
+            "title": "Price Per Unit",
+            "type": "integer"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "project_key": {
+            "title": "Project Key",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "integer"
+          },
+          "seller": {
+            "title": "Seller",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/OfferStatus"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          },
+          "withdrawn_tx_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Withdrawn Tx Hash"
+          }
+        },
+        "required": [
+          "offer_id",
+          "request_id",
+          "project_key",
+          "project_id",
+          "seller",
+          "price_per_unit",
+          "quantity",
+          "status",
+          "tx_hash",
+          "withdrawn_tx_hash"
+        ],
+        "title": "OfferOut",
+        "type": "object"
+      },
+      "OfferStatus": {
+        "enum": [
+          "active",
+          "withdrawn",
+          "awarded",
+          "not_awarded"
+        ],
+        "title": "OfferStatus",
+        "type": "string"
+      },
+      "OnChainReport": {
+        "properties": {
+          "decided": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChainRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lccc": {
+            "title": "Lccc",
+            "type": "integer"
+          },
+          "mrv_report_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mrv Report Id"
+          },
+          "period_end": {
+            "title": "Period End",
+            "type": "integer"
+          },
+          "period_start": {
+            "title": "Period Start",
+            "type": "integer"
+          },
+          "report_hash": {
+            "title": "Report Hash",
+            "type": "string"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "submitted",
+              "approved",
+              "rejected"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "submitted": {
+            "$ref": "#/components/schemas/ChainRef"
+          },
+          "tccc": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tccc"
+          }
+        },
+        "required": [
+          "report_id",
+          "mrv_report_id",
+          "period_start",
+          "period_end",
+          "report_hash",
+          "lccc",
+          "tccc",
+          "status",
+          "submitted",
+          "decided"
+        ],
+        "title": "OnChainReport",
+        "type": "object"
+      },
+      "OnchainCheckOut": {
+        "description": "Live contract reads compared against the indexed figures.",
+        "properties": {
+          "awarded": {
+            "title": "Awarded",
+            "type": "boolean"
+          },
+          "awarded_quantity": {
+            "title": "Awarded Quantity",
+            "type": "integer"
+          },
+          "awards": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Awards",
+            "type": "object"
+          },
+          "block_number": {
+            "title": "Block Number",
+            "type": "integer"
+          },
+          "consistent": {
+            "title": "Consistent",
+            "type": "boolean"
+          },
+          "escrow": {
+            "title": "Escrow",
+            "type": "integer"
+          },
+          "mismatches": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mismatches",
+            "type": "array"
+          },
+          "refundable": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Refundable",
+            "type": "object"
+          }
+        },
+        "required": [
+          "block_number",
+          "escrow",
+          "awarded",
+          "awarded_quantity",
+          "awards",
+          "refundable",
+          "consistent",
+          "mismatches"
+        ],
+        "title": "OnchainCheckOut",
+        "type": "object"
+      },
       "OrgCreate": {
         "properties": {
           "name": {
@@ -1100,6 +2128,89 @@
         "title": "OrgRole",
         "type": "string"
       },
+      "OrgStewardshipOut": {
+        "properties": {
+          "components": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Components",
+            "type": "object"
+          },
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "forward_funding": {
+            "$ref": "#/components/schemas/ForwardFundingOut"
+          },
+          "insufficient_data": {
+            "title": "Insufficient Data",
+            "type": "boolean"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "params": {
+            "additionalProperties": true,
+            "title": "Params",
+            "type": "object"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectStewardshipOut"
+            },
+            "title": "Projects",
+            "type": "array"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_version": {
+            "title": "Score Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "org_id",
+          "score",
+          "insufficient_data",
+          "components",
+          "projects",
+          "notes",
+          "score_version",
+          "computed_at",
+          "params",
+          "forward_funding"
+        ],
+        "title": "OrgStewardshipOut",
+        "type": "object"
+      },
       "OrgType": {
         "enum": [
           "ngo",
@@ -1109,6 +2220,99 @@
         ],
         "title": "OrgType",
         "type": "string"
+      },
+      "Page_PublicProjectSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicProjectSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[PublicProjectSummary]",
+        "type": "object"
+      },
+      "Page_RetirementOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RetirementOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[RetirementOut]",
+        "type": "object"
+      },
+      "Page_VintageOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VintageOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[VintageOut]",
+        "type": "object"
       },
       "PeriodCreate": {
         "properties": {
@@ -1200,6 +2404,40 @@
         "title": "PeriodStatus",
         "type": "string"
       },
+      "PeriodSummary": {
+        "properties": {
+          "end_date": {
+            "format": "date",
+            "title": "End Date",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PeriodKind"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PeriodStatus"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "start_date",
+          "end_date"
+        ],
+        "title": "PeriodSummary",
+        "type": "object"
+      },
       "PhotoUploadRequest": {
         "properties": {
           "content_type": {
@@ -1212,6 +2450,27 @@
           "content_type"
         ],
         "title": "PhotoUploadRequest",
+        "type": "object"
+      },
+      "PlantingCohortIn": {
+        "properties": {
+          "area_ha": {
+            "exclusiveMinimum": 0.0,
+            "title": "Area Ha",
+            "type": "number"
+          },
+          "year": {
+            "maximum": 2100.0,
+            "minimum": 1990.0,
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "area_ha"
+        ],
+        "title": "PlantingCohortIn",
         "type": "object"
       },
       "PlatformRole": {
@@ -1559,6 +2818,50 @@
         "title": "ProjectCreate",
         "type": "object"
       },
+      "ProjectForwardFundOut": {
+        "properties": {
+          "awards": {
+            "items": {
+              "$ref": "#/components/schemas/AwardOut"
+            },
+            "title": "Awards",
+            "type": "array"
+          },
+          "capacity": {
+            "$ref": "#/components/schemas/CapacityOut"
+          },
+          "disclaimer": {
+            "default": "Forward funding is not a guarantee of credits. Credits are issued ex post, years after planting, and only for removals an accredited verifier approves; a project may deliver less than it offered, or nothing. Any upfront share is paid to the project at award time at the buyer's risk and is never refunded. Escrow is released only as verified long-term credits are delivered; undelivered escrow is refundable to the buyer after the delivery deadline. Testnet registry units: not legally recognised carbon credits.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/OfferOut"
+            },
+            "title": "Offers",
+            "type": "array"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "project_key": {
+            "title": "Project Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "project_key",
+          "capacity",
+          "offers",
+          "awards"
+        ],
+        "title": "ProjectForwardFundOut",
+        "type": "object"
+      },
       "ProjectOut": {
         "properties": {
           "area_ha": {
@@ -1664,6 +2967,104 @@
         "title": "ProjectOut",
         "type": "object"
       },
+      "ProjectRef": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "project_key": {
+            "title": "Project Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "project_key"
+        ],
+        "title": "ProjectRef",
+        "type": "object"
+      },
+      "ProjectRegistration": {
+        "properties": {
+          "block_hash": {
+            "title": "Block Hash",
+            "type": "string"
+          },
+          "block_number": {
+            "title": "Block Number",
+            "type": "integer"
+          },
+          "boundary_hash": {
+            "title": "Boundary Hash",
+            "type": "string"
+          },
+          "chain_id": {
+            "title": "Chain Id",
+            "type": "integer"
+          },
+          "contract_address": {
+            "title": "Contract Address",
+            "type": "string"
+          },
+          "explorer_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explorer Url"
+          },
+          "log_index": {
+            "title": "Log Index",
+            "type": "integer"
+          },
+          "start_year": {
+            "title": "Start Year",
+            "type": "integer"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chain_id",
+          "contract_address",
+          "tx_hash",
+          "log_index",
+          "block_number",
+          "block_hash",
+          "explorer_url",
+          "boundary_hash",
+          "start_year"
+        ],
+        "title": "ProjectRegistration",
+        "type": "object"
+      },
       "ProjectStatus": {
         "description": "Lifecycle (see docs/IMPLEMENTATION_PLAN.md §3). Transitions are enforced in services.",
         "enum": [
@@ -1677,6 +3078,74 @@
         ],
         "title": "ProjectStatus",
         "type": "string"
+      },
+      "ProjectStewardshipOut": {
+        "properties": {
+          "area_ha": {
+            "title": "Area Ha",
+            "type": "number"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentScoreOut"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "computed_at": {
+            "format": "date-time",
+            "title": "Computed At",
+            "type": "string"
+          },
+          "insufficient_data": {
+            "title": "Insufficient Data",
+            "type": "boolean"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "renormalised": {
+            "title": "Renormalised",
+            "type": "boolean"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_version": {
+            "title": "Score Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "area_ha",
+          "score",
+          "insufficient_data",
+          "renormalised",
+          "components",
+          "notes",
+          "score_version",
+          "computed_at"
+        ],
+        "title": "ProjectStewardshipOut",
+        "type": "object"
       },
       "ProjectUpdate": {
         "description": "Only allowed while the project is a draft or has changes requested.",
@@ -1785,6 +3254,588 @@
         "title": "ProjectUpdate",
         "type": "object"
       },
+      "PublicOrg": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "org_type": {
+            "$ref": "#/components/schemas/OrgType"
+          }
+        },
+        "required": [
+          "name",
+          "org_type"
+        ],
+        "title": "PublicOrg",
+        "type": "object"
+      },
+      "PublicProjectDetail": {
+        "properties": {
+          "alerts": {
+            "$ref": "#/components/schemas/AlertCounts"
+          },
+          "area_ha": {
+            "title": "Area Ha",
+            "type": "number"
+          },
+          "boundary": {
+            "$ref": "#/components/schemas/BoundaryInfo"
+          },
+          "centroid": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Centroid",
+            "type": "array"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "ecosystem": {
+            "$ref": "#/components/schemas/Ecosystem"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidenceStats"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "methodology": {
+            "$ref": "#/components/schemas/Methodology"
+          },
+          "mrv_reports": {
+            "items": {
+              "$ref": "#/components/schemas/PublicReport"
+            },
+            "title": "Mrv Reports",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "org": {
+            "$ref": "#/components/schemas/PublicOrg"
+          },
+          "periods": {
+            "items": {
+              "$ref": "#/components/schemas/PeriodSummary"
+            },
+            "title": "Periods",
+            "type": "array"
+          },
+          "registered_on_chain": {
+            "title": "Registered On Chain",
+            "type": "boolean"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectRegistration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/OnChainReport"
+            },
+            "title": "Reports",
+            "type": "array"
+          },
+          "satellite": {
+            "$ref": "#/components/schemas/SatelliteIndicators"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProjectStatus"
+          },
+          "vintages": {
+            "items": {
+              "$ref": "#/components/schemas/VintageOut"
+            },
+            "title": "Vintages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "org",
+          "state",
+          "ecosystem",
+          "methodology",
+          "status",
+          "area_ha",
+          "start_date",
+          "centroid",
+          "registered_on_chain",
+          "description",
+          "boundary",
+          "periods",
+          "evidence",
+          "satellite",
+          "alerts",
+          "registration",
+          "reports",
+          "mrv_reports",
+          "vintages"
+        ],
+        "title": "PublicProjectDetail",
+        "type": "object"
+      },
+      "PublicProjectSummary": {
+        "properties": {
+          "area_ha": {
+            "title": "Area Ha",
+            "type": "number"
+          },
+          "centroid": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Centroid",
+            "type": "array"
+          },
+          "ecosystem": {
+            "$ref": "#/components/schemas/Ecosystem"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "methodology": {
+            "$ref": "#/components/schemas/Methodology"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "org": {
+            "$ref": "#/components/schemas/PublicOrg"
+          },
+          "registered_on_chain": {
+            "title": "Registered On Chain",
+            "type": "boolean"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProjectStatus"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "org",
+          "state",
+          "ecosystem",
+          "methodology",
+          "status",
+          "area_ha",
+          "start_date",
+          "centroid",
+          "registered_on_chain"
+        ],
+        "title": "PublicProjectSummary",
+        "type": "object"
+      },
+      "PublicReport": {
+        "properties": {
+          "anchoring": {
+            "$ref": "#/components/schemas/ReportAnchoring"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "downloads": {
+            "$ref": "#/components/schemas/ReportDownloadLinks"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lccc_units": {
+            "title": "Lccc Units",
+            "type": "integer"
+          },
+          "period_end_year": {
+            "title": "Period End Year",
+            "type": "integer"
+          },
+          "period_id": {
+            "format": "uuid",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "period_kind": {
+            "$ref": "#/components/schemas/PeriodKind"
+          },
+          "period_start_year": {
+            "title": "Period Start Year",
+            "type": "integer"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "report_hash": {
+            "title": "Report Hash",
+            "type": "string"
+          },
+          "status": {
+            "const": "approved",
+            "default": "approved",
+            "title": "Status",
+            "type": "string"
+          },
+          "tccc_units": {
+            "title": "Tccc Units",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "period_id",
+          "period_kind",
+          "version",
+          "period_start_year",
+          "period_end_year",
+          "generated_at",
+          "decided_at",
+          "report_hash",
+          "lccc_units",
+          "tccc_units",
+          "anchoring",
+          "downloads"
+        ],
+        "title": "PublicReport",
+        "type": "object"
+      },
+      "PublicReportDetail": {
+        "properties": {
+          "anchoring": {
+            "$ref": "#/components/schemas/ReportAnchoring"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "downloads": {
+            "$ref": "#/components/schemas/ReportDownloadLinks"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lccc_units": {
+            "title": "Lccc Units",
+            "type": "integer"
+          },
+          "period_end_year": {
+            "title": "Period End Year",
+            "type": "integer"
+          },
+          "period_id": {
+            "format": "uuid",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "period_kind": {
+            "$ref": "#/components/schemas/PeriodKind"
+          },
+          "period_start_year": {
+            "title": "Period Start Year",
+            "type": "integer"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectRef"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "project_methodology": {
+            "$ref": "#/components/schemas/Methodology"
+          },
+          "report_hash": {
+            "title": "Report Hash",
+            "type": "string"
+          },
+          "status": {
+            "const": "approved",
+            "default": "approved",
+            "title": "Status",
+            "type": "string"
+          },
+          "tccc_tco2e": {
+            "title": "Tccc Tco2E",
+            "type": "number"
+          },
+          "tccc_units": {
+            "title": "Tccc Units",
+            "type": "integer"
+          },
+          "traceability": {
+            "$ref": "#/components/schemas/ReportTraceability"
+          },
+          "tree_stock_tco2e": {
+            "title": "Tree Stock Tco2E",
+            "type": "number"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "period_id",
+          "period_kind",
+          "version",
+          "period_start_year",
+          "period_end_year",
+          "generated_at",
+          "decided_at",
+          "report_hash",
+          "lccc_units",
+          "tccc_units",
+          "anchoring",
+          "downloads",
+          "project",
+          "project_methodology",
+          "tree_stock_tco2e",
+          "tccc_tco2e",
+          "traceability"
+        ],
+        "title": "PublicReportDetail",
+        "type": "object"
+      },
+      "PublicTimeseries": {
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "string"
+          },
+          "min_clear_fraction": {
+            "title": "Min Clear Fraction",
+            "type": "number"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/PublicTimeseriesPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project_id",
+          "index",
+          "min_clear_fraction",
+          "points"
+        ],
+        "title": "PublicTimeseries",
+        "type": "object"
+      },
+      "PublicTimeseriesPoint": {
+        "properties": {
+          "clear_fraction": {
+            "title": "Clear Fraction",
+            "type": "number"
+          },
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "string"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "p10": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P10"
+          },
+          "p50": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50"
+          },
+          "p90": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P90"
+          },
+          "valid_pixels": {
+            "title": "Valid Pixels",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "item_id",
+          "clear_fraction",
+          "valid_pixels",
+          "mean",
+          "p10",
+          "p50",
+          "p90"
+        ],
+        "title": "PublicTimeseriesPoint",
+        "type": "object"
+      },
+      "PublicTx": {
+        "properties": {
+          "block_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Number"
+          },
+          "chain_id": {
+            "title": "Chain Id",
+            "type": "integer"
+          },
+          "explorer_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explorer Url"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chain_id",
+          "tx_hash",
+          "block_number",
+          "explorer_url"
+        ],
+        "title": "PublicTx",
+        "type": "object"
+      },
       "RefreshIn": {
         "properties": {
           "refresh_token": {
@@ -1826,6 +3877,1218 @@
           "password"
         ],
         "title": "RegisterIn",
+        "type": "object"
+      },
+      "ReportAnchoring": {
+        "description": "On-chain anchoring of an approved MRV report, from the relayer's confirmed transactions.\n\nMonitoring-period reports are anchored by submitReport + approveReport (`hash_anchored` once\nsubmitReport is confirmed). Baseline-period reports only lead to the project registration, so\ntheir hash is never submitted on-chain (`hash_anchored` stays false).",
+        "properties": {
+          "approve_tx": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicTx"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chain_report_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain Report Id"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "hash_anchored": {
+            "title": "Hash Anchored",
+            "type": "boolean"
+          },
+          "submit_tx": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicTx"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "hash_anchored",
+          "chain_report_id",
+          "submit_tx",
+          "approve_tx",
+          "completed_at"
+        ],
+        "title": "ReportAnchoring",
+        "type": "object"
+      },
+      "ReportDetail": {
+        "properties": {
+          "anchor_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Error"
+          },
+          "anchored_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchored At"
+          },
+          "approve_tx_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approve Tx Id"
+          },
+          "chain_report_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain Report Id"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decision_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Comment"
+          },
+          "downloads": {
+            "$ref": "#/components/schemas/ReportDownloads"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "generated_by": {
+            "format": "uuid",
+            "title": "Generated By",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lccc_units": {
+            "title": "Lccc Units",
+            "type": "integer"
+          },
+          "period_end_year": {
+            "title": "Period End Year",
+            "type": "integer"
+          },
+          "period_id": {
+            "format": "uuid",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "period_start_year": {
+            "title": "Period Start Year",
+            "type": "integer"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "report_hash": {
+            "title": "Report Hash",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReportStatus"
+          },
+          "submit_tx_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submit Tx Id"
+          },
+          "tccc_units": {
+            "title": "Tccc Units",
+            "type": "integer"
+          },
+          "verifier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verifier Id"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "period_id",
+          "version",
+          "status",
+          "report_hash",
+          "lccc_units",
+          "tccc_units",
+          "period_start_year",
+          "period_end_year",
+          "generated_at",
+          "generated_by",
+          "verifier_id",
+          "decided_at",
+          "decision_comment",
+          "submit_tx_id",
+          "approve_tx_id",
+          "chain_report_id",
+          "anchored_at",
+          "anchor_error",
+          "downloads"
+        ],
+        "title": "ReportDetail",
+        "type": "object"
+      },
+      "ReportDownloadLinks": {
+        "description": "Stable registry URLs. `pdf_url` redirects to a short-lived presigned download of the PDF;\n`record_url` serves the public variant of the hashed JSON record (personal and site-precise\nfields removed). The full canonical JSON and the CSV export are not public.",
+        "properties": {
+          "pdf_url": {
+            "title": "Pdf Url",
+            "type": "string"
+          },
+          "record_url": {
+            "title": "Record Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pdf_url",
+          "record_url"
+        ],
+        "title": "ReportDownloadLinks",
+        "type": "object"
+      },
+      "ReportDownloads": {
+        "properties": {
+          "csv_url": {
+            "title": "Csv Url",
+            "type": "string"
+          },
+          "json_url": {
+            "title": "Json Url",
+            "type": "string"
+          },
+          "pdf_url": {
+            "title": "Pdf Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "json_url",
+          "pdf_url",
+          "csv_url"
+        ],
+        "title": "ReportDownloads",
+        "type": "object"
+      },
+      "ReportOut": {
+        "properties": {
+          "anchor_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Error"
+          },
+          "anchored_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchored At"
+          },
+          "approve_tx_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approve Tx Id"
+          },
+          "chain_report_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain Report Id"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "decision_comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Comment"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "generated_by": {
+            "format": "uuid",
+            "title": "Generated By",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lccc_units": {
+            "title": "Lccc Units",
+            "type": "integer"
+          },
+          "period_end_year": {
+            "title": "Period End Year",
+            "type": "integer"
+          },
+          "period_id": {
+            "format": "uuid",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "period_start_year": {
+            "title": "Period Start Year",
+            "type": "integer"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "report_hash": {
+            "title": "Report Hash",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ReportStatus"
+          },
+          "submit_tx_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Submit Tx Id"
+          },
+          "tccc_units": {
+            "title": "Tccc Units",
+            "type": "integer"
+          },
+          "verifier_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verifier Id"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "period_id",
+          "version",
+          "status",
+          "report_hash",
+          "lccc_units",
+          "tccc_units",
+          "period_start_year",
+          "period_end_year",
+          "generated_at",
+          "generated_by",
+          "verifier_id",
+          "decided_at",
+          "decision_comment",
+          "submit_tx_id",
+          "approve_tx_id",
+          "chain_report_id",
+          "anchored_at",
+          "anchor_error"
+        ],
+        "title": "ReportOut",
+        "type": "object"
+      },
+      "ReportRequest": {
+        "description": "Inputs to the report that the database does not hold.\n\n`strata_area_ha`: hectares per stratum, one entry for every stratum that has plot measurements\nin the period. It may be omitted only when all measured plots are in a single stratum; that\nstratum then takes the whole project area.",
+        "properties": {
+          "include_soc": {
+            "default": true,
+            "title": "Include Soc",
+            "type": "boolean"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "planting": {
+            "items": {
+              "$ref": "#/components/schemas/PlantingCohortIn"
+            },
+            "maxItems": 100,
+            "title": "Planting",
+            "type": "array"
+          },
+          "strata_area_ha": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strata Area Ha"
+          }
+        },
+        "title": "ReportRequest",
+        "type": "object"
+      },
+      "ReportRequested": {
+        "properties": {
+          "period_id": {
+            "format": "uuid",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "period_status": {
+            "$ref": "#/components/schemas/PeriodStatus"
+          },
+          "strata_area_ha": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Strata Area Ha",
+            "type": "object"
+          }
+        },
+        "required": [
+          "period_id",
+          "period_status",
+          "strata_area_ha"
+        ],
+        "title": "ReportRequested",
+        "type": "object"
+      },
+      "ReportStatus": {
+        "description": "MRV report lifecycle: draft → under_review → changes_requested | approved | rejected.",
+        "enum": [
+          "draft",
+          "under_review",
+          "changes_requested",
+          "approved",
+          "rejected"
+        ],
+        "title": "ReportStatus",
+        "type": "string"
+      },
+      "ReportTraceability": {
+        "description": "Read from the stored canonical record after checking its SHA-256 against `report_hash`.",
+        "properties": {
+          "methodology_profile": {
+            "additionalProperties": true,
+            "title": "Methodology Profile",
+            "type": "object"
+          },
+          "record_schema": {
+            "title": "Record Schema",
+            "type": "string"
+          },
+          "record_sha256_verified": {
+            "const": true,
+            "default": true,
+            "title": "Record Sha256 Verified",
+            "type": "boolean"
+          },
+          "software": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Software",
+            "type": "object"
+          },
+          "status_label": {
+            "title": "Status Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "record_schema",
+          "status_label",
+          "methodology_profile",
+          "software"
+        ],
+        "title": "ReportTraceability",
+        "type": "object"
+      },
+      "ReportVerification": {
+        "properties": {
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "onchain_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onchain Hash"
+          },
+          "onchain_matches": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onchain Matches"
+          },
+          "onchain_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "indexer",
+                  "receipt"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Onchain Source"
+          },
+          "report_hash": {
+            "title": "Report Hash",
+            "type": "string"
+          },
+          "report_id": {
+            "format": "uuid",
+            "title": "Report Id",
+            "type": "string"
+          },
+          "stored_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stored Hash"
+          },
+          "stored_matches": {
+            "title": "Stored Matches",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "report_id",
+          "report_hash",
+          "stored_hash",
+          "stored_matches",
+          "onchain_hash",
+          "onchain_source",
+          "onchain_matches",
+          "ok"
+        ],
+        "title": "ReportVerification",
+        "type": "object"
+      },
+      "RequestDetailOut": {
+        "properties": {
+          "active_offers": {
+            "title": "Active Offers",
+            "type": "integer"
+          },
+          "awarded_quantity": {
+            "title": "Awarded Quantity",
+            "type": "integer"
+          },
+          "awarded_value": {
+            "title": "Awarded Value",
+            "type": "integer"
+          },
+          "awards": {
+            "items": {
+              "$ref": "#/components/schemas/AwardOut"
+            },
+            "title": "Awards",
+            "type": "array"
+          },
+          "buyer": {
+            "title": "Buyer",
+            "type": "string"
+          },
+          "delivered_quantity": {
+            "title": "Delivered Quantity",
+            "type": "integer"
+          },
+          "delivery_deadline": {
+            "title": "Delivery Deadline",
+            "type": "integer"
+          },
+          "disclaimer": {
+            "default": "Forward funding is not a guarantee of credits. Credits are issued ex post, years after planting, and only for removals an accredited verifier approves; a project may deliver less than it offered, or nothing. Any upfront share is paid to the project at award time at the buyer's risk and is never refunded. Escrow is released only as verified long-term credits are delivered; undelivered escrow is refundable to the buyer after the delivery deadline. Testnet registry units: not legally recognised carbon credits.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "escrow_deposited": {
+            "title": "Escrow Deposited",
+            "type": "integer"
+          },
+          "escrow_left": {
+            "title": "Escrow Left",
+            "type": "integer"
+          },
+          "max_price": {
+            "title": "Max Price",
+            "type": "integer"
+          },
+          "offer_window_end": {
+            "title": "Offer Window End",
+            "type": "integer"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/OfferOut"
+            },
+            "title": "Offers",
+            "type": "array"
+          },
+          "onchain": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OnchainCheckOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "refundable_after_deadline": {
+            "title": "Refundable After Deadline",
+            "type": "integer"
+          },
+          "refunded_undelivered": {
+            "title": "Refunded Undelivered",
+            "type": "integer"
+          },
+          "released": {
+            "title": "Released",
+            "type": "integer"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RequestStatus"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          },
+          "unused_escrow_refunded": {
+            "title": "Unused Escrow Refunded",
+            "type": "integer"
+          },
+          "upfront": {
+            "$ref": "#/components/schemas/UpfrontOut"
+          }
+        },
+        "required": [
+          "request_id",
+          "buyer",
+          "status",
+          "quantity",
+          "max_price",
+          "escrow_deposited",
+          "offer_window_end",
+          "delivery_deadline",
+          "upfront",
+          "awarded_quantity",
+          "awarded_value",
+          "unused_escrow_refunded",
+          "delivered_quantity",
+          "released",
+          "refunded_undelivered",
+          "refundable_after_deadline",
+          "escrow_left",
+          "active_offers",
+          "tx_hash",
+          "offers",
+          "awards"
+        ],
+        "title": "RequestDetailOut",
+        "type": "object"
+      },
+      "RequestListOut": {
+        "properties": {
+          "disclaimer": {
+            "default": "Forward funding is not a guarantee of credits. Credits are issued ex post, years after planting, and only for removals an accredited verifier approves; a project may deliver less than it offered, or nothing. Any upfront share is paid to the project at award time at the buyer's risk and is never refunded. Escrow is released only as verified long-term credits are delivered; undelivered escrow is refundable to the buyer after the delivery deadline. Testnet registry units: not legally recognised carbon credits.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RequestSummaryOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "RequestListOut",
+        "type": "object"
+      },
+      "RequestStatus": {
+        "enum": [
+          "open",
+          "awarded",
+          "settled"
+        ],
+        "title": "RequestStatus",
+        "type": "string"
+      },
+      "RequestSummaryOut": {
+        "properties": {
+          "active_offers": {
+            "title": "Active Offers",
+            "type": "integer"
+          },
+          "awarded_quantity": {
+            "title": "Awarded Quantity",
+            "type": "integer"
+          },
+          "awarded_value": {
+            "title": "Awarded Value",
+            "type": "integer"
+          },
+          "buyer": {
+            "title": "Buyer",
+            "type": "string"
+          },
+          "delivered_quantity": {
+            "title": "Delivered Quantity",
+            "type": "integer"
+          },
+          "delivery_deadline": {
+            "title": "Delivery Deadline",
+            "type": "integer"
+          },
+          "escrow_deposited": {
+            "title": "Escrow Deposited",
+            "type": "integer"
+          },
+          "escrow_left": {
+            "title": "Escrow Left",
+            "type": "integer"
+          },
+          "max_price": {
+            "title": "Max Price",
+            "type": "integer"
+          },
+          "offer_window_end": {
+            "title": "Offer Window End",
+            "type": "integer"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "refundable_after_deadline": {
+            "title": "Refundable After Deadline",
+            "type": "integer"
+          },
+          "refunded_undelivered": {
+            "title": "Refunded Undelivered",
+            "type": "integer"
+          },
+          "released": {
+            "title": "Released",
+            "type": "integer"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "integer"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RequestStatus"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          },
+          "unused_escrow_refunded": {
+            "title": "Unused Escrow Refunded",
+            "type": "integer"
+          },
+          "upfront": {
+            "$ref": "#/components/schemas/UpfrontOut"
+          }
+        },
+        "required": [
+          "request_id",
+          "buyer",
+          "status",
+          "quantity",
+          "max_price",
+          "escrow_deposited",
+          "offer_window_end",
+          "delivery_deadline",
+          "upfront",
+          "awarded_quantity",
+          "awarded_value",
+          "unused_escrow_refunded",
+          "delivered_quantity",
+          "released",
+          "refunded_undelivered",
+          "refundable_after_deadline",
+          "escrow_left",
+          "active_offers",
+          "tx_hash"
+        ],
+        "title": "RequestSummaryOut",
+        "type": "object"
+      },
+      "RetirementDetail": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "beneficiary": {
+            "title": "Beneficiary",
+            "type": "string"
+          },
+          "block_number": {
+            "title": "Block Number",
+            "type": "integer"
+          },
+          "block_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Time"
+          },
+          "credit_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "temporary",
+                  "long_term"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Type"
+          },
+          "indexed_at": {
+            "format": "date-time",
+            "title": "Indexed At",
+            "type": "string"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "qr_png_url": {
+            "title": "Qr Png Url",
+            "type": "string"
+          },
+          "qr_svg_url": {
+            "title": "Qr Svg Url",
+            "type": "string"
+          },
+          "retirement_id": {
+            "title": "Retirement Id",
+            "type": "integer"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "integer"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/CertificateVerification"
+          }
+        },
+        "required": [
+          "retirement_id",
+          "token_id",
+          "amount",
+          "project",
+          "credit_type",
+          "beneficiary",
+          "purpose",
+          "tx_hash",
+          "block_number",
+          "block_time",
+          "indexed_at",
+          "verification",
+          "qr_png_url",
+          "qr_svg_url"
+        ],
+        "title": "RetirementDetail",
+        "type": "object"
+      },
+      "RetirementOut": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "beneficiary": {
+            "title": "Beneficiary",
+            "type": "string"
+          },
+          "block_number": {
+            "title": "Block Number",
+            "type": "integer"
+          },
+          "block_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Time"
+          },
+          "credit_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "temporary",
+                  "long_term"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Type"
+          },
+          "indexed_at": {
+            "format": "date-time",
+            "title": "Indexed At",
+            "type": "string"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "retirement_id": {
+            "title": "Retirement Id",
+            "type": "integer"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "integer"
+          },
+          "tx_hash": {
+            "title": "Tx Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "retirement_id",
+          "token_id",
+          "amount",
+          "project",
+          "credit_type",
+          "beneficiary",
+          "purpose",
+          "tx_hash",
+          "block_number",
+          "block_time",
+          "indexed_at"
+        ],
+        "title": "RetirementOut",
+        "type": "object"
+      },
+      "ReviewRequest": {
+        "properties": {
+          "comment": {
+            "default": "",
+            "maxLength": 5000,
+            "title": "Comment",
+            "type": "string"
+          },
+          "decision": {
+            "enum": [
+              "approve",
+              "request_changes",
+              "reject"
+            ],
+            "title": "Decision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "ReviewRequest",
+        "type": "object"
+      },
+      "SatelliteIndicators": {
+        "properties": {
+          "index": {
+            "const": "ndvi",
+            "default": "ndvi",
+            "title": "Index",
+            "type": "string"
+          },
+          "last_12_months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthlyIndexValue"
+            },
+            "title": "Last 12 Months",
+            "type": "array"
+          },
+          "latest_clear_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Clear Fraction"
+          },
+          "latest_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Date"
+          },
+          "latest_p50": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest P50"
+          },
+          "min_clear_fraction": {
+            "title": "Min Clear Fraction",
+            "type": "number"
+          },
+          "trend_p50_per_year": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trend P50 Per Year"
+          }
+        },
+        "required": [
+          "min_clear_fraction",
+          "latest_date",
+          "latest_p50",
+          "latest_clear_fraction",
+          "last_12_months",
+          "trend_p50_per_year"
+        ],
+        "title": "SatelliteIndicators",
         "type": "object"
       },
       "SignerStatus": {
@@ -2286,6 +5549,18 @@
             "title": "Expires In",
             "type": "integer"
           },
+          "recovery_codes_remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set only when a recovery code was used and few remain: regenerate them",
+            "title": "Recovery Codes Remaining"
+          },
           "refresh_token": {
             "title": "Refresh Token",
             "type": "string"
@@ -2342,6 +5617,47 @@
           "dbh_cm"
         ],
         "title": "TreeRecord",
+        "type": "object"
+      },
+      "UpfrontOut": {
+        "description": "The optional share paid to winners at award time. It is never refunded.",
+        "properties": {
+          "amount_paid": {
+            "title": "Amount Paid",
+            "type": "integer"
+          },
+          "bps": {
+            "title": "Bps",
+            "type": "integer"
+          },
+          "buyer_risk": {
+            "const": true,
+            "default": true,
+            "title": "Buyer Risk",
+            "type": "boolean"
+          },
+          "note": {
+            "default": "Paid to the project at award time to cover planting costs, at the buyer's risk. Not refunded if credits are never delivered.",
+            "title": "Note",
+            "type": "string"
+          },
+          "refundable": {
+            "const": false,
+            "default": false,
+            "title": "Refundable",
+            "type": "boolean"
+          },
+          "share_pct": {
+            "title": "Share Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "bps",
+          "share_pct",
+          "amount_paid"
+        ],
+        "title": "UpfrontOut",
         "type": "object"
       },
       "UploadRequest": {
@@ -2433,6 +5749,11 @@
             "title": "Memberships",
             "type": "array"
           },
+          "mfa_enabled": {
+            "default": false,
+            "title": "Mfa Enabled",
+            "type": "boolean"
+          },
           "platform_role": {
             "$ref": "#/components/schemas/PlatformRole"
           }
@@ -2485,6 +5806,132 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VerifyHashOut": {
+        "properties": {
+          "found": {
+            "title": "Found",
+            "type": "boolean"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/HashMatch"
+            },
+            "title": "Matches",
+            "type": "array"
+          },
+          "sha256_hex": {
+            "title": "Sha256 Hex",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha256_hex",
+          "found",
+          "matches"
+        ],
+        "title": "VerifyHashOut",
+        "type": "object"
+      },
+      "VerifyHashRequest": {
+        "properties": {
+          "sha256_hex": {
+            "description": "64 hex characters, optional 0x prefix",
+            "title": "Sha256 Hex",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sha256_hex"
+        ],
+        "title": "VerifyHashRequest",
+        "type": "object"
+      },
+      "VintageOut": {
+        "properties": {
+          "credit_type": {
+            "enum": [
+              "temporary",
+              "long_term"
+            ],
+            "title": "Credit Type",
+            "type": "string"
+          },
+          "credit_unit": {
+            "enum": [
+              "tCCC",
+              "lCCC"
+            ],
+            "title": "Credit Unit",
+            "type": "string"
+          },
+          "expired": {
+            "title": "Expired",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "issuances": {
+            "items": {
+              "$ref": "#/components/schemas/IssuanceOut"
+            },
+            "title": "Issuances",
+            "type": "array"
+          },
+          "issued": {
+            "title": "Issued",
+            "type": "integer"
+          },
+          "outstanding": {
+            "title": "Outstanding",
+            "type": "integer"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectRef"
+          },
+          "replaced": {
+            "title": "Replaced",
+            "type": "integer"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "integer"
+          },
+          "retired": {
+            "title": "Retired",
+            "type": "integer"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "token_id",
+          "project",
+          "credit_type",
+          "credit_unit",
+          "report_id",
+          "issued",
+          "retired",
+          "replaced",
+          "outstanding",
+          "expires_at",
+          "expired",
+          "issuances"
+        ],
+        "title": "VintageOut",
         "type": "object"
       }
     },
@@ -2728,7 +6175,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TokenPair"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TokenPair"
+                    },
+                    {
+                      "$ref": "#/components/schemas/MfaChallenge"
+                    }
+                  ],
+                  "title": "Response Login Api V1 Auth Login Post"
                 }
               }
             },
@@ -2806,6 +6261,236 @@
           }
         ],
         "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa": {
+      "get": {
+        "description": "Two-factor status of the signed-in account (never the secret or the codes).",
+        "operationId": "mfa_status_api_v1_auth_mfa_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mfa Status",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/disable": {
+      "post": {
+        "description": "Turn TOTP off (a current TOTP or a recovery code is required). Staff accounts lose access\nto staff-only endpoints while MFA_REQUIRED_FOR_STAFF is in effect.",
+        "operationId": "mfa_disable_api_v1_auth_mfa_disable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mfa Disable",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/enable": {
+      "post": {
+        "description": "Confirm enrolment with a TOTP code. Returns 10 one-time recovery codes (shown once) and\nsigns out every existing session (refresh tokens issued before MFA).",
+        "operationId": "mfa_enable_api_v1_auth_mfa_enable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnabledOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mfa Enable",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/recovery-codes": {
+      "post": {
+        "description": "Replace the recovery codes: a current TOTP code (not a recovery code) is required. Every\nold code stops working; the 10 new codes are shown once (only their hashes are stored).",
+        "operationId": "mfa_regenerate_recovery_codes_api_v1_auth_mfa_recovery_codes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnabledOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mfa Regenerate Recovery Codes",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/setup": {
+      "post": {
+        "description": "Start (or restart) TOTP enrolment. Not active until /auth/mfa/enable confirms a code.",
+        "operationId": "mfa_setup_api_v1_auth_mfa_setup_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaSetupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Mfa Setup",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/verify": {
+      "post": {
+        "description": "Second login step: exchange the `mfa_token` from /auth/login + a TOTP or recovery code\nfor the token pair. After a recovery code, `recovery_codes_remaining` is included when\nLOW_RECOVERY_CODES or fewer remain (regenerate with POST /auth/mfa/recovery-codes).",
+        "operationId": "mfa_verify_api_v1_auth_mfa_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaVerifyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mfa Verify",
         "tags": [
           "auth"
         ]
@@ -2964,6 +6649,140 @@
         "summary": "Get Transaction",
         "tags": [
           "chain"
+        ]
+      }
+    },
+    "/api/v1/forward-fund/requests": {
+      "get": {
+        "operationId": "list_requests_api_v1_forward_fund_requests_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RequestStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Requests",
+        "tags": [
+          "forward-fund"
+        ]
+      }
+    },
+    "/api/v1/forward-fund/requests/{request_id}": {
+      "get": {
+        "operationId": "get_request_api_v1_forward_fund_requests__request_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "onchain",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Onchain",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Request",
+        "tags": [
+          "forward-fund"
         ]
       }
     },
@@ -3197,6 +7016,54 @@
         ]
       }
     },
+    "/api/v1/orgs/{org_id}/stewardship": {
+      "get": {
+        "operationId": "get_org_stewardship_api_v1_orgs__org_id__stewardship_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "org_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Org Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgStewardshipOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Org Stewardship",
+        "tags": [
+          "stewardship"
+        ]
+      }
+    },
     "/api/v1/periods/{period_id}/nonces": {
       "post": {
         "operationId": "issue_nonce_api_v1_periods__period_id__nonces_post",
@@ -3368,6 +7235,122 @@
         "summary": "Record Measurement",
         "tags": [
           "field evidence"
+        ]
+      }
+    },
+    "/api/v1/periods/{period_id}/reports": {
+      "get": {
+        "operationId": "list_reports_api_v1_periods__period_id__reports_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Period Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReportOut"
+                  },
+                  "title": "Response List Reports Api V1 Periods  Period Id  Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Reports",
+        "tags": [
+          "mrv reports"
+        ]
+      },
+      "post": {
+        "description": "Queue the MRV report for a period (org admins). The report is built in the background;\npoll `GET /periods/{id}/reports`.",
+        "operationId": "request_report_api_v1_periods__period_id__reports_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Period Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportRequested"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Report",
+        "tags": [
+          "mrv reports"
         ]
       }
     },
@@ -4188,6 +8171,169 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/forward-fund": {
+      "get": {
+        "operationId": "project_forward_fund_api_v1_projects__project_id__forward_fund_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectForwardFundOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Project Forward Fund",
+        "tags": [
+          "forward-fund"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/forward-fund/offers": {
+      "post": {
+        "operationId": "submit_offer_api_v1_projects__project_id__forward_fund_offers_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OfferIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChainTxOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Submit Offer",
+        "tags": [
+          "forward-fund"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/forward-fund/offers/{offer_id}": {
+      "delete": {
+        "operationId": "withdraw_offer_api_v1_projects__project_id__forward_fund_offers__offer_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "offer_id",
+            "required": true,
+            "schema": {
+              "title": "Offer Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChainTxOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Withdraw Offer",
+        "tags": [
+          "forward-fund"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/periods": {
       "get": {
         "operationId": "list_periods_api_v1_projects__project_id__periods_get",
@@ -4404,6 +8550,54 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/stewardship": {
+      "get": {
+        "operationId": "get_project_stewardship_api_v1_projects__project_id__stewardship_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectStewardshipOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Project Stewardship",
+        "tags": [
+          "stewardship"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/submit": {
       "post": {
         "operationId": "submit_project_api_v1_projects__project_id__submit_post",
@@ -4563,6 +8757,856 @@
         "summary": "Timeseries",
         "tags": [
           "satellite analysis"
+        ]
+      }
+    },
+    "/api/v1/public/projects": {
+      "get": {
+        "description": "Registered and in-review projects (drafts and rejected projects are never listed).",
+        "operationId": "list_projects_api_v1_public_projects_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "ecosystem",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Ecosystem"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ecosystem"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProjectStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_PublicProjectSummary_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Projects",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/projects/{project_id}": {
+      "get": {
+        "operationId": "get_project_api_v1_public_projects__project_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicProjectDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Project",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/projects/{project_id}/timeseries": {
+      "get": {
+        "description": "Project-level zonal statistics per Sentinel-2 scene (clear scenes only).",
+        "operationId": "project_timeseries_api_v1_public_projects__project_id__timeseries_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "index",
+            "required": false,
+            "schema": {
+              "default": "ndvi",
+              "enum": [
+                "ndvi",
+                "evi",
+                "mvi",
+                "ndwi",
+                "mndwi",
+                "ndmi",
+                "cmri"
+              ],
+              "title": "Index",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_clear",
+            "required": false,
+            "schema": {
+              "default": 0.5,
+              "maximum": 1,
+              "minimum": 0.5,
+              "title": "Min Clear",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTimeseries"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Timeseries",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/reports/{report_id}": {
+      "get": {
+        "description": "An approved MRV report with the methodology profile and software versions read from its\nstored record (hash-checked). Unapproved reports are 404.",
+        "operationId": "get_report_api_v1_public_reports__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicReportDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Report",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/reports/{report_id}/record.json": {
+      "get": {
+        "description": "Public variant of the hashed record: notes, the full-precision boundary and plot\ncoordinates are removed (listed in `redacted`).",
+        "operationId": "public_report_record_api_v1_public_reports__report_id__record_json_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Public Report Record",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/reports/{report_id}/report.pdf": {
+      "get": {
+        "description": "Redirect to a short-lived presigned download of the report PDF.",
+        "operationId": "public_report_pdf_api_v1_public_reports__report_id__report_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "307": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Public Report Pdf",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/retirements": {
+      "get": {
+        "operationId": "list_retirements_api_v1_public_retirements_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_RetirementOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Retirements",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/retirements/{retirement_id}": {
+      "get": {
+        "operationId": "get_retirement_api_v1_public_retirements__retirement_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "retirement_id",
+            "required": true,
+            "schema": {
+              "title": "Retirement Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetirementDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Retirement",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/retirements/{retirement_id}/qr.{fmt}": {
+      "get": {
+        "description": "QR code of the public certificate URL (`PUBLIC_BASE_URL/registry/retirements/{id}`).",
+        "operationId": "retirement_qr_api_v1_public_retirements__retirement_id__qr__fmt__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "retirement_id",
+            "required": true,
+            "schema": {
+              "title": "Retirement Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fmt",
+            "required": true,
+            "schema": {
+              "enum": [
+                "png",
+                "svg"
+              ],
+              "title": "Fmt",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {},
+              "image/svg+xml": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retirement Qr",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/verify-hash": {
+      "get": {
+        "operationId": "verify_hash_get_api_v1_public_verify_hash_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "sha256_hex",
+            "required": true,
+            "schema": {
+              "title": "Sha256 Hex",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyHashOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Hash Get",
+        "tags": [
+          "public registry"
+        ]
+      },
+      "post": {
+        "description": "Is this SHA-256 (of a downloaded MRV record's RFC 8785 JSON) anchored on-chain in a\nReportSubmitted event (`source=\"chain\"`), or the hash of an approved report in this registry\nwhose anchoring is not indexed yet (`source=\"registry_db\"`)? Idempotent: no writes.",
+        "operationId": "verify_hash_post_api_v1_public_verify_hash_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyHashRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyHashOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Hash Post",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/vintages": {
+      "get": {
+        "operationId": "list_vintages_api_v1_public_vintages_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_VintageOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Vintages",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/vintages/{token_id}": {
+      "get": {
+        "operationId": "get_vintage_api_v1_public_vintages__token_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token_id",
+            "required": true,
+            "schema": {
+              "title": "Token Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VintageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Vintage",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}": {
+      "get": {
+        "operationId": "get_report_api_v1_reports__report_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Report",
+        "tags": [
+          "mrv reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/review": {
+      "post": {
+        "description": "Verifier decision. The verifier must be independent of the project's organisation.",
+        "operationId": "review_report_api_v1_reports__report_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Report",
+        "tags": [
+          "mrv reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{report_id}/verify": {
+      "get": {
+        "description": "Recompute SHA-256 of the stored canonical JSON and compare it with the recorded hash and,\nonce anchored, with the hash on-chain.",
+        "operationId": "verify_report_api_v1_reports__report_id__verify_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Report Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportVerification"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Verify Report",
+        "tags": [
+          "mrv reports"
         ]
       }
     },

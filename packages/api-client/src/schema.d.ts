@@ -127,6 +127,131 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/auth/mfa": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Mfa Status
+     * @description Two-factor status of the signed-in account (never the secret or the codes).
+     */
+    get: operations["mfa_status_api_v1_auth_mfa_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/mfa/disable": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mfa Disable
+     * @description Turn TOTP off (a current TOTP or a recovery code is required). Staff accounts lose access
+     *     to staff-only endpoints while MFA_REQUIRED_FOR_STAFF is in effect.
+     */
+    post: operations["mfa_disable_api_v1_auth_mfa_disable_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/mfa/enable": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mfa Enable
+     * @description Confirm enrolment with a TOTP code. Returns 10 one-time recovery codes (shown once) and
+     *     signs out every existing session (refresh tokens issued before MFA).
+     */
+    post: operations["mfa_enable_api_v1_auth_mfa_enable_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/mfa/recovery-codes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mfa Regenerate Recovery Codes
+     * @description Replace the recovery codes: a current TOTP code (not a recovery code) is required. Every
+     *     old code stops working; the 10 new codes are shown once (only their hashes are stored).
+     */
+    post: operations["mfa_regenerate_recovery_codes_api_v1_auth_mfa_recovery_codes_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/mfa/setup": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mfa Setup
+     * @description Start (or restart) TOTP enrolment. Not active until /auth/mfa/enable confirms a code.
+     */
+    post: operations["mfa_setup_api_v1_auth_mfa_setup_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/mfa/verify": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mfa Verify
+     * @description Second login step: exchange the `mfa_token` from /auth/login + a TOTP or recovery code
+     *     for the token pair. After a recovery code, `recovery_codes_remaining` is included when
+     *     LOW_RECOVERY_CODES or fewer remain (regenerate with POST /auth/mfa/recovery-codes).
+     */
+    post: operations["mfa_verify_api_v1_auth_mfa_verify_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/auth/refresh": {
     parameters: {
       query?: never;
@@ -195,6 +320,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/forward-fund/requests": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Requests */
+    get: operations["list_requests_api_v1_forward_fund_requests_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/forward-fund/requests/{request_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Request */
+    get: operations["get_request_api_v1_forward_fund_requests__request_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs": {
     parameters: {
       query?: never;
@@ -248,6 +407,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/orgs/{org_id}/stewardship": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Org Stewardship */
+    get: operations["get_org_stewardship_api_v1_orgs__org_id__stewardship_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/periods/{period_id}/nonces": {
     parameters: {
       query?: never;
@@ -293,6 +469,28 @@ export interface paths {
     put?: never;
     /** Record Measurement */
     post: operations["record_measurement_api_v1_periods__period_id__plots__plot_id__measurements_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/periods/{period_id}/reports": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Reports */
+    get: operations["list_reports_api_v1_periods__period_id__reports_get"];
+    put?: never;
+    /**
+     * Request Report
+     * @description Queue the MRV report for a period (org admins). The report is built in the background;
+     *     poll `GET /periods/{id}/reports`.
+     */
+    post: operations["request_report_api_v1_periods__period_id__reports_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -496,6 +694,57 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/projects/{project_id}/forward-fund": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Project Forward Fund */
+    get: operations["project_forward_fund_api_v1_projects__project_id__forward_fund_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{project_id}/forward-fund/offers": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Submit Offer */
+    post: operations["submit_offer_api_v1_projects__project_id__forward_fund_offers_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{project_id}/forward-fund/offers/{offer_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Withdraw Offer */
+    delete: operations["withdraw_offer_api_v1_projects__project_id__forward_fund_offers__offer_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/projects/{project_id}/periods": {
     parameters: {
       query?: never;
@@ -532,6 +781,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/projects/{project_id}/stewardship": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Project Stewardship */
+    get: operations["get_project_stewardship_api_v1_projects__project_id__stewardship_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/projects/{project_id}/submit": {
     parameters: {
       query?: never;
@@ -562,6 +828,294 @@ export interface paths {
      *     clients can tell a real decline from a cloudy scene (filter with `min_clear`).
      */
     get: operations["timeseries_api_v1_projects__project_id__timeseries_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/projects": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Projects
+     * @description Registered and in-review projects (drafts and rejected projects are never listed).
+     */
+    get: operations["list_projects_api_v1_public_projects_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/projects/{project_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Project */
+    get: operations["get_project_api_v1_public_projects__project_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/projects/{project_id}/timeseries": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Project Timeseries
+     * @description Project-level zonal statistics per Sentinel-2 scene (clear scenes only).
+     */
+    get: operations["project_timeseries_api_v1_public_projects__project_id__timeseries_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/reports/{report_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Report
+     * @description An approved MRV report with the methodology profile and software versions read from its
+     *     stored record (hash-checked). Unapproved reports are 404.
+     */
+    get: operations["get_report_api_v1_public_reports__report_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/reports/{report_id}/record.json": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Public Report Record
+     * @description Public variant of the hashed record: notes, the full-precision boundary and plot
+     *     coordinates are removed (listed in `redacted`).
+     */
+    get: operations["public_report_record_api_v1_public_reports__report_id__record_json_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/reports/{report_id}/report.pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Public Report Pdf
+     * @description Redirect to a short-lived presigned download of the report PDF.
+     */
+    get: operations["public_report_pdf_api_v1_public_reports__report_id__report_pdf_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/retirements": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Retirements */
+    get: operations["list_retirements_api_v1_public_retirements_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/retirements/{retirement_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Retirement */
+    get: operations["get_retirement_api_v1_public_retirements__retirement_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/retirements/{retirement_id}/qr.{fmt}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Retirement Qr
+     * @description QR code of the public certificate URL (`PUBLIC_BASE_URL/registry/retirements/{id}`).
+     */
+    get: operations["retirement_qr_api_v1_public_retirements__retirement_id__qr__fmt__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/verify-hash": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Verify Hash Get */
+    get: operations["verify_hash_get_api_v1_public_verify_hash_get"];
+    put?: never;
+    /**
+     * Verify Hash Post
+     * @description Is this SHA-256 (of a downloaded MRV record's RFC 8785 JSON) anchored on-chain in a
+     *     ReportSubmitted event (`source="chain"`), or the hash of an approved report in this registry
+     *     whose anchoring is not indexed yet (`source="registry_db"`)? Idempotent: no writes.
+     */
+    post: operations["verify_hash_post_api_v1_public_verify_hash_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/vintages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Vintages */
+    get: operations["list_vintages_api_v1_public_vintages_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/vintages/{token_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Vintage */
+    get: operations["get_vintage_api_v1_public_vintages__token_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{report_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Report */
+    get: operations["get_report_api_v1_reports__report_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{report_id}/review": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Review Report
+     * @description Verifier decision. The verifier must be independent of the project's organisation.
+     */
+    post: operations["review_report_api_v1_reports__report_id__review_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{report_id}/verify": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Verify Report
+     * @description Recompute SHA-256 of the stored canonical JSON and compare it with the recorded hash and,
+     *     once anchored, with the hash on-chain.
+     */
+    get: operations["verify_report_api_v1_reports__report_id__verify_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -642,6 +1196,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** AlertCounts */
+    AlertCounts: {
+      /** High */
+      high: number;
+      /** Latest Observed On */
+      latest_observed_on: string | null;
+      /** Low */
+      low: number;
+      /** Medium */
+      medium: number;
+      /** Total */
+      total: number;
+    };
     /**
      * AlertKind
      * @enum {string}
@@ -765,10 +1332,111 @@ export interface components {
       /** Prev Hash */
       prev_hash: string;
     };
+    /** AwardOut */
+    AwardOut: {
+      /** Award Id */
+      award_id: number;
+      /** Delivered Quantity */
+      delivered_quantity: number;
+      /** Deliveries */
+      deliveries: components["schemas"]["DeliveryOut"][];
+      /** Escrow Left */
+      escrow_left: number;
+      /** Open Quantity */
+      open_quantity: number;
+      /** Price Per Unit */
+      price_per_unit: number;
+      /** Project Id */
+      project_id: string | null;
+      /** Project Key */
+      project_key: string;
+      /** Quantity */
+      quantity: number;
+      /** Refundable After Deadline */
+      refundable_after_deadline: number;
+      /** Refunded */
+      refunded: number | null;
+      /** Released */
+      released: number;
+      /** Request Id */
+      request_id: number;
+      /** Seller */
+      seller: string;
+      /** Settled */
+      settled: boolean;
+      /**
+       * Upfront Buyer Risk
+       * @default true
+       * @constant
+       */
+      upfront_buyer_risk: true;
+      /** Upfront Paid */
+      upfront_paid: number;
+      /** Value */
+      value: number;
+    };
     /** BackfillRequest */
     BackfillRequest: {
       /** Start Date */
       start_date?: string | null;
+    };
+    /** BoundaryInfo */
+    BoundaryInfo: {
+      /** Geometry */
+      geometry: {
+        [key: string]: unknown;
+      };
+      /** Simplification */
+      simplification: string;
+      /** Tolerance Deg */
+      tolerance_deg: number;
+    };
+    /** CapacityOut */
+    CapacityOut: {
+      /** Available */
+      available: number;
+      /** Committed */
+      committed: number;
+      /**
+       * Note
+       * @default Estimated eligibility screen only; it does not make delivery certain.
+       */
+      note: string;
+      /** Report Ids */
+      report_ids: number[];
+      /** Source */
+      source: string;
+      /** Total */
+      total: number;
+    };
+    /**
+     * CertificateVerification
+     * @description Everything needed to check a retirement against the chain without trusting AquaCreds:
+     *     look up `tx_hash` on any explorer/RPC and compare the CreditsRetired log at `log_index`.
+     *     `payload_sha256` is the SHA-256 of the RFC 8785 canonical JSON of `fields`.
+     */
+    CertificateVerification: {
+      /** Certificate Url */
+      certificate_url: string;
+      chain: components["schemas"]["ChainRef"];
+      /**
+       * Contract
+       * @default AquaCredit
+       * @constant
+       */
+      contract: "AquaCredit";
+      /**
+       * Event
+       * @default CreditsRetired
+       * @constant
+       */
+      event: "CreditsRetired";
+      /** Fields */
+      fields: {
+        [key: string]: unknown;
+      };
+      /** Payload Sha256 */
+      payload_sha256: string;
     };
     /** ChainEventOut */
     ChainEventOut: {
@@ -789,6 +1457,26 @@ export interface components {
       /** Tx Hash */
       tx_hash: string;
     };
+    /**
+     * ChainRef
+     * @description Where an indexed contract event lives on-chain.
+     */
+    ChainRef: {
+      /** Block Hash */
+      block_hash: string;
+      /** Block Number */
+      block_number: number;
+      /** Chain Id */
+      chain_id: number;
+      /** Contract Address */
+      contract_address: string;
+      /** Explorer Url */
+      explorer_url: string | null;
+      /** Log Index */
+      log_index: number;
+      /** Tx Hash */
+      tx_hash: string;
+    };
     /** ChainReport */
     ChainReport: {
       /** Entries Checked */
@@ -803,7 +1491,7 @@ export interface components {
      * @description Which platform key signs. Distinct derived accounts enforce separation of duties.
      * @enum {string}
      */
-    ChainSigner: "registrar" | "verifier" | "issuer";
+    ChainSigner: "registrar" | "verifier" | "issuer" | "org_wallet";
     /** ChainStatusOut */
     ChainStatusOut: {
       /** Chain Id */
@@ -893,6 +1581,8 @@ export interface components {
       | "approve_report"
       | "reject_report"
       | "issue_credits"
+      | "forward_fund_offer"
+      | "forward_fund_withdraw"
       | "other";
     /**
      * ChainTxStatus
@@ -901,6 +1591,27 @@ export interface components {
      * @enum {string}
      */
     ChainTxStatus: "queued" | "submitted" | "confirmed" | "failed" | "reverted";
+    /** ComponentScoreOut */
+    ComponentScoreOut: {
+      /** Inputs */
+      inputs: {
+        [key: string]: unknown;
+      };
+      /** Insufficient Data */
+      insufficient_data: boolean;
+      /** Name */
+      name: string;
+      /** Notes */
+      notes: string[];
+      /** Score */
+      score: number | null;
+      /** Sub Scores */
+      sub_scores: {
+        [key: string]: number | null;
+      };
+      /** Weight */
+      weight: number;
+    };
     /**
      * CompositeRequest
      * @description Dry season starting in November of `season_start_year` (e.g. 2025 → Nov 2025–Mar 2026).
@@ -908,6 +1619,19 @@ export interface components {
     CompositeRequest: {
       /** Season Start Year */
       season_start_year: number;
+    };
+    /** DeliveryOut */
+    DeliveryOut: {
+      /** Amount */
+      amount: number;
+      /** Block Number */
+      block_number: number;
+      /** Released */
+      released: number;
+      /** Token Id */
+      token_id: number;
+      /** Tx Hash */
+      tx_hash: string;
     };
     /** DocumentConfirm */
     DocumentConfirm: {
@@ -942,10 +1666,77 @@ export interface components {
      * @enum {string}
      */
     Ecosystem: "mangrove" | "salt_marsh" | "seagrass";
+    /**
+     * EvidenceStats
+     * @description Aggregate field-evidence statistics. Individual submissions are never public.
+     */
+    EvidenceStats: {
+      /** Checked */
+      checked: number;
+      /** Median Trust Score */
+      median_trust_score: number | null;
+      /** Pending Checks */
+      pending_checks: number;
+      /** Rejected */
+      rejected: number;
+      /** Submissions Total */
+      submissions_total: number;
+    };
+    /** ForwardFundingOut */
+    ForwardFundingOut: {
+      /** Criteria Version */
+      criteria_version: string;
+      /** Eligible */
+      eligible: boolean;
+      /** Reasons */
+      reasons: string[];
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
+    };
+    /**
+     * HashMatch
+     * @description `source="chain"`: a ReportSubmitted event carries the hash (`anchored` is true).
+     *     `source="registry_db"`: an approved MRV report in this registry has the hash but no indexed
+     *     ReportSubmitted event matches it yet (`anchored` says whether the relayer has confirmed the
+     *     submitReport transaction; `chain` is then null).
+     */
+    HashMatch: {
+      /** Anchored */
+      anchored: boolean;
+      chain: components["schemas"]["ChainRef"] | null;
+      /** Mrv Report Id */
+      mrv_report_id: string | null;
+      /** Period End */
+      period_end: number;
+      /** Period Start */
+      period_start: number;
+      project: components["schemas"]["ProjectRef"];
+      /** Report Id */
+      report_id: number | null;
+      /**
+       * Source
+       * @enum {string}
+       */
+      source: "chain" | "registry_db";
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: "submitted" | "approved" | "rejected";
+    };
+    /** IssuanceOut */
+    IssuanceOut: {
+      /** Amount */
+      amount: number;
+      /** Block Number */
+      block_number: number;
+      /** Explorer Url */
+      explorer_url: string | null;
+      /** Tx Hash */
+      tx_hash: string;
     };
     /** LoginIn */
     LoginIn: {
@@ -1038,6 +1829,89 @@ export interface components {
      */
     Methodology: "ccts_bm_fr05_001" | "vm0033_v2_1";
     /**
+     * MfaChallenge
+     * @description Returned by /auth/login instead of tokens when the account has TOTP enabled.
+     */
+    MfaChallenge: {
+      /** Expires In */
+      expires_in: number;
+      /**
+       * Mfa Required
+       * @default true
+       * @constant
+       */
+      mfa_required: true;
+      /** Mfa Token */
+      mfa_token: string;
+    };
+    /** MfaCodeIn */
+    MfaCodeIn: {
+      /** Code */
+      code: string;
+    };
+    /** MfaEnabledOut */
+    MfaEnabledOut: {
+      /**
+       * Recovery Codes
+       * @description Shown once; each code works once
+       */
+      recovery_codes: string[];
+    };
+    /** MfaSetupOut */
+    MfaSetupOut: {
+      /** Otpauth Uri */
+      otpauth_uri: string;
+      /**
+       * Qr Svg
+       * @description Inline SVG QR code of otpauth_uri
+       */
+      qr_svg: string;
+      /**
+       * Secret
+       * @description Base32 secret for manual entry in an authenticator app
+       */
+      secret: string;
+    };
+    /** MfaStatusOut */
+    MfaStatusOut: {
+      /** Enabled */
+      enabled: boolean;
+      /** Enabled At */
+      enabled_at: string | null;
+      /**
+       * Recovery Codes Remaining
+       * @description Unused recovery codes
+       */
+      recovery_codes_remaining: number;
+      /**
+       * Required
+       * @description True when this account must have MFA (staff while MFA_REQUIRED_FOR_STAFF)
+       */
+      required: boolean;
+    };
+    /** MfaVerifyIn */
+    MfaVerifyIn: {
+      /**
+       * Code
+       * @description 6-digit TOTP or a recovery code
+       */
+      code: string;
+      /** Mfa Token */
+      mfa_token: string;
+    };
+    /** MonthlyIndexValue */
+    MonthlyIndexValue: {
+      /** Median P50 */
+      median_p50: number;
+      /**
+       * Month
+       * Format: date
+       */
+      month: string;
+      /** Scenes */
+      scenes: number;
+    };
+    /**
      * MultiPolygon
      * @description MultiPolygon Model
      */
@@ -1068,6 +1942,100 @@ export interface components {
       /** Nonce */
       nonce: string;
     };
+    /** OfferIn */
+    OfferIn: {
+      /**
+       * Price Per Unit
+       * @description payment-token base units per tCO2e
+       */
+      price_per_unit: number;
+      /**
+       * Quantity
+       * @description whole tCO2e
+       */
+      quantity: number;
+      /** Request Id */
+      request_id: number;
+    };
+    /** OfferOut */
+    OfferOut: {
+      /** Offer Id */
+      offer_id: number;
+      /** Price Per Unit */
+      price_per_unit: number;
+      /** Project Id */
+      project_id: string | null;
+      /** Project Key */
+      project_key: string;
+      /** Quantity */
+      quantity: number;
+      /** Request Id */
+      request_id: number;
+      /** Seller */
+      seller: string;
+      status: components["schemas"]["OfferStatus"];
+      /** Tx Hash */
+      tx_hash: string;
+      /** Withdrawn Tx Hash */
+      withdrawn_tx_hash: string | null;
+    };
+    /**
+     * OfferStatus
+     * @enum {string}
+     */
+    OfferStatus: "active" | "withdrawn" | "awarded" | "not_awarded";
+    /** OnChainReport */
+    OnChainReport: {
+      decided: components["schemas"]["ChainRef"] | null;
+      /** Lccc */
+      lccc: number;
+      /** Mrv Report Id */
+      mrv_report_id: string | null;
+      /** Period End */
+      period_end: number;
+      /** Period Start */
+      period_start: number;
+      /** Report Hash */
+      report_hash: string;
+      /** Report Id */
+      report_id: number;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: "submitted" | "approved" | "rejected";
+      submitted: components["schemas"]["ChainRef"];
+      /** Tccc */
+      tccc: number | null;
+    };
+    /**
+     * OnchainCheckOut
+     * @description Live contract reads compared against the indexed figures.
+     */
+    OnchainCheckOut: {
+      /** Awarded */
+      awarded: boolean;
+      /** Awarded Quantity */
+      awarded_quantity: number;
+      /** Awards */
+      awards: {
+        [key: string]: {
+          [key: string]: number | boolean;
+        };
+      };
+      /** Block Number */
+      block_number: number;
+      /** Consistent */
+      consistent: boolean;
+      /** Escrow */
+      escrow: number;
+      /** Mismatches */
+      mismatches: string[];
+      /** Refundable */
+      refundable: {
+        [key: string]: number;
+      };
+    };
     /** OrgCreate */
     OrgCreate: {
       /** Name */
@@ -1097,11 +2065,76 @@ export interface components {
      * @enum {string}
      */
     OrgRole: "admin" | "field_agent" | "member";
+    /** OrgStewardshipOut */
+    OrgStewardshipOut: {
+      /** Components */
+      components: {
+        [key: string]: number | null;
+      };
+      /**
+       * Computed At
+       * Format: date-time
+       */
+      computed_at: string;
+      forward_funding: components["schemas"]["ForwardFundingOut"];
+      /** Insufficient Data */
+      insufficient_data: boolean;
+      /** Notes */
+      notes: string[];
+      /**
+       * Org Id
+       * Format: uuid
+       */
+      org_id: string;
+      /** Params */
+      params: {
+        [key: string]: unknown;
+      };
+      /** Projects */
+      projects: components["schemas"]["ProjectStewardshipOut"][];
+      /** Score */
+      score: number | null;
+      /** Score Version */
+      score_version: string;
+    };
     /**
      * OrgType
      * @enum {string}
      */
     OrgType: "ngo" | "panchayat" | "company" | "government";
+    /** Page[PublicProjectSummary] */
+    Page_PublicProjectSummary_: {
+      /** Items */
+      items: components["schemas"]["PublicProjectSummary"][];
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Total */
+      total: number;
+    };
+    /** Page[RetirementOut] */
+    Page_RetirementOut_: {
+      /** Items */
+      items: components["schemas"]["RetirementOut"][];
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Total */
+      total: number;
+    };
+    /** Page[VintageOut] */
+    Page_VintageOut_: {
+      /** Items */
+      items: components["schemas"]["VintageOut"][];
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Total */
+      total: number;
+    };
     /** PeriodCreate */
     PeriodCreate: {
       /**
@@ -1162,10 +2195,37 @@ export interface components {
       | "changes_requested"
       | "approved"
       | "rejected";
+    /** PeriodSummary */
+    PeriodSummary: {
+      /**
+       * End Date
+       * Format: date
+       */
+      end_date: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      kind: components["schemas"]["PeriodKind"];
+      /**
+       * Start Date
+       * Format: date
+       */
+      start_date: string;
+      status: components["schemas"]["PeriodStatus"];
+    };
     /** PhotoUploadRequest */
     PhotoUploadRequest: {
       /** Content Type */
       content_type: string;
+    };
+    /** PlantingCohortIn */
+    PlantingCohortIn: {
+      /** Area Ha */
+      area_ha: number;
+      /** Year */
+      year: number;
     };
     /**
      * PlatformRole
@@ -1283,6 +2343,26 @@ export interface components {
       state: string;
       tenure_type: components["schemas"]["TenureType"];
     };
+    /** ProjectForwardFundOut */
+    ProjectForwardFundOut: {
+      /** Awards */
+      awards: components["schemas"]["AwardOut"][];
+      capacity: components["schemas"]["CapacityOut"];
+      /**
+       * Disclaimer
+       * @default Forward funding is not a guarantee of credits. Credits are issued ex post, years after planting, and only for removals an accredited verifier approves; a project may deliver less than it offered, or nothing. Any upfront share is paid to the project at award time at the buyer's risk and is never refunded. Escrow is released only as verified long-term credits are delivered; undelivered escrow is refundable to the buyer after the delivery deadline. Testnet registry units: not legally recognised carbon credits.
+       */
+      disclaimer: string;
+      /** Offers */
+      offers: components["schemas"]["OfferOut"][];
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Project Key */
+      project_key: string;
+    };
     /** ProjectOut */
     ProjectOut: {
       /** Area Ha */
@@ -1330,6 +2410,36 @@ export interface components {
       submitted_at: string | null;
       tenure_type: components["schemas"]["TenureType"];
     };
+    /** ProjectRef */
+    ProjectRef: {
+      /** Id */
+      id: string | null;
+      /** Name */
+      name: string | null;
+      /** Project Key */
+      project_key: string;
+    };
+    /** ProjectRegistration */
+    ProjectRegistration: {
+      /** Block Hash */
+      block_hash: string;
+      /** Block Number */
+      block_number: number;
+      /** Boundary Hash */
+      boundary_hash: string;
+      /** Chain Id */
+      chain_id: number;
+      /** Contract Address */
+      contract_address: string;
+      /** Explorer Url */
+      explorer_url: string | null;
+      /** Log Index */
+      log_index: number;
+      /** Start Year */
+      start_year: number;
+      /** Tx Hash */
+      tx_hash: string;
+    };
     /**
      * ProjectStatus
      * @description Lifecycle (see docs/IMPLEMENTATION_PLAN.md §3). Transitions are enforced in services.
@@ -1343,6 +2453,33 @@ export interface components {
       | "registered"
       | "monitoring"
       | "rejected";
+    /** ProjectStewardshipOut */
+    ProjectStewardshipOut: {
+      /** Area Ha */
+      area_ha: number;
+      /** Components */
+      components: components["schemas"]["ComponentScoreOut"][];
+      /**
+       * Computed At
+       * Format: date-time
+       */
+      computed_at: string;
+      /** Insufficient Data */
+      insufficient_data: boolean;
+      /** Notes */
+      notes: string[];
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Renormalised */
+      renormalised: boolean;
+      /** Score */
+      score: number | null;
+      /** Score Version */
+      score_version: string;
+    };
     /**
      * ProjectUpdate
      * @description Only allowed while the project is a draft or has changes requested.
@@ -1364,6 +2501,227 @@ export interface components {
       state?: string | null;
       tenure_type?: components["schemas"]["TenureType"] | null;
     };
+    /** PublicOrg */
+    PublicOrg: {
+      /** Name */
+      name: string;
+      org_type: components["schemas"]["OrgType"];
+    };
+    /** PublicProjectDetail */
+    PublicProjectDetail: {
+      alerts: components["schemas"]["AlertCounts"];
+      /** Area Ha */
+      area_ha: number;
+      boundary: components["schemas"]["BoundaryInfo"];
+      /** Centroid */
+      centroid: [number, number];
+      /** Description */
+      description: string;
+      ecosystem: components["schemas"]["Ecosystem"];
+      evidence: components["schemas"]["EvidenceStats"];
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      methodology: components["schemas"]["Methodology"];
+      /** Mrv Reports */
+      mrv_reports: components["schemas"]["PublicReport"][];
+      /** Name */
+      name: string;
+      org: components["schemas"]["PublicOrg"];
+      /** Periods */
+      periods: components["schemas"]["PeriodSummary"][];
+      /** Registered On Chain */
+      registered_on_chain: boolean;
+      registration: components["schemas"]["ProjectRegistration"] | null;
+      /** Reports */
+      reports: components["schemas"]["OnChainReport"][];
+      satellite: components["schemas"]["SatelliteIndicators"];
+      /**
+       * Start Date
+       * Format: date
+       */
+      start_date: string;
+      /** State */
+      state: string;
+      status: components["schemas"]["ProjectStatus"];
+      /** Vintages */
+      vintages: components["schemas"]["VintageOut"][];
+    };
+    /** PublicProjectSummary */
+    PublicProjectSummary: {
+      /** Area Ha */
+      area_ha: number;
+      /** Centroid */
+      centroid: [number, number];
+      ecosystem: components["schemas"]["Ecosystem"];
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      methodology: components["schemas"]["Methodology"];
+      /** Name */
+      name: string;
+      org: components["schemas"]["PublicOrg"];
+      /** Registered On Chain */
+      registered_on_chain: boolean;
+      /**
+       * Start Date
+       * Format: date
+       */
+      start_date: string;
+      /** State */
+      state: string;
+      status: components["schemas"]["ProjectStatus"];
+    };
+    /** PublicReport */
+    PublicReport: {
+      anchoring: components["schemas"]["ReportAnchoring"];
+      /** Decided At */
+      decided_at: string | null;
+      downloads: components["schemas"]["ReportDownloadLinks"];
+      /**
+       * Generated At
+       * Format: date-time
+       */
+      generated_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Lccc Units */
+      lccc_units: number;
+      /** Period End Year */
+      period_end_year: number;
+      /**
+       * Period Id
+       * Format: uuid
+       */
+      period_id: string;
+      period_kind: components["schemas"]["PeriodKind"];
+      /** Period Start Year */
+      period_start_year: number;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Report Hash */
+      report_hash: string;
+      /**
+       * Status
+       * @default approved
+       * @constant
+       */
+      status: "approved";
+      /** Tccc Units */
+      tccc_units: number;
+      /** Version */
+      version: number;
+    };
+    /** PublicReportDetail */
+    PublicReportDetail: {
+      anchoring: components["schemas"]["ReportAnchoring"];
+      /** Decided At */
+      decided_at: string | null;
+      downloads: components["schemas"]["ReportDownloadLinks"];
+      /**
+       * Generated At
+       * Format: date-time
+       */
+      generated_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Lccc Units */
+      lccc_units: number;
+      /** Period End Year */
+      period_end_year: number;
+      /**
+       * Period Id
+       * Format: uuid
+       */
+      period_id: string;
+      period_kind: components["schemas"]["PeriodKind"];
+      /** Period Start Year */
+      period_start_year: number;
+      project: components["schemas"]["ProjectRef"];
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      project_methodology: components["schemas"]["Methodology"];
+      /** Report Hash */
+      report_hash: string;
+      /**
+       * Status
+       * @default approved
+       * @constant
+       */
+      status: "approved";
+      /** Tccc Tco2E */
+      tccc_tco2e: number;
+      /** Tccc Units */
+      tccc_units: number;
+      traceability: components["schemas"]["ReportTraceability"];
+      /** Tree Stock Tco2E */
+      tree_stock_tco2e: number;
+      /** Version */
+      version: number;
+    };
+    /** PublicTimeseries */
+    PublicTimeseries: {
+      /** Index */
+      index: string;
+      /** Min Clear Fraction */
+      min_clear_fraction: number;
+      /** Points */
+      points: components["schemas"]["PublicTimeseriesPoint"][];
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+    };
+    /** PublicTimeseriesPoint */
+    PublicTimeseriesPoint: {
+      /** Clear Fraction */
+      clear_fraction: number;
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /** Item Id */
+      item_id: string;
+      /** Mean */
+      mean: number | null;
+      /** P10 */
+      p10: number | null;
+      /** P50 */
+      p50: number | null;
+      /** P90 */
+      p90: number | null;
+      /** Valid Pixels */
+      valid_pixels: number;
+    };
+    /** PublicTx */
+    PublicTx: {
+      /** Block Number */
+      block_number: number | null;
+      /** Chain Id */
+      chain_id: number;
+      /** Explorer Url */
+      explorer_url: string | null;
+      /** Tx Hash */
+      tx_hash: string;
+    };
     /** RefreshIn */
     RefreshIn: {
       /** Refresh Token */
@@ -1380,6 +2738,444 @@ export interface components {
       full_name: string;
       /** Password */
       password: string;
+    };
+    /**
+     * ReportAnchoring
+     * @description On-chain anchoring of an approved MRV report, from the relayer's confirmed transactions.
+     *
+     *     Monitoring-period reports are anchored by submitReport + approveReport (`hash_anchored` once
+     *     submitReport is confirmed). Baseline-period reports only lead to the project registration, so
+     *     their hash is never submitted on-chain (`hash_anchored` stays false).
+     */
+    ReportAnchoring: {
+      approve_tx: components["schemas"]["PublicTx"] | null;
+      /** Chain Report Id */
+      chain_report_id: number | null;
+      /** Completed At */
+      completed_at: string | null;
+      /** Hash Anchored */
+      hash_anchored: boolean;
+      submit_tx: components["schemas"]["PublicTx"] | null;
+    };
+    /** ReportDetail */
+    ReportDetail: {
+      /** Anchor Error */
+      anchor_error: string | null;
+      /** Anchored At */
+      anchored_at: string | null;
+      /** Approve Tx Id */
+      approve_tx_id: string | null;
+      /** Chain Report Id */
+      chain_report_id: number | null;
+      /** Decided At */
+      decided_at: string | null;
+      /** Decision Comment */
+      decision_comment: string | null;
+      downloads: components["schemas"]["ReportDownloads"];
+      /**
+       * Generated At
+       * Format: date-time
+       */
+      generated_at: string;
+      /**
+       * Generated By
+       * Format: uuid
+       */
+      generated_by: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Lccc Units */
+      lccc_units: number;
+      /** Period End Year */
+      period_end_year: number;
+      /**
+       * Period Id
+       * Format: uuid
+       */
+      period_id: string;
+      /** Period Start Year */
+      period_start_year: number;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Report Hash */
+      report_hash: string;
+      status: components["schemas"]["ReportStatus"];
+      /** Submit Tx Id */
+      submit_tx_id: string | null;
+      /** Tccc Units */
+      tccc_units: number;
+      /** Verifier Id */
+      verifier_id: string | null;
+      /** Version */
+      version: number;
+    };
+    /**
+     * ReportDownloadLinks
+     * @description Stable registry URLs. `pdf_url` redirects to a short-lived presigned download of the PDF;
+     *     `record_url` serves the public variant of the hashed JSON record (personal and site-precise
+     *     fields removed). The full canonical JSON and the CSV export are not public.
+     */
+    ReportDownloadLinks: {
+      /** Pdf Url */
+      pdf_url: string;
+      /** Record Url */
+      record_url: string;
+    };
+    /** ReportDownloads */
+    ReportDownloads: {
+      /** Csv Url */
+      csv_url: string;
+      /** Json Url */
+      json_url: string;
+      /** Pdf Url */
+      pdf_url: string;
+    };
+    /** ReportOut */
+    ReportOut: {
+      /** Anchor Error */
+      anchor_error: string | null;
+      /** Anchored At */
+      anchored_at: string | null;
+      /** Approve Tx Id */
+      approve_tx_id: string | null;
+      /** Chain Report Id */
+      chain_report_id: number | null;
+      /** Decided At */
+      decided_at: string | null;
+      /** Decision Comment */
+      decision_comment: string | null;
+      /**
+       * Generated At
+       * Format: date-time
+       */
+      generated_at: string;
+      /**
+       * Generated By
+       * Format: uuid
+       */
+      generated_by: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Lccc Units */
+      lccc_units: number;
+      /** Period End Year */
+      period_end_year: number;
+      /**
+       * Period Id
+       * Format: uuid
+       */
+      period_id: string;
+      /** Period Start Year */
+      period_start_year: number;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Report Hash */
+      report_hash: string;
+      status: components["schemas"]["ReportStatus"];
+      /** Submit Tx Id */
+      submit_tx_id: string | null;
+      /** Tccc Units */
+      tccc_units: number;
+      /** Verifier Id */
+      verifier_id: string | null;
+      /** Version */
+      version: number;
+    };
+    /**
+     * ReportRequest
+     * @description Inputs to the report that the database does not hold.
+     *
+     *     `strata_area_ha`: hectares per stratum, one entry for every stratum that has plot measurements
+     *     in the period. It may be omitted only when all measured plots are in a single stratum; that
+     *     stratum then takes the whole project area.
+     */
+    ReportRequest: {
+      /**
+       * Include Soc
+       * @default true
+       */
+      include_soc: boolean;
+      /** Notes */
+      notes?: string | null;
+      /** Planting */
+      planting?: components["schemas"]["PlantingCohortIn"][];
+      /** Strata Area Ha */
+      strata_area_ha?: {
+        [key: string]: number;
+      } | null;
+    };
+    /** ReportRequested */
+    ReportRequested: {
+      /**
+       * Period Id
+       * Format: uuid
+       */
+      period_id: string;
+      period_status: components["schemas"]["PeriodStatus"];
+      /** Strata Area Ha */
+      strata_area_ha: {
+        [key: string]: number;
+      };
+    };
+    /**
+     * ReportStatus
+     * @description MRV report lifecycle: draft → under_review → changes_requested | approved | rejected.
+     * @enum {string}
+     */
+    ReportStatus: "draft" | "under_review" | "changes_requested" | "approved" | "rejected";
+    /**
+     * ReportTraceability
+     * @description Read from the stored canonical record after checking its SHA-256 against `report_hash`.
+     */
+    ReportTraceability: {
+      /** Methodology Profile */
+      methodology_profile: {
+        [key: string]: unknown;
+      };
+      /** Record Schema */
+      record_schema: string;
+      /**
+       * Record Sha256 Verified
+       * @default true
+       * @constant
+       */
+      record_sha256_verified: true;
+      /** Software */
+      software: {
+        [key: string]: string;
+      };
+      /** Status Label */
+      status_label: string;
+    };
+    /** ReportVerification */
+    ReportVerification: {
+      /** Ok */
+      ok: boolean;
+      /** Onchain Hash */
+      onchain_hash: string | null;
+      /** Onchain Matches */
+      onchain_matches: boolean | null;
+      /** Onchain Source */
+      onchain_source: ("indexer" | "receipt") | null;
+      /** Report Hash */
+      report_hash: string;
+      /**
+       * Report Id
+       * Format: uuid
+       */
+      report_id: string;
+      /** Stored Hash */
+      stored_hash: string | null;
+      /** Stored Matches */
+      stored_matches: boolean;
+    };
+    /** RequestDetailOut */
+    RequestDetailOut: {
+      /** Active Offers */
+      active_offers: number;
+      /** Awarded Quantity */
+      awarded_quantity: number;
+      /** Awarded Value */
+      awarded_value: number;
+      /** Awards */
+      awards: components["schemas"]["AwardOut"][];
+      /** Buyer */
+      buyer: string;
+      /** Delivered Quantity */
+      delivered_quantity: number;
+      /** Delivery Deadline */
+      delivery_deadline: number;
+      /**
+       * Disclaimer
+       * @default Forward funding is not a guarantee of credits. Credits are issued ex post, years after planting, and only for removals an accredited verifier approves; a project may deliver less than it offered, or nothing. Any upfront share is paid to the project at award time at the buyer's risk and is never refunded. Escrow is released only as verified long-term credits are delivered; undelivered escrow is refundable to the buyer after the delivery deadline. Testnet registry units: not legally recognised carbon credits.
+       */
+      disclaimer: string;
+      /** Escrow Deposited */
+      escrow_deposited: number;
+      /** Escrow Left */
+      escrow_left: number;
+      /** Max Price */
+      max_price: number;
+      /** Offer Window End */
+      offer_window_end: number;
+      /** Offers */
+      offers: components["schemas"]["OfferOut"][];
+      onchain?: components["schemas"]["OnchainCheckOut"] | null;
+      /** Quantity */
+      quantity: number;
+      /** Refundable After Deadline */
+      refundable_after_deadline: number;
+      /** Refunded Undelivered */
+      refunded_undelivered: number;
+      /** Released */
+      released: number;
+      /** Request Id */
+      request_id: number;
+      status: components["schemas"]["RequestStatus"];
+      /** Tx Hash */
+      tx_hash: string;
+      /** Unused Escrow Refunded */
+      unused_escrow_refunded: number;
+      upfront: components["schemas"]["UpfrontOut"];
+    };
+    /** RequestListOut */
+    RequestListOut: {
+      /**
+       * Disclaimer
+       * @default Forward funding is not a guarantee of credits. Credits are issued ex post, years after planting, and only for removals an accredited verifier approves; a project may deliver less than it offered, or nothing. Any upfront share is paid to the project at award time at the buyer's risk and is never refunded. Escrow is released only as verified long-term credits are delivered; undelivered escrow is refundable to the buyer after the delivery deadline. Testnet registry units: not legally recognised carbon credits.
+       */
+      disclaimer: string;
+      /** Items */
+      items: components["schemas"]["RequestSummaryOut"][];
+    };
+    /**
+     * RequestStatus
+     * @enum {string}
+     */
+    RequestStatus: "open" | "awarded" | "settled";
+    /** RequestSummaryOut */
+    RequestSummaryOut: {
+      /** Active Offers */
+      active_offers: number;
+      /** Awarded Quantity */
+      awarded_quantity: number;
+      /** Awarded Value */
+      awarded_value: number;
+      /** Buyer */
+      buyer: string;
+      /** Delivered Quantity */
+      delivered_quantity: number;
+      /** Delivery Deadline */
+      delivery_deadline: number;
+      /** Escrow Deposited */
+      escrow_deposited: number;
+      /** Escrow Left */
+      escrow_left: number;
+      /** Max Price */
+      max_price: number;
+      /** Offer Window End */
+      offer_window_end: number;
+      /** Quantity */
+      quantity: number;
+      /** Refundable After Deadline */
+      refundable_after_deadline: number;
+      /** Refunded Undelivered */
+      refunded_undelivered: number;
+      /** Released */
+      released: number;
+      /** Request Id */
+      request_id: number;
+      status: components["schemas"]["RequestStatus"];
+      /** Tx Hash */
+      tx_hash: string;
+      /** Unused Escrow Refunded */
+      unused_escrow_refunded: number;
+      upfront: components["schemas"]["UpfrontOut"];
+    };
+    /** RetirementDetail */
+    RetirementDetail: {
+      /** Amount */
+      amount: number;
+      /** Beneficiary */
+      beneficiary: string;
+      /** Block Number */
+      block_number: number;
+      /** Block Time */
+      block_time: string | null;
+      /** Credit Type */
+      credit_type: ("temporary" | "long_term") | null;
+      /**
+       * Indexed At
+       * Format: date-time
+       */
+      indexed_at: string;
+      project: components["schemas"]["ProjectRef"] | null;
+      /** Purpose */
+      purpose: string;
+      /** Qr Png Url */
+      qr_png_url: string;
+      /** Qr Svg Url */
+      qr_svg_url: string;
+      /** Retirement Id */
+      retirement_id: number;
+      /** Token Id */
+      token_id: number;
+      /** Tx Hash */
+      tx_hash: string;
+      verification: components["schemas"]["CertificateVerification"];
+    };
+    /** RetirementOut */
+    RetirementOut: {
+      /** Amount */
+      amount: number;
+      /** Beneficiary */
+      beneficiary: string;
+      /** Block Number */
+      block_number: number;
+      /** Block Time */
+      block_time: string | null;
+      /** Credit Type */
+      credit_type: ("temporary" | "long_term") | null;
+      /**
+       * Indexed At
+       * Format: date-time
+       */
+      indexed_at: string;
+      project: components["schemas"]["ProjectRef"] | null;
+      /** Purpose */
+      purpose: string;
+      /** Retirement Id */
+      retirement_id: number;
+      /** Token Id */
+      token_id: number;
+      /** Tx Hash */
+      tx_hash: string;
+    };
+    /** ReviewRequest */
+    ReviewRequest: {
+      /**
+       * Comment
+       * @default
+       */
+      comment: string;
+      /**
+       * Decision
+       * @enum {string}
+       */
+      decision: "approve" | "request_changes" | "reject";
+    };
+    /** SatelliteIndicators */
+    SatelliteIndicators: {
+      /**
+       * Index
+       * @default ndvi
+       * @constant
+       */
+      index: "ndvi";
+      /** Last 12 Months */
+      last_12_months: components["schemas"]["MonthlyIndexValue"][];
+      /** Latest Clear Fraction */
+      latest_clear_fraction: number | null;
+      /** Latest Date */
+      latest_date: string | null;
+      /** Latest P50 */
+      latest_p50: number | null;
+      /** Min Clear Fraction */
+      min_clear_fraction: number;
+      /** Trend P50 Per Year */
+      trend_p50_per_year: number | null;
     };
     /** SignerStatus */
     SignerStatus: {
@@ -1566,6 +3362,11 @@ export interface components {
       access_token: string;
       /** Expires In */
       expires_in: number;
+      /**
+       * Recovery Codes Remaining
+       * @description Set only when a recovery code was used and few remain: regenerate them
+       */
+      recovery_codes_remaining?: number | null;
       /** Refresh Token */
       refresh_token: string;
       /**
@@ -1587,6 +3388,35 @@ export interface components {
       height_m?: number | null;
       /** Species */
       species: string;
+    };
+    /**
+     * UpfrontOut
+     * @description The optional share paid to winners at award time. It is never refunded.
+     */
+    UpfrontOut: {
+      /** Amount Paid */
+      amount_paid: number;
+      /** Bps */
+      bps: number;
+      /**
+       * Buyer Risk
+       * @default true
+       * @constant
+       */
+      buyer_risk: true;
+      /**
+       * Note
+       * @default Paid to the project at award time to cover planting costs, at the buyer's risk. Not refunded if credits are never delivered.
+       */
+      note: string;
+      /**
+       * Refundable
+       * @default false
+       * @constant
+       */
+      refundable: false;
+      /** Share Pct */
+      share_pct: number;
     };
     /** UploadRequest */
     UploadRequest: {
@@ -1635,6 +3465,11 @@ export interface components {
        * @default []
        */
       memberships: components["schemas"]["MembershipOut"][];
+      /**
+       * Mfa Enabled
+       * @default false
+       */
+      mfa_enabled: boolean;
       platform_role: components["schemas"]["PlatformRole"];
     };
     /** ValidationError */
@@ -1649,6 +3484,55 @@ export interface components {
       msg: string;
       /** Error Type */
       type: string;
+    };
+    /** VerifyHashOut */
+    VerifyHashOut: {
+      /** Found */
+      found: boolean;
+      /** Matches */
+      matches: components["schemas"]["HashMatch"][];
+      /** Sha256 Hex */
+      sha256_hex: string;
+    };
+    /** VerifyHashRequest */
+    VerifyHashRequest: {
+      /**
+       * Sha256 Hex
+       * @description 64 hex characters, optional 0x prefix
+       */
+      sha256_hex: string;
+    };
+    /** VintageOut */
+    VintageOut: {
+      /**
+       * Credit Type
+       * @enum {string}
+       */
+      credit_type: "temporary" | "long_term";
+      /**
+       * Credit Unit
+       * @enum {string}
+       */
+      credit_unit: "tCCC" | "lCCC";
+      /** Expired */
+      expired: boolean;
+      /** Expires At */
+      expires_at: string | null;
+      /** Issuances */
+      issuances: components["schemas"]["IssuanceOut"][];
+      /** Issued */
+      issued: number;
+      /** Outstanding */
+      outstanding: number;
+      project: components["schemas"]["ProjectRef"];
+      /** Replaced */
+      replaced: number;
+      /** Report Id */
+      report_id: number;
+      /** Retired */
+      retired: number;
+      /** Token Id */
+      token_id: number;
     };
   };
   responses: never;
@@ -1793,7 +3677,9 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["TokenPair"];
+          "application/json":
+            | components["schemas"]["TokenPair"]
+            | components["schemas"]["MfaChallenge"];
         };
       };
       /** @description Validation Error */
@@ -1854,6 +3740,176 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["UserOut"];
+        };
+      };
+    };
+  };
+  mfa_status_api_v1_auth_mfa_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MfaStatusOut"];
+        };
+      };
+    };
+  };
+  mfa_disable_api_v1_auth_mfa_disable_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MfaCodeIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  mfa_enable_api_v1_auth_mfa_enable_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MfaCodeIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MfaEnabledOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  mfa_regenerate_recovery_codes_api_v1_auth_mfa_recovery_codes_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MfaCodeIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MfaEnabledOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  mfa_setup_api_v1_auth_mfa_setup_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MfaSetupOut"];
+        };
+      };
+    };
+  };
+  mfa_verify_api_v1_auth_mfa_verify_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MfaVerifyIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TokenPair"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };
@@ -1962,6 +4018,72 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ChainTxOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_requests_api_v1_forward_fund_requests_get: {
+    parameters: {
+      query?: {
+        status?: components["schemas"]["RequestStatus"] | null;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RequestListOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_request_api_v1_forward_fund_requests__request_id__get: {
+    parameters: {
+      query?: {
+        onchain?: boolean;
+      };
+      header?: never;
+      path: {
+        request_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RequestDetailOut"];
         };
       };
       /** @description Validation Error */
@@ -2125,6 +4247,37 @@ export interface operations {
       };
     };
   };
+  get_org_stewardship_api_v1_orgs__org_id__stewardship_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        org_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OrgStewardshipOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   issue_nonce_api_v1_periods__period_id__nonces_post: {
     parameters: {
       query?: never;
@@ -2214,6 +4367,72 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["MeasurementOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_reports_api_v1_periods__period_id__reports_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        period_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  request_report_api_v1_periods__period_id__reports_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        period_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["ReportRequest"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportRequested"];
         };
       };
       /** @description Validation Error */
@@ -2694,6 +4913,104 @@ export interface operations {
       };
     };
   };
+  project_forward_fund_api_v1_projects__project_id__forward_fund_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectForwardFundOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  submit_offer_api_v1_projects__project_id__forward_fund_offers_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OfferIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChainTxOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  withdraw_offer_api_v1_projects__project_id__forward_fund_offers__offer_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+        offer_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChainTxOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   list_periods_api_v1_projects__project_id__periods_get: {
     parameters: {
       query?: never;
@@ -2826,6 +5143,37 @@ export interface operations {
       };
     };
   };
+  get_project_stewardship_api_v1_projects__project_id__stewardship_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectStewardshipOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   submit_project_api_v1_projects__project_id__submit_post: {
     parameters: {
       query?: never;
@@ -2880,6 +5228,518 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["TimeseriesOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_projects_api_v1_public_projects_get: {
+    parameters: {
+      query?: {
+        state?: string | null;
+        ecosystem?: components["schemas"]["Ecosystem"] | null;
+        status?: components["schemas"]["ProjectStatus"] | null;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_PublicProjectSummary_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_project_api_v1_public_projects__project_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicProjectDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  project_timeseries_api_v1_public_projects__project_id__timeseries_get: {
+    parameters: {
+      query?: {
+        index?: "ndvi" | "evi" | "mvi" | "ndwi" | "mndwi" | "ndmi" | "cmri";
+        min_clear?: number;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicTimeseries"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_report_api_v1_public_reports__report_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicReportDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  public_report_record_api_v1_public_reports__report_id__record_json_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  public_report_pdf_api_v1_public_reports__report_id__report_pdf_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      307: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_retirements_api_v1_public_retirements_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_RetirementOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_retirement_api_v1_public_retirements__retirement_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        retirement_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RetirementDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  retirement_qr_api_v1_public_retirements__retirement_id__qr__fmt__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        retirement_id: number;
+        fmt: "png" | "svg";
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/png": unknown;
+          "image/svg+xml": unknown;
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  verify_hash_get_api_v1_public_verify_hash_get: {
+    parameters: {
+      query: {
+        sha256_hex: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VerifyHashOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  verify_hash_post_api_v1_public_verify_hash_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["VerifyHashRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VerifyHashOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_vintages_api_v1_public_vintages_get: {
+    parameters: {
+      query?: {
+        project_id?: string | null;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_VintageOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_vintage_api_v1_public_vintages__token_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        token_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["VintageOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_report_api_v1_reports__report_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  review_report_api_v1_reports__report_id__review_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReviewRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  verify_report_api_v1_reports__report_id__verify_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        report_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportVerification"];
         };
       };
       /** @description Validation Error */

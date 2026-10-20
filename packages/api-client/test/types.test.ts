@@ -7,6 +7,9 @@ describe("generated types", () => {
   it("helpers return the schema's response types", () => {
     expectTypeOf(client.auth.me).returns.resolves.toEqualTypeOf<components["schemas"]["UserOut"]>();
     expectTypeOf(client.auth.login).returns.resolves.toEqualTypeOf<
+      components["schemas"]["TokenPair"] | components["schemas"]["MfaChallenge"]
+    >();
+    expectTypeOf(client.auth.verifyMfa).returns.resolves.toEqualTypeOf<
       components["schemas"]["TokenPair"]
     >();
     expectTypeOf(client.projects.list).returns.resolves.toEqualTypeOf<

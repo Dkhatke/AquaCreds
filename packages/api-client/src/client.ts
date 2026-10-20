@@ -3,6 +3,7 @@ import { ApiError, unwrap } from "./errors";
 import { memoryTokenStore, type TokenSet, type TokenStore } from "./tokens";
 import type {
   AlertsQuery,
+  MfaChallenge,
   ProjectCreate,
   ProjectListQuery,
   ProjectUpdate,
@@ -31,7 +32,10 @@ export interface AquaClientOptions {
 }
 
 const AUTH_PATH = "/api/v1/auth/";
-const NO_REFRESH = ["login", "refresh", "register", "logout"].map((p) => `${AUTH_PATH}${p}`);
+// A 401 from these means bad credentials or an expired MFA challenge, never an expired session.
+const NO_REFRESH = ["login", "refresh", "register", "logout", "mfa/verify"].map(
+  (p) => `${AUTH_PATH}${p}`,
+);
 
 function toTokenSet(pair: TokenPair): TokenSet {
   return { accessToken: pair.access_token, refreshToken: pair.refresh_token };
@@ -146,11 +150,25 @@ export function createAquaClient(options: AquaClientOptions) {
     refresh: refreshOnce,
 
     auth: {
-      async login(email: string, password: string): Promise<TokenPair> {
-        const pair = await unwrap(api.POST("/api/v1/auth/login", { body: { email, password } }));
+      /**
+       * Password step. Returns the stored token pair, or an `MfaChallenge` (no tokens stored) when
+       * the account has two-factor auth: then call `verifyMfa(challenge.mfa_token, code)`.
+       */
+      async login(email: string, password: string): Promise<TokenPair | MfaChallenge> {
+        const res = await unwrap(api.POST("/api/v1/auth/login", { body: { email, password } }));
+        if ("mfa_required" in res) return res;
+        await storeTokens(res);
+        return res;
+      },
+      /** Second step: a TOTP or recovery code for the challenge from `login`. Stores the pair. */
+      async verifyMfa(mfaToken: string, code: string): Promise<TokenPair> {
+        const pair = await unwrap(
+          api.POST("/api/v1/auth/mfa/verify", { body: { mfa_token: mfaToken, code } }),
+        );
         await storeTokens(pair);
         return pair;
       },
+      mfaStatus: () => unwrap(api.GET("/api/v1/auth/mfa")),
       register: (body: Schema<"RegisterIn">) => unwrap(api.POST("/api/v1/auth/register", { body })),
       me: () => unwrap(api.GET("/api/v1/auth/me")),
       /** Revokes the refresh-token family server-side (best effort), then clears local tokens. */

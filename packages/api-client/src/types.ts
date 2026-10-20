@@ -12,6 +12,9 @@ type GetQuery<P extends keyof paths> = paths[P] extends {
   : never;
 
 export type TokenPair = Schema<"TokenPair">;
+/** Returned by login instead of tokens when the account has two-factor auth enabled. */
+export type MfaChallenge = Schema<"MfaChallenge">;
+export type MfaStatusOut = Schema<"MfaStatusOut">;
 export type UserOut = Schema<"UserOut">;
 export type ProjectOut = Schema<"ProjectOut">;
 export type ProjectCreate = Schema<"ProjectCreate">;
