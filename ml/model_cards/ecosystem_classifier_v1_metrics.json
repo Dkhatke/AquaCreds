@@ -1,0 +1,1103 @@
+{
+  "model_version": "ecosystem_classifier_v1",
+  "winner": "lightgbm",
+  "selection_rule": "held-out macro-F1, then CV macro-F1 (ties within 0.01), then simplicity",
+  "classes": [
+    "built_bare",
+    "cropland_aquaculture",
+    "mangrove",
+    "terrestrial_other",
+    "tidal_flat",
+    "water"
+  ],
+  "data": {
+    "rows_in_features": 14114,
+    "rows_dropped_too_few_clear": 0,
+    "rows_used": 14114,
+    "filled_missing": {
+      "elevation": {
+        "rows": 8,
+        "value": 0.0
+      }
+    },
+    "by_label_and_split": {
+      "fold_0": {
+        "built_bare": 20,
+        "cropland_aquaculture": 203,
+        "mangrove": 937,
+        "terrestrial_other": 423,
+        "tidal_flat": 33,
+        "water": 964
+      },
+      "fold_1": {
+        "built_bare": 36,
+        "cropland_aquaculture": 202,
+        "mangrove": 959,
+        "terrestrial_other": 527,
+        "tidal_flat": 21,
+        "water": 844
+      },
+      "fold_2": {
+        "built_bare": 28,
+        "cropland_aquaculture": 216,
+        "mangrove": 958,
+        "terrestrial_other": 580,
+        "tidal_flat": 24,
+        "water": 776
+      },
+      "fold_3": {
+        "built_bare": 27,
+        "cropland_aquaculture": 381,
+        "mangrove": 927,
+        "terrestrial_other": 556,
+        "tidal_flat": 72,
+        "water": 658
+      },
+      "fold_4": {
+        "built_bare": 46,
+        "cropland_aquaculture": 278,
+        "mangrove": 897,
+        "terrestrial_other": 479,
+        "tidal_flat": 75,
+        "water": 834
+      },
+      "heldout_region": {
+        "built_bare": 53,
+        "cropland_aquaculture": 116,
+        "mangrove": 123,
+        "terrestrial_other": 97,
+        "tidal_flat": 57,
+        "water": 687
+      }
+    }
+  },
+  "reference_majority_class": {
+    "majority_class": "mangrove",
+    "heldout": {
+      "n": 1133,
+      "accuracy": 0.10856134157105031,
+      "macro_f1": 0.03264331210191083,
+      "mangrove_vs_rest_f1": 0.19585987261146498,
+      "per_class": {
+        "built_bare": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 53
+        },
+        "cropland_aquaculture": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 116
+        },
+        "mangrove": {
+          "precision": 0.1086,
+          "recall": 1.0,
+          "f1": 0.1959,
+          "support": 123
+        },
+        "terrestrial_other": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 97
+        },
+        "tidal_flat": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 57
+        },
+        "water": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 687
+        }
+      },
+      "confusion_matrix": [
+        [
+          0,
+          0,
+          53,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          116,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          123,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          97,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          57,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          687,
+          0,
+          0,
+          0
+        ]
+      ]
+    }
+  },
+  "models": {
+    "random_forest": {
+      "params": {
+        "n_estimators": 200,
+        "max_depth": null,
+        "min_samples_leaf": 2,
+        "max_features": 0.3
+      },
+      "optuna_best_cv_macro_f1": 0.751,
+      "cv": {
+        "per_fold": [
+          {
+            "macro_f1": 0.7436,
+            "accuracy": 0.9213,
+            "mangrove_vs_rest_f1": 0.9683,
+            "n": 2580
+          },
+          {
+            "macro_f1": 0.789,
+            "accuracy": 0.9224,
+            "mangrove_vs_rest_f1": 0.9631,
+            "n": 2589
+          },
+          {
+            "macro_f1": 0.7413,
+            "accuracy": 0.9287,
+            "mangrove_vs_rest_f1": 0.9717,
+            "n": 2582
+          },
+          {
+            "macro_f1": 0.7623,
+            "accuracy": 0.9023,
+            "mangrove_vs_rest_f1": 0.9828,
+            "n": 2621
+          },
+          {
+            "macro_f1": 0.719,
+            "accuracy": 0.8865,
+            "mangrove_vs_rest_f1": 0.9682,
+            "n": 2609
+          }
+        ],
+        "macro_f1": {
+          "mean": 0.751,
+          "std": 0.0234
+        },
+        "accuracy": {
+          "mean": 0.9123,
+          "std": 0.0156
+        },
+        "mangrove_vs_rest_f1": {
+          "mean": 0.9708,
+          "std": 0.0066
+        },
+        "pooled_out_of_fold": {
+          "n": 12981,
+          "accuracy": 0.9121793390339727,
+          "macro_f1": 0.7513489746418361,
+          "mangrove_vs_rest_f1": 0.9708549222797928,
+          "per_class": {
+            "built_bare": {
+              "precision": 0.5109,
+              "recall": 0.5987,
+              "f1": 0.5513,
+              "support": 157
+            },
+            "cropland_aquaculture": {
+              "precision": 0.754,
+              "recall": 0.8453,
+              "f1": 0.7971,
+              "support": 1280
+            },
+            "mangrove": {
+              "precision": 0.9806,
+              "recall": 0.9613,
+              "f1": 0.9709,
+              "support": 4678
+            },
+            "terrestrial_other": {
+              "precision": 0.8816,
+              "recall": 0.848,
+              "f1": 0.8645,
+              "support": 2565
+            },
+            "tidal_flat": {
+              "precision": 0.3791,
+              "recall": 0.3556,
+              "f1": 0.367,
+              "support": 225
+            },
+            "water": {
+              "precision": 0.9549,
+              "recall": 0.96,
+              "f1": 0.9574,
+              "support": 4076
+            }
+          },
+          "confusion_matrix": [
+            [
+              94,
+              17,
+              0,
+              32,
+              3,
+              11
+            ],
+            [
+              18,
+              1082,
+              10,
+              138,
+              8,
+              24
+            ],
+            [
+              5,
+              44,
+              4497,
+              116,
+              1,
+              15
+            ],
+            [
+              45,
+              260,
+              65,
+              2175,
+              9,
+              11
+            ],
+            [
+              6,
+              11,
+              1,
+              3,
+              80,
+              124
+            ],
+            [
+              16,
+              21,
+              13,
+              3,
+              110,
+              3913
+            ]
+          ]
+        }
+      },
+      "heldout": {
+        "n": 1133,
+        "accuracy": 0.7537511032656664,
+        "macro_f1": 0.6363994301886894,
+        "mangrove_vs_rest_f1": 0.9531914893617021,
+        "per_class": {
+          "built_bare": {
+            "precision": 0.4353,
+            "recall": 0.6981,
+            "f1": 0.5362,
+            "support": 53
+          },
+          "cropland_aquaculture": {
+            "precision": 0.5664,
+            "recall": 0.5517,
+            "f1": 0.559,
+            "support": 116
+          },
+          "mangrove": {
+            "precision": 1.0,
+            "recall": 0.9106,
+            "f1": 0.9532,
+            "support": 123
+          },
+          "terrestrial_other": {
+            "precision": 0.5847,
+            "recall": 0.7113,
+            "f1": 0.6419,
+            "support": 97
+          },
+          "tidal_flat": {
+            "precision": 0.2018,
+            "recall": 0.4035,
+            "f1": 0.269,
+            "support": 57
+          },
+          "water": {
+            "precision": 0.9289,
+            "recall": 0.7991,
+            "f1": 0.8592,
+            "support": 687
+          }
+        },
+        "confusion_matrix": [
+          [
+            37,
+            2,
+            0,
+            6,
+            1,
+            7
+          ],
+          [
+            9,
+            64,
+            0,
+            41,
+            2,
+            0
+          ],
+          [
+            0,
+            8,
+            112,
+            2,
+            0,
+            1
+          ],
+          [
+            3,
+            25,
+            0,
+            69,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            23,
+            34
+          ],
+          [
+            36,
+            14,
+            0,
+            0,
+            88,
+            549
+          ]
+        ],
+        "calibration": {
+          "brier": 0.318,
+          "ece": 0.0452
+        }
+      },
+      "feature_importance": {
+        "ndwi_p10": 0.0912,
+        "swir22": 0.0733,
+        "elevation": 0.0663,
+        "ndwi_p90": 0.0653,
+        "ndvi_p10": 0.0584,
+        "ndvi_p90": 0.0532,
+        "mndwi": 0.0523,
+        "mvi": 0.0481,
+        "ndre": 0.0481,
+        "cmri": 0.0438,
+        "mvi_p50": 0.0388,
+        "swir16": 0.0373,
+        "ndvi_p50": 0.0318,
+        "ndwi_p50": 0.0291,
+        "ndwi": 0.0284,
+        "ndvi": 0.027,
+        "mvi_p10": 0.0242,
+        "ndmi": 0.0233,
+        "red": 0.0218,
+        "rededge1": 0.0205,
+        "savi": 0.0186,
+        "evi": 0.017,
+        "blue": 0.0166,
+        "nir08": 0.0137,
+        "mvi_p90": 0.0132,
+        "green": 0.012,
+        "rededge2": 0.0091,
+        "nir": 0.0091,
+        "rededge3": 0.0086
+      },
+      "fit_seconds_full_train": 2.11,
+      "predict_ms_per_point": 0.0277,
+      "tuning_and_eval_seconds": 371.7
+    },
+    "lightgbm": {
+      "params": {
+        "n_estimators": 200,
+        "learning_rate": 0.03050945891610522,
+        "num_leaves": 16,
+        "min_child_samples": 33,
+        "subsample": 0.7727780074568463,
+        "colsample_bytree": 0.645614570099021,
+        "reg_lambda": 0.280163515871626
+      },
+      "optuna_best_cv_macro_f1": 0.7596,
+      "cv": {
+        "per_fold": [
+          {
+            "macro_f1": 0.7284,
+            "accuracy": 0.9178,
+            "mangrove_vs_rest_f1": 0.9661,
+            "n": 2580
+          },
+          {
+            "macro_f1": 0.7903,
+            "accuracy": 0.9258,
+            "mangrove_vs_rest_f1": 0.967,
+            "n": 2589
+          },
+          {
+            "macro_f1": 0.7409,
+            "accuracy": 0.9237,
+            "mangrove_vs_rest_f1": 0.9738,
+            "n": 2582
+          },
+          {
+            "macro_f1": 0.7888,
+            "accuracy": 0.9046,
+            "mangrove_vs_rest_f1": 0.9833,
+            "n": 2621
+          },
+          {
+            "macro_f1": 0.7497,
+            "accuracy": 0.8919,
+            "mangrove_vs_rest_f1": 0.974,
+            "n": 2609
+          }
+        ],
+        "macro_f1": {
+          "mean": 0.7596,
+          "std": 0.0254
+        },
+        "accuracy": {
+          "mean": 0.9128,
+          "std": 0.0128
+        },
+        "mangrove_vs_rest_f1": {
+          "mean": 0.9729,
+          "std": 0.0062
+        },
+        "pooled_out_of_fold": {
+          "n": 12981,
+          "accuracy": 0.9127185887065712,
+          "macro_f1": 0.7638123331594953,
+          "mangrove_vs_rest_f1": 0.9728389739167923,
+          "per_class": {
+            "built_bare": {
+              "precision": 0.4685,
+              "recall": 0.6624,
+              "f1": 0.5488,
+              "support": 157
+            },
+            "cropland_aquaculture": {
+              "precision": 0.7527,
+              "recall": 0.8609,
+              "f1": 0.8032,
+              "support": 1280
+            },
+            "mangrove": {
+              "precision": 0.9811,
+              "recall": 0.9647,
+              "f1": 0.9728,
+              "support": 4678
+            },
+            "terrestrial_other": {
+              "precision": 0.8934,
+              "recall": 0.8394,
+              "f1": 0.8655,
+              "support": 2565
+            },
+            "tidal_flat": {
+              "precision": 0.4,
+              "recall": 0.48,
+              "f1": 0.4364,
+              "support": 225
+            },
+            "water": {
+              "precision": 0.9634,
+              "recall": 0.949,
+              "f1": 0.9561,
+              "support": 4076
+            }
+          },
+          "confusion_matrix": [
+            [
+              104,
+              13,
+              0,
+              29,
+              4,
+              7
+            ],
+            [
+              24,
+              1102,
+              8,
+              119,
+              7,
+              20
+            ],
+            [
+              9,
+              41,
+              4513,
+              101,
+              1,
+              13
+            ],
+            [
+              55,
+              279,
+              63,
+              2153,
+              5,
+              10
+            ],
+            [
+              8,
+              7,
+              2,
+              3,
+              108,
+              97
+            ],
+            [
+              22,
+              22,
+              14,
+              5,
+              145,
+              3868
+            ]
+          ]
+        }
+      },
+      "heldout": {
+        "n": 1133,
+        "accuracy": 0.7546337157987644,
+        "macro_f1": 0.6378040221765754,
+        "mangrove_vs_rest_f1": 0.9451476793248944,
+        "per_class": {
+          "built_bare": {
+            "precision": 0.4141,
+            "recall": 0.7736,
+            "f1": 0.5395,
+            "support": 53
+          },
+          "cropland_aquaculture": {
+            "precision": 0.5575,
+            "recall": 0.5431,
+            "f1": 0.5502,
+            "support": 116
+          },
+          "mangrove": {
+            "precision": 0.9825,
+            "recall": 0.9106,
+            "f1": 0.9451,
+            "support": 123
+          },
+          "terrestrial_other": {
+            "precision": 0.5825,
+            "recall": 0.6186,
+            "f1": 0.6,
+            "support": 97
+          },
+          "tidal_flat": {
+            "precision": 0.2397,
+            "recall": 0.5088,
+            "f1": 0.3258,
+            "support": 57
+          },
+          "water": {
+            "precision": 0.9434,
+            "recall": 0.8006,
+            "f1": 0.8661,
+            "support": 687
+          }
+        },
+        "confusion_matrix": [
+          [
+            41,
+            2,
+            1,
+            4,
+            1,
+            4
+          ],
+          [
+            17,
+            63,
+            0,
+            36,
+            0,
+            0
+          ],
+          [
+            0,
+            8,
+            112,
+            2,
+            0,
+            1
+          ],
+          [
+            7,
+            29,
+            0,
+            60,
+            1,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            29,
+            28
+          ],
+          [
+            34,
+            11,
+            1,
+            1,
+            90,
+            550
+          ]
+        ],
+        "calibration": {
+          "brier": 0.3144,
+          "ece": 0.0807
+        }
+      },
+      "feature_importance": {
+        "ndwi_p10": 0.1467,
+        "elevation": 0.1188,
+        "mvi": 0.1015,
+        "swir22": 0.0823,
+        "swir16": 0.0585,
+        "ndwi_p90": 0.0533,
+        "ndvi_p10": 0.0533,
+        "ndre": 0.0384,
+        "ndvi_p90": 0.0371,
+        "ndmi": 0.036,
+        "mvi_p50": 0.0321,
+        "mndwi": 0.0291,
+        "rededge1": 0.0287,
+        "blue": 0.0187,
+        "mvi_p90": 0.0177,
+        "mvi_p10": 0.0171,
+        "evi": 0.0163,
+        "ndvi": 0.0158,
+        "ndwi": 0.0151,
+        "green": 0.0146,
+        "red": 0.0141,
+        "nir08": 0.0098,
+        "nir": 0.0093,
+        "savi": 0.0073,
+        "rededge2": 0.0067,
+        "rededge3": 0.006,
+        "ndwi_p50": 0.0058,
+        "cmri": 0.0053,
+        "ndvi_p50": 0.0046
+      },
+      "fit_seconds_full_train": 1.24,
+      "predict_ms_per_point": 0.0127,
+      "tuning_and_eval_seconds": 375.8
+    },
+    "xgboost": {
+      "params": {
+        "n_estimators": 400,
+        "learning_rate": 0.022970694980609784,
+        "max_depth": 9,
+        "min_child_weight": 2.931430882087875,
+        "subsample": 0.649012506559675,
+        "colsample_bytree": 0.8591246762931037,
+        "reg_lambda": 1.7675188115781768
+      },
+      "optuna_best_cv_macro_f1": 0.7566,
+      "cv": {
+        "per_fold": [
+          {
+            "macro_f1": 0.7274,
+            "accuracy": 0.9225,
+            "mangrove_vs_rest_f1": 0.9684,
+            "n": 2580
+          },
+          {
+            "macro_f1": 0.7892,
+            "accuracy": 0.9255,
+            "mangrove_vs_rest_f1": 0.9687,
+            "n": 2589
+          },
+          {
+            "macro_f1": 0.7505,
+            "accuracy": 0.9314,
+            "mangrove_vs_rest_f1": 0.9723,
+            "n": 2582
+          },
+          {
+            "macro_f1": 0.7736,
+            "accuracy": 0.9039,
+            "mangrove_vs_rest_f1": 0.9802,
+            "n": 2621
+          },
+          {
+            "macro_f1": 0.7422,
+            "accuracy": 0.898,
+            "mangrove_vs_rest_f1": 0.9746,
+            "n": 2609
+          }
+        ],
+        "macro_f1": {
+          "mean": 0.7566,
+          "std": 0.0222
+        },
+        "accuracy": {
+          "mean": 0.9163,
+          "std": 0.013
+        },
+        "mangrove_vs_rest_f1": {
+          "mean": 0.9728,
+          "std": 0.0043
+        },
+        "pooled_out_of_fold": {
+          "n": 12981,
+          "accuracy": 0.9161851937447038,
+          "macro_f1": 0.7585464848958163,
+          "mangrove_vs_rest_f1": 0.9727869205119931,
+          "per_class": {
+            "built_bare": {
+              "precision": 0.5026,
+              "recall": 0.6051,
+              "f1": 0.5491,
+              "support": 157
+            },
+            "cropland_aquaculture": {
+              "precision": 0.7737,
+              "recall": 0.8469,
+              "f1": 0.8087,
+              "support": 1280
+            },
+            "mangrove": {
+              "precision": 0.979,
+              "recall": 0.9667,
+              "f1": 0.9728,
+              "support": 4678
+            },
+            "terrestrial_other": {
+              "precision": 0.8822,
+              "recall": 0.8522,
+              "f1": 0.8669,
+              "support": 2565
+            },
+            "tidal_flat": {
+              "precision": 0.4293,
+              "recall": 0.3644,
+              "f1": 0.3942,
+              "support": 225
+            },
+            "water": {
+              "precision": 0.9564,
+              "recall": 0.9627,
+              "f1": 0.9595,
+              "support": 4076
+            }
+          },
+          "confusion_matrix": [
+            [
+              95,
+              14,
+              0,
+              38,
+              2,
+              8
+            ],
+            [
+              19,
+              1084,
+              11,
+              140,
+              5,
+              21
+            ],
+            [
+              5,
+              35,
+              4522,
+              100,
+              1,
+              15
+            ],
+            [
+              46,
+              250,
+              68,
+              2186,
+              4,
+              11
+            ],
+            [
+              6,
+              4,
+              2,
+              7,
+              82,
+              124
+            ],
+            [
+              18,
+              14,
+              16,
+              7,
+              97,
+              3924
+            ]
+          ]
+        }
+      },
+      "heldout": {
+        "n": 1133,
+        "accuracy": 0.7749338040600177,
+        "macro_f1": 0.6396688025420432,
+        "mangrove_vs_rest_f1": 0.9626556016597511,
+        "per_class": {
+          "built_bare": {
+            "precision": 0.4458,
+            "recall": 0.6981,
+            "f1": 0.5441,
+            "support": 53
+          },
+          "cropland_aquaculture": {
+            "precision": 0.61,
+            "recall": 0.5259,
+            "f1": 0.5648,
+            "support": 116
+          },
+          "mangrove": {
+            "precision": 0.9831,
+            "recall": 0.9431,
+            "f1": 0.9627,
+            "support": 123
+          },
+          "terrestrial_other": {
+            "precision": 0.5691,
+            "recall": 0.7216,
+            "f1": 0.6364,
+            "support": 97
+          },
+          "tidal_flat": {
+            "precision": 0.2069,
+            "recall": 0.3158,
+            "f1": 0.25,
+            "support": 57
+          },
+          "water": {
+            "precision": 0.926,
+            "recall": 0.8384,
+            "f1": 0.8801,
+            "support": 687
+          }
+        },
+        "confusion_matrix": [
+          [
+            37,
+            2,
+            1,
+            6,
+            1,
+            6
+          ],
+          [
+            13,
+            61,
+            0,
+            42,
+            0,
+            0
+          ],
+          [
+            0,
+            3,
+            116,
+            3,
+            0,
+            1
+          ],
+          [
+            3,
+            24,
+            0,
+            70,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            18,
+            39
+          ],
+          [
+            30,
+            10,
+            1,
+            2,
+            68,
+            576
+          ]
+        ],
+        "calibration": {
+          "brier": 0.3026,
+          "ece": 0.0803
+        }
+      },
+      "feature_importance": {
+        "ndwi_p10": 0.1182,
+        "mvi": 0.1066,
+        "mvi_p50": 0.0867,
+        "swir22": 0.07,
+        "ndwi_p90": 0.0596,
+        "swir16": 0.0464,
+        "elevation": 0.0459,
+        "ndvi_p50": 0.0367,
+        "ndmi": 0.0361,
+        "ndvi_p10": 0.0345,
+        "ndre": 0.0332,
+        "ndwi": 0.0294,
+        "cmri": 0.0261,
+        "mndwi": 0.0233,
+        "ndvi_p90": 0.0228,
+        "ndwi_p50": 0.0209,
+        "ndvi": 0.0204,
+        "rededge1": 0.0203,
+        "evi": 0.0193,
+        "red": 0.0181,
+        "nir08": 0.0161,
+        "savi": 0.0157,
+        "blue": 0.0155,
+        "mvi_p10": 0.0155,
+        "nir": 0.0142,
+        "green": 0.0133,
+        "rededge2": 0.0119,
+        "rededge3": 0.0118,
+        "mvi_p90": 0.0113
+      },
+      "fit_seconds_full_train": 3.89,
+      "predict_ms_per_point": 0.0109,
+      "tuning_and_eval_seconds": 366.9
+    }
+  },
+  "onnx_parity_heldout": {
+    "points": 1133,
+    "label_agreement": 1.0,
+    "max_abs_proba_diff": 0.013995681965649875,
+    "onnx_bytes": 1412038
+  },
+  "summary": {
+    "random_forest": {
+      "cv_macro_f1": {
+        "mean": 0.751,
+        "std": 0.0234
+      },
+      "cv_accuracy": {
+        "mean": 0.9123,
+        "std": 0.0156
+      },
+      "cv_mangrove_f1": {
+        "mean": 0.9708,
+        "std": 0.0066
+      },
+      "heldout_macro_f1": 0.6364,
+      "heldout_accuracy": 0.7538,
+      "heldout_mangrove_f1": 0.9532,
+      "heldout_mangrove_precision": 1.0,
+      "heldout_mangrove_recall": 0.9106,
+      "heldout_calibration": {
+        "brier": 0.318,
+        "ece": 0.0452
+      }
+    },
+    "lightgbm": {
+      "cv_macro_f1": {
+        "mean": 0.7596,
+        "std": 0.0254
+      },
+      "cv_accuracy": {
+        "mean": 0.9128,
+        "std": 0.0128
+      },
+      "cv_mangrove_f1": {
+        "mean": 0.9729,
+        "std": 0.0062
+      },
+      "heldout_macro_f1": 0.6378,
+      "heldout_accuracy": 0.7546,
+      "heldout_mangrove_f1": 0.9451,
+      "heldout_mangrove_precision": 0.9825,
+      "heldout_mangrove_recall": 0.9106,
+      "heldout_calibration": {
+        "brier": 0.3144,
+        "ece": 0.0807
+      }
+    },
+    "xgboost": {
+      "cv_macro_f1": {
+        "mean": 0.7566,
+        "std": 0.0222
+      },
+      "cv_accuracy": {
+        "mean": 0.9163,
+        "std": 0.013
+      },
+      "cv_mangrove_f1": {
+        "mean": 0.9728,
+        "std": 0.0043
+      },
+      "heldout_macro_f1": 0.6397,
+      "heldout_accuracy": 0.7749,
+      "heldout_mangrove_f1": 0.9627,
+      "heldout_mangrove_precision": 0.9831,
+      "heldout_mangrove_recall": 0.9431,
+      "heldout_calibration": {
+        "brier": 0.3026,
+        "ece": 0.0803
+      }
+    }
+  },
+  "trials_per_model": 30,
+  "features_md5": "d5f790fb047a28f7c0b5fe1195bbd252",
+  "runtime_s": 1115.8,
+  "peak_rss_mb": 932.5
+}

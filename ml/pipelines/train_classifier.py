@@ -20,6 +20,7 @@ Selection: held-out macro-F1, then CV macro-F1 (ties = within 0.01), then simpli
 """
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -37,7 +38,7 @@ import mlflow
 import numpy as np
 import optuna
 import pandas as pd
-from classifier_eval import Candidate, mean_std, report, select_winner
+from classifier_eval import Candidate, calibration, mean_std, report, select_winner
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.utils.class_weight import compute_sample_weight
 from xgboost import XGBClassifier
@@ -61,6 +62,9 @@ POSITIVE = "mangrove"
 # clear_count describes acquisition (cloudiness), not the surface, so it is not a model input.
 FEATURE_COLS = [c for c in FEATURE_VARS if c != "clear_count"] + ["elevation"]
 COMPLEXITY = {"random_forest": 1, "lightgbm": 2, "xgboost": 3}
+# Copernicus DEM has no tiles over open sea, so elevation is missing for a few offshore water
+# points; sea level (0 m) is the physically correct value. Production must apply the same fill.
+FILL_VALUES = {"elevation": 0.0}
 
 
 # --------------------------------------------------------------------------- models
@@ -194,6 +198,52 @@ def importances(name: str, model: Any) -> dict[str, float]:
     return {FEATURE_COLS[i]: round(float(norm[i]), 4) for i in order}
 
 
+def export_onnx(name: str, model: Any, x: pd.DataFrame, path: Path) -> dict[str, Any]:
+    """Convert the winner to ONNX and verify it against the native model on `x`: identical
+    predicted classes and max |probability difference| (float32 vs float64 trees)."""
+    import onnxruntime as ort
+    from onnxmltools.convert.common.data_types import FloatTensorType
+
+    n = x.shape[1]
+    if name == "lightgbm":
+        from onnxmltools import convert_lightgbm
+
+        onx = convert_lightgbm(
+            model, initial_types=[("input", FloatTensorType([None, n]))], zipmap=False
+        )
+    elif name == "xgboost":
+        from onnxmltools import convert_xgboost
+
+        # onnxmltools requires XGBoost's positional feature names (f0, f1, ...).
+        plain = copy.deepcopy(model)
+        plain.get_booster().feature_names = None
+        onx = convert_xgboost(plain, initial_types=[("input", FloatTensorType([None, n]))])
+    else:
+        from skl2onnx import to_onnx
+
+        onx = to_onnx(
+            model,
+            x.to_numpy(dtype=np.float32)[:1],
+            options={id(model): {"zipmap": False}},
+        )
+        onx.graph.input[0].name = "input"
+        for node in onx.graph.node:
+            node.input[:] = ["input" if i == "X" else i for i in node.input]
+    path.write_bytes(onx.SerializeToString())
+
+    sess = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+    in_name = sess.get_inputs()[0].name
+    label, proba = sess.run(None, {in_name: x.to_numpy(dtype=np.float32)})[:2]
+    native_label = np.asarray(model.predict(x)).astype(int)
+    native_proba = np.asarray(model.predict_proba(x))
+    return {
+        "points": len(x),
+        "label_agreement": round(float((np.asarray(label).astype(int) == native_label).mean()), 6),
+        "max_abs_proba_diff": float(np.abs(np.asarray(proba) - native_proba).max()),
+        "onnx_bytes": path.stat().st_size,
+    }
+
+
 # --------------------------------------------------------------------------- utilities
 
 
@@ -224,11 +274,17 @@ def git_sha() -> str:
 def load(path: Path) -> tuple[pd.DataFrame, list[str], dict[str, Any]]:
     raw = pd.read_parquet(path)
     usable = raw[raw.clear_count >= MIN_CLEAR].reset_index(drop=True)
+    filled = {c: int(usable[c].isna().sum()) for c in FILL_VALUES}
+    usable = usable.fillna(FILL_VALUES)
+    remaining = usable[FEATURE_COLS].isna().sum()
+    if remaining.any():
+        raise SystemExit(f"unexpected missing features: {remaining[remaining > 0].to_dict()}")
     classes = sorted(usable.label.unique())
     info = {
         "rows_in_features": len(raw),
         "rows_dropped_too_few_clear": int((raw.clear_count < MIN_CLEAR).sum()),
         "rows_used": len(usable),
+        "filled_missing": {c: {"rows": n, "value": FILL_VALUES[c]} for c, n in filled.items()},
         "by_label_and_split": usable.groupby(["label", "split"])
         .size()
         .unstack(fill_value=0)
@@ -289,6 +345,9 @@ def main() -> None:
         pred = np.asarray(model.predict(df.loc[test, FEATURE_COLS])).astype(int)
         pred_ms = (time.time() - t_pred) / max(int(test.sum()), 1) * 1000
         heldout = report(y[test], pred, classes, POSITIVE)
+        heldout["calibration"] = calibration(
+            np.asarray(model.predict_proba(df.loc[test, FEATURE_COLS])), y[test]
+        )
         results[name] = {
             "params": params,
             "optuna_best_cv_macro_f1": round(best_cv, 4),
@@ -344,12 +403,18 @@ def main() -> None:
     else:
         model_file = "model.joblib"
         joblib.dump(model, ART / model_file, compress=3)
+    onnx_check = export_onnx(winner.name, model, df.loc[test, FEATURE_COLS], ART / "model.onnx")
+    print(f"ONNX parity on held-out: {onnx_check}")
     (ART / "features.json").write_text(
         json.dumps(
             {
                 "model_version": MODEL_VERSION,
                 "algorithm": winner.name,
                 "model_file": model_file,
+                "onnx_file": "model.onnx",
+                "onnx_input": "input (float32, [n, len(feature_columns)])",
+                "onnx_outputs": ["label (int64 class index)", "probabilities (float32)"],
+                "fill_values": FILL_VALUES,
                 "feature_columns": FEATURE_COLS,
                 "classes": classes,  # predicted index i → classes[i]
                 "positive_class": POSITIVE,
@@ -373,6 +438,7 @@ def main() -> None:
         "data": data_info,
         "reference_majority_class": reference,
         "models": results,
+        "onnx_parity_heldout": onnx_check,
         "summary": {
             n: {
                 "cv_macro_f1": r["cv"]["macro_f1"],
@@ -381,6 +447,9 @@ def main() -> None:
                 "heldout_macro_f1": round(r["heldout"]["macro_f1"], 4),
                 "heldout_accuracy": round(r["heldout"]["accuracy"], 4),
                 "heldout_mangrove_f1": round(r["heldout"]["mangrove_vs_rest_f1"], 4),
+                "heldout_mangrove_precision": r["heldout"]["per_class"]["mangrove"]["precision"],
+                "heldout_mangrove_recall": r["heldout"]["per_class"]["mangrove"]["recall"],
+                "heldout_calibration": r["heldout"]["calibration"],
             }
             for n, r in results.items()
         },
@@ -389,6 +458,7 @@ def main() -> None:
         "runtime_s": round(time.time() - t_start, 1),
         "peak_rss_mb": round(peak_rss_mb(), 1),
     }
+    METRICS.parent.mkdir(parents=True, exist_ok=True)
     METRICS.write_text(json.dumps(metrics, indent=2) + "\n")
     print(json.dumps(metrics["summary"], indent=2))
 

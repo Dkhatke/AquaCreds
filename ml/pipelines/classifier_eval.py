@@ -100,3 +100,25 @@ def select_winner(candidates: Sequence[Candidate]) -> Candidate:
             c.name,
         ),
     )
+
+
+def calibration(proba: np.ndarray, y_true: Sequence[int], bins: int = 10) -> dict[str, float]:
+    """Multiclass Brier score (mean over points of the squared error summed over classes) and
+    top-label expected calibration error (equal-width confidence bins, weighted by bin size)."""
+    p = np.asarray(proba, dtype=float)
+    t = np.asarray(y_true, dtype=int)
+    if p.ndim != 2 or p.shape[0] != t.size:
+        raise ValueError("proba must be (n_points, n_classes) and match y_true")
+    onehot = np.zeros_like(p)
+    onehot[np.arange(t.size), t] = 1.0
+    brier = float(((p - onehot) ** 2).sum(axis=1).mean())
+    conf = p.max(axis=1)
+    correct = (p.argmax(axis=1) == t).astype(float)
+    edges = np.linspace(0.0, 1.0, bins + 1)
+    idx = np.clip(np.digitize(conf, edges[1:-1], right=True), 0, bins - 1)
+    ece = 0.0
+    for b in range(bins):
+        m = idx == b
+        if m.any():
+            ece += m.mean() * abs(correct[m].mean() - conf[m].mean())
+    return {"brier": round(brier, 4), "ece": round(float(ece), 4)}

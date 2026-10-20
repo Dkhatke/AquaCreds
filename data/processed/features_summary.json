@@ -1,0 +1,126 @@
+{
+  "config": {
+    "season": [
+      "2020-11-01",
+      "2021-03-31"
+    ],
+    "max_scenes": 12,
+    "max_tile_cloud": 80.0,
+    "features": [
+      "blue",
+      "green",
+      "red",
+      "rededge1",
+      "rededge2",
+      "rededge3",
+      "nir",
+      "nir08",
+      "swir16",
+      "swir22",
+      "ndvi",
+      "evi",
+      "savi",
+      "ndwi",
+      "mndwi",
+      "ndmi",
+      "mvi",
+      "cmri",
+      "ndre",
+      "ndvi_p10",
+      "ndvi_p50",
+      "ndvi_p90",
+      "mvi_p10",
+      "mvi_p50",
+      "mvi_p90",
+      "ndwi_p10",
+      "ndwi_p50",
+      "ndwi_p90",
+      "clear_count"
+    ],
+    "min_clear": 3,
+    "dem": "cop-dem-glo-30",
+    "excluded_labels": [
+      "salt_marsh"
+    ]
+  },
+  "points_in": 14114,
+  "points_out": 14114,
+  "points_usable": 14114,
+  "usable_fraction": 1.0,
+  "cells_in": 813,
+  "cells_out": 813,
+  "failed_cells": [],
+  "failed_requests": 0,
+  "requests": 183482,
+  "points_with_failed_requests": 0,
+  "clear_count": {
+    "median": 12.0,
+    "p10": 11.0,
+    "zero": 0
+  },
+  "elevation_missing": 8,
+  "usable_by_label": {
+    "mangrove": 4801,
+    "water": 4763,
+    "terrestrial_other": 2662,
+    "cropland_aquaculture": 1396,
+    "tidal_flat": 282,
+    "built_bare": 210
+  },
+  "usable_by_label_and_split": {
+    "fold_0": {
+      "built_bare": 20,
+      "cropland_aquaculture": 203,
+      "mangrove": 937,
+      "terrestrial_other": 423,
+      "tidal_flat": 33,
+      "water": 964
+    },
+    "fold_1": {
+      "built_bare": 36,
+      "cropland_aquaculture": 202,
+      "mangrove": 959,
+      "terrestrial_other": 527,
+      "tidal_flat": 21,
+      "water": 844
+    },
+    "fold_2": {
+      "built_bare": 28,
+      "cropland_aquaculture": 216,
+      "mangrove": 958,
+      "terrestrial_other": 580,
+      "tidal_flat": 24,
+      "water": 776
+    },
+    "fold_3": {
+      "built_bare": 27,
+      "cropland_aquaculture": 381,
+      "mangrove": 927,
+      "terrestrial_other": 556,
+      "tidal_flat": 72,
+      "water": 658
+    },
+    "fold_4": {
+      "built_bare": 46,
+      "cropland_aquaculture": 278,
+      "mangrove": 897,
+      "terrestrial_other": 479,
+      "tidal_flat": 75,
+      "water": 834
+    },
+    "heldout_region": {
+      "built_bare": 53,
+      "cropland_aquaculture": 116,
+      "mangrove": 123,
+      "terrestrial_other": 97,
+      "tidal_flat": 57,
+      "water": 687
+    }
+  },
+  "unusable_by_label": {},
+  "runtime_s": {
+    "this_invocation_wall": 34429.9,
+    "sum_of_cell_seconds": 271358.3
+  },
+  "peak_rss_mb_this_invocation": 260.7
+}

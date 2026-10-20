@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from classifier_eval import (
     Candidate,
+    calibration,
     confusion_matrix,
     mean_std,
     per_class,
@@ -64,3 +65,16 @@ def test_selection_rule_heldout_then_cv_then_simplicity() -> None:
     assert select_winner([lgbm_tie2, rf]).name == "random_forest"
     with pytest.raises(ValueError, match="no candidates"):
         select_winner([])
+
+
+def test_calibration_perfect_and_overconfident() -> None:
+    perfect = calibration(np.array([[1.0, 0.0], [0.0, 1.0]]), [0, 1])
+    assert perfect == {"brier": 0.0, "ece": 0.0}
+    # always 90% confident, right half the time → ECE 0.4
+    proba = np.array([[0.9, 0.1], [0.9, 0.1], [0.1, 0.9], [0.1, 0.9]])
+    out = calibration(proba, [0, 1, 1, 0])
+    assert out["ece"] == pytest.approx(0.4)
+    # right: 0.1² + 0.1² = 0.02; wrong: 0.9² + 0.9² = 1.62 → mean 0.82
+    assert out["brier"] == pytest.approx(0.82)
+    with pytest.raises(ValueError, match="proba"):
+        calibration(np.array([0.5, 0.5]), [0])
