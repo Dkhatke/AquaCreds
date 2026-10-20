@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     jwt_access_ttl_min: int = 15
     jwt_refresh_ttl_days: int = 30
     cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    # Public web origin used in retirement-certificate links and QR codes (no trailing slash).
+    public_base_url: str = "http://localhost:3000"
 
     # Project boundary rules (MVP limits; see IMPLEMENTATION_PLAN Phase 2)
     project_min_area_ha: float = 0.5

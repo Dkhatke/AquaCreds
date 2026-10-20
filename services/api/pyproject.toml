@@ -17,6 +17,7 @@ dependencies = [
     "geojson-pydantic~=2.2",
     "shapely~=2.2",
     "rfc8785~=0.1.4",
+    "segno~=1.6.6",
 ]
 
 [project.scripts]
