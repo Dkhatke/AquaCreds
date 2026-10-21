@@ -57,13 +57,31 @@ def test_beat_schedule_without_chain_has_geo_jobs_only() -> None:
 
 def test_beat_schedule_indexes_chain_events_when_configured() -> None:
     schedule = beat_schedule(Settings(_env_file=None, chain_index_interval_s=45, **CHAIN))
-    assert set(schedule) == {"geo-nightly-ingest", "geo-reap-stale-runs", "chain-index-events"}
+    assert set(schedule) == {
+        "geo-nightly-ingest",
+        "geo-reap-stale-runs",
+        "chain-index-events",
+        "chain-top-up-org-wallets",
+    }
     entry = schedule["chain-index-events"]
     assert entry["task"] == "aqua.chain.index_events"
     assert entry["task"] in app.tasks
     assert entry["schedule"] == 45
     assert entry["options"] == {"queue": "chain", "expires": 45}
     assert beat_schedule(Settings(_env_file=None, **CHAIN))["chain-index-events"]["schedule"] == 30
+    top_up = schedule["chain-top-up-org-wallets"]
+    assert top_up["task"] == "aqua.chain.top_up_org_wallets"
+    assert top_up["task"] in app.tasks
+    assert top_up["schedule"] == 300
+    assert top_up["options"] == {"queue": "chain", "expires": 300}
+
+
+def test_top_up_task_skips_when_chain_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    from aqua_worker.tasks import chain
+
+    monkeypatch.setattr(chain, "get_settings", lambda: Settings(_env_file=None))
+    monkeypatch.setattr(chain, "_with_relayer", lambda run: pytest.fail("must not touch the chain"))
+    assert chain.top_up_org_wallets_task.run() == {"skipped": "chain not configured"}
 
 
 def test_index_task_skips_when_chain_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:

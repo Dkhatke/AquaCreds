@@ -185,6 +185,7 @@ class IssuanceOut(BaseModel):
     amount: int
     tx_hash: str
     block_number: int
+    block_time: datetime | None  # timestamp of the block, stored by the indexer
     explorer_url: str | None
 
 
@@ -226,7 +227,8 @@ class RetirementOut(BaseModel):
     purpose: str
     tx_hash: str
     block_number: int
-    # From the relayer's confirmation record when available; the indexer stores no block timestamp.
+    # Timestamp of the block the retirement was mined in, stored by the indexer for every event
+    # (buyer-signed retirements included). Null only until the indexer backfills an older row.
     block_time: datetime | None
     indexed_at: datetime
 

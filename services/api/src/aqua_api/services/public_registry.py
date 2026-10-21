@@ -299,6 +299,7 @@ async def vintages(
                         amount=_int(e.args.get("amount")),
                         tx_hash=e.tx_hash,
                         block_number=e.block_number,
+                        block_time=e.block_time,
                         explorer_url=explorer_tx_url(e.chain_id, e.tx_hash),
                     )
                     for e in by_token[tid]
@@ -323,15 +324,6 @@ async def retirements(
         if str(tid) in token_ids:
             token_meta.setdefault(tid, event)
     refs = await project_refs(session, chain_id, (e.project_key or "" for e in token_meta.values()))
-    confirmed = dict(
-        (
-            await session.execute(
-                select(ChainTransaction.tx_hash, ChainTransaction.confirmed_at).where(
-                    ChainTransaction.tx_hash.in_([e.tx_hash for e in found])
-                )
-            )
-        ).all()
-    )
     out = []
     for event in found:
         tid = _int(event.args.get("tokenId"))
@@ -350,7 +342,7 @@ async def retirements(
                     purpose=str(event.args.get("purpose", "")),
                     tx_hash=event.tx_hash,
                     block_number=event.block_number,
-                    block_time=confirmed.get(event.tx_hash),
+                    block_time=event.block_time,
                     indexed_at=event.created_at,
                 ),
                 event,

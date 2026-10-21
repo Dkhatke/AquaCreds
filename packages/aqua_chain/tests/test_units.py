@@ -317,3 +317,37 @@ def test_committed_abis_match_their_artifacts_layout() -> None:
         assert data["contractName"] == name
         assert data["abi"]
         assert data["bytecode"].startswith("0x")
+
+
+def test_funder_signer_is_separate_and_optional() -> None:
+    s = Signers.from_settings(Settings(_env_file=None, relayer_mnemonic=ANVIL_DEV_MNEMONIC))
+    assert s.address(ChainSigner.FUNDER) == s.derive(4).address
+    assert len(set(s.addresses().values())) == 4
+    with pytest.raises(ValueError, match="different keys"):
+        _signers(funder_index=3)
+    with pytest.raises(ChainNotConfiguredError, match="funder"):
+        _signers().account(ChainSigner.FUNDER)
+
+
+def test_waiting_for_gas_transitions() -> None:
+    tx = _tx(ChainTxStatus.QUEUED)
+    transition(tx, ChainTxStatus.WAITING_FOR_GAS)
+    transition(tx, ChainTxStatus.SUBMITTED)
+    assert tx.status is ChainTxStatus.SUBMITTED
+    with pytest.raises(InvalidTransitionError):
+        transition(tx, ChainTxStatus.WAITING_FOR_GAS)  # never after a broadcast
+    parked = _tx(ChainTxStatus.WAITING_FOR_GAS)
+    transition(parked, ChainTxStatus.FAILED)
+    with pytest.raises(InvalidTransitionError):
+        transition(_tx(ChainTxStatus.WAITING_FOR_GAS), ChainTxStatus.CONFIRMED)
+
+
+def test_top_up_policy_from_settings() -> None:
+    from aqua_chain.gas import TopUpPolicy
+
+    policy = TopUpPolicy.from_settings(
+        Settings(_env_file=None, chain_org_wallet_min_balance=5, chain_org_wallet_top_up=7)
+    )
+    assert (policy.min_balance, policy.amount) == (5, 7)
+    assert policy.wallet_daily_cap == 6 * 10**16
+    assert policy.global_daily_cap == 2 * 10**17

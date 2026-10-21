@@ -21,7 +21,12 @@ from aqua_core.models import (
     Project,
 )
 
-ACTIVE_STATUSES = (ChainTxStatus.QUEUED, ChainTxStatus.SUBMITTED, ChainTxStatus.CONFIRMED)
+ACTIVE_STATUSES = (
+    ChainTxStatus.QUEUED,
+    ChainTxStatus.WAITING_FOR_GAS,
+    ChainTxStatus.SUBMITTED,
+    ChainTxStatus.CONFIRMED,
+)
 CREDIT_TYPES = {"temporary": 0, "long_term": 1}
 METADATA_URI_PREFIX = "urn:aquacreds:project:"
 

@@ -28,7 +28,7 @@ class ChainNotConfiguredError(RuntimeError):
 
 
 class Signers:
-    """Derives the registrar / verifier / issuer accounts and organisation wallets."""
+    """Derives the registrar / verifier / issuer (/ funder) accounts and organisation wallets."""
 
     def __init__(
         self,
@@ -38,6 +38,7 @@ class Signers:
         verifier_index: int,
         issuer_index: int,
         org_index_offset: int,
+        funder_index: int | None = None,
     ) -> None:
         words = " ".join(mnemonic.split())
         if not words:
@@ -47,8 +48,10 @@ class Signers:
             ChainSigner.VERIFIER: verifier_index,
             ChainSigner.ISSUER: issuer_index,
         }
+        if funder_index is not None:
+            indices[ChainSigner.FUNDER] = funder_index
         if len(set(indices.values())) != len(indices):
-            raise ValueError("registrar, verifier and issuer must use different keys")
+            raise ValueError("registrar, verifier, issuer and funder must use different keys")
         self._words = words
         self._indices = indices
         self.org_index_offset = org_index_offset
@@ -61,6 +64,7 @@ class Signers:
             verifier_index=settings.chain_verifier_index,
             issuer_index=settings.chain_issuer_index,
             org_index_offset=settings.chain_org_index_offset,
+            funder_index=settings.chain_funder_index,
         )
 
     @cached_property
@@ -73,7 +77,11 @@ class Signers:
         return account
 
     def account(self, role: ChainSigner) -> LocalAccount:
-        return self.derive(self._indices[role])
+        try:
+            index = self._indices[role]
+        except KeyError:
+            raise ChainNotConfiguredError(f"no derivation index configured for {role}") from None
+        return self.derive(index)
 
     def address(self, role: ChainSigner) -> str:
         return str(self.account(role).address)

@@ -10,6 +10,10 @@ drive them directly against Anvil; the Celery wrappers only wire settings and re
 Indexer schedule: Celery beat runs `aqua.chain.index_events` every CHAIN_INDEX_INTERVAL_S (30 s)
 when the chain is configured (see `aqua_worker.celery_app.beat_schedule`). By hand:
     celery -A aqua_worker.celery_app call aqua.chain.index_events --queue chain
+
+Gas top-ups: beat runs `aqua.chain.top_up_org_wallets` every CHAIN_TOP_UP_INTERVAL_S (5 min): org
+wallets with queued / waiting-for-gas transactions below CHAIN_ORG_WALLET_MIN_BALANCE get
+CHAIN_ORG_WALLET_TOP_UP wei from the funder account, within daily caps (`aqua_chain.gas`).
 """
 
 import asyncio
@@ -24,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from aqua_chain import actions
 from aqua_chain.client import ChainClient
 from aqua_chain.errors import RetryableChainError
+from aqua_chain.gas import TopUpPolicy, summary, top_up_org_wallets
 from aqua_chain.indexer import IndexerConfig, index_events
 from aqua_chain.relayer import Relayer
 from aqua_chain.runtime import build_relayer, indexer_config
@@ -175,6 +180,10 @@ async def index_events_core(
     return asdict(await index_events(sessionmaker, client, config))
 
 
+async def top_up_org_wallets_core(relayer: Relayer, policy: TopUpPolicy) -> dict[str, Any]:
+    return summary(await top_up_org_wallets(relayer, policy))
+
+
 # ---------------------------------------------------------------- Celery wiring
 
 
@@ -304,3 +313,17 @@ def index_events_task() -> dict[str, Any]:
         get_logger("aqua_worker.chain").info("chain.index.skipped", reason="chain not configured")
         return {"skipped": "chain not configured"}
     return asyncio.run(_index())
+
+
+@shared_task(name="aqua.chain.top_up_org_wallets", **_TASK_OPTIONS)
+def top_up_org_wallets_task() -> dict[str, Any]:
+    settings = get_settings()
+    if not settings.chain_configured:
+        get_logger("aqua_worker.chain").info("chain.top_up.skipped", reason="chain not configured")
+        return {"skipped": "chain not configured"}
+    policy = TopUpPolicy.from_settings(settings)
+    result = asyncio.run(_with_relayer(lambda r: top_up_org_wallets_core(r, policy)))
+    # Top-ups and resubmitted transactions still need their confirmations.
+    for tx_id in [*result["top_ups"], *result["resubmitted"]]:
+        send.apply_async(args=[tx_id], countdown=CONFIRM_POLL_S, queue="chain")
+    return result

@@ -22,6 +22,15 @@ NONCE_HOLDING_STATUSES = (
     ChainTxStatus.CONFIRMED,
     ChainTxStatus.REVERTED,
 )
+# Not finished yet: queued, parked until its custodial wallet has gas, or broadcast.
+PENDING_STATUSES = (
+    ChainTxStatus.QUEUED,
+    ChainTxStatus.WAITING_FOR_GAS,
+    ChainTxStatus.SUBMITTED,
+)
+# `contract`/`function` of a plain native-token transfer (no contract call), e.g. a gas top-up.
+NATIVE_CONTRACT = "native"
+NATIVE_TRANSFER = "transfer"
 
 
 class ChainTransaction(UUIDPk, Timestamps, Base):
@@ -88,7 +97,7 @@ class ChainCursor(Base):
 
 class ChainEvent(Base):
     """A decoded contract log. (chain, tx hash, log index) is unique, so re-indexing is
-    idempotent."""
+    idempotent. `block_time` is the timestamp of the block (`block_hash`) the log was mined in."""
 
     __tablename__ = "chain_events"
     __table_args__ = (
@@ -105,6 +114,7 @@ class ChainEvent(Base):
     block_hash: Mapped[str] = mapped_column(sa.String(66))
     tx_hash: Mapped[str] = mapped_column(sa.String(66), index=True)
     log_index: Mapped[int] = mapped_column(sa.Integer)
+    block_time: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     # bytes32 project id (0x-hex) when the event carries one, for per-project lookups.
     project_key: Mapped[str | None] = mapped_column(sa.String(66), index=True)
     args: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)

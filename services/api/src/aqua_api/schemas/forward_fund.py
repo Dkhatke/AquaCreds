@@ -115,12 +115,21 @@ class RequestListOut(BaseModel):
     disclaimer: str = DISCLAIMER
 
 
+class CapacitySourceOut(BaseModel):
+    name: Literal["mrv_reports", "onchain_report_approved"]
+    total: int  # signed sum of lCCC (negative after uncovered reversals)
+    description: str
+    report_ids: list[str]  # MRV report UUIDs, or on-chain AquaRegistry report ids
+
+
 class CapacityOut(BaseModel):
-    total: int
+    total: int  # the smaller of the sources when they disagree, never negative
     committed: int  # active offers + undelivered open awards
     available: int
     source: str
-    report_ids: list[int]
+    report_ids: list[int]  # on-chain report ids
+    sources_agree: bool
+    capacity_sources: list[CapacitySourceOut]
     note: str = "Estimated eligibility screen only; it does not make delivery certain."
 
 
