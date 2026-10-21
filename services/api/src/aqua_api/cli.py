@@ -1,4 +1,5 @@
-"""Operational commands: `aqua-api migrate | revision -m "msg" [--autogenerate] | bootstrap`."""
+"""Operational commands: `aqua-api migrate | revision -m "msg" [--autogenerate] | bootstrap |
+create-user | seed-demo [--seed N] [--with-chain]`."""
 
 import argparse
 import asyncio
@@ -89,6 +90,16 @@ def main(argv: list[str] | None = None) -> None:
     cu.add_argument(
         "--role", default="registry_admin", choices=["user", "verifier", "registry_admin"]
     )
+    sd = sub.add_parser(
+        "seed-demo",
+        help="seed a clearly labelled SYNTHETIC demo project (refused in production)",
+    )
+    sd.add_argument("--seed", type=int, default=42, help="deterministic seed (default 42)")
+    sd.add_argument(
+        "--with-chain",
+        action="store_true",
+        help="also anchor the reports and issue credits on a local Anvil (chain id 31337 only)",
+    )
     args = parser.parse_args(argv)
 
     if args.cmd == "migrate":
@@ -113,6 +124,22 @@ def main(argv: list[str] | None = None) -> None:
         if len(password) < 10:
             raise SystemExit("Password must be at least 10 characters")
         asyncio.run(create_user(args.email, args.name, password, args.role))
+    elif args.cmd == "seed-demo":
+        seed_demo_command(args.seed, args.with_chain)
+
+
+def seed_demo_command(seed: int, with_chain: bool) -> None:
+    import logging
+
+    from aqua_api.demo import DemoSeedError, print_result, refuse_unsafe, seed_demo
+
+    logging.getLogger("httpx").setLevel(logging.WARNING)  # in-process API calls, not news
+    settings = get_settings()
+    try:
+        refuse_unsafe(settings, with_chain=with_chain)  # before touching any service
+        print_result(asyncio.run(seed_demo(settings, seed=seed, with_chain=with_chain)))
+    except DemoSeedError as exc:
+        raise SystemExit(f"seed-demo: {exc}") from exc
 
 
 if __name__ == "__main__":
