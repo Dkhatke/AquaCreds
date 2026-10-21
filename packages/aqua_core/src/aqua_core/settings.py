@@ -134,6 +134,8 @@ class Settings(BaseSettings):
     chain_credit_address: str | None = None
     chain_marketplace_address: str | None = None
     chain_usdc_address: str | None = None
+    # Decimals of the marketplace payment token (mUSDC: 6). Unset: read once from its decimals().
+    chain_payment_token_decimals: int | None = Field(default=None, ge=0, le=36)
     # AquaForwardFund (Phase 7, reverse-auction forward funding). Optional: when unset the indexer
     # skips it and the forward-fund API answers 503.
     chain_forward_fund_address: str | None = None

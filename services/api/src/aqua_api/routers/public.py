@@ -438,6 +438,9 @@ async def get_retirement(
         verification=reg.certificate_verification(settings.public_base_url, retirement, event),
         qr_png_url=base,
         qr_svg_url=base.removesuffix(".png") + ".svg",
+        certificate_pdf_url=str(
+            request.url_for("retirement_certificate_pdf", retirement_id=retirement_id)
+        ),
     )
     return cached(request, detail)
 
