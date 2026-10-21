@@ -19,6 +19,7 @@ from aqua_api.routers import (
     field,
     forward_fund,
     health,
+    marketplace,
     orgs,
     projects,
     public,
@@ -97,6 +98,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         forward_fund,
         system,
         public,
+        marketplace,
     ):
         app.include_router(module.router, prefix="/api/v1")
     return app

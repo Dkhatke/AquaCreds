@@ -61,6 +61,14 @@ USER app
 
 # ---------------------------------------------------------------- api
 FROM runtime AS api
+# WeasyPrint system libraries for retirement certificate PDFs (aqua_api.services.certificate).
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \
+      fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
+USER app
 COPY --from=build-api --chown=app:app /opt/venv /opt/venv
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 \

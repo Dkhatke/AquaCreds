@@ -1797,6 +1797,110 @@
         "title": "IssuanceOut",
         "type": "object"
       },
+      "ListingOut": {
+        "properties": {
+          "amount_listed": {
+            "title": "Amount Listed",
+            "type": "integer"
+          },
+          "amount_sold": {
+            "title": "Amount Sold",
+            "type": "integer"
+          },
+          "closed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChainRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "listed": {
+            "$ref": "#/components/schemas/ChainRef"
+          },
+          "listed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listed At"
+          },
+          "listing_id": {
+            "title": "Listing Id",
+            "type": "integer"
+          },
+          "payment_token": {
+            "$ref": "#/components/schemas/PaymentToken"
+          },
+          "price_per_unit": {
+            "$ref": "#/components/schemas/Price"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectRef"
+          },
+          "project_facts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PublicProjectSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remaining": {
+            "title": "Remaining",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "sold_out",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "stewardship": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StewardshipSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vintage": {
+            "$ref": "#/components/schemas/VintageFacts"
+          }
+        },
+        "required": [
+          "listing_id",
+          "status",
+          "vintage",
+          "project",
+          "project_facts",
+          "stewardship",
+          "amount_listed",
+          "amount_sold",
+          "remaining",
+          "price_per_unit",
+          "payment_token",
+          "listed",
+          "listed_at",
+          "closed"
+        ],
+        "title": "ListingOut",
+        "type": "object"
+      },
       "LoginIn": {
         "properties": {
           "email": {
@@ -2655,6 +2759,37 @@
         "title": "OrgType",
         "type": "string"
       },
+      "Page_ListingOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ListingOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[ListingOut]",
+        "type": "object"
+      },
       "Page_PublicProjectSummary_": {
         "properties": {
           "items": {
@@ -2717,6 +2852,37 @@
         "title": "Page[RetirementOut]",
         "type": "object"
       },
+      "Page_TradeOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TradeOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "Page[TradeOut]",
+        "type": "object"
+      },
       "Page_VintageOut_": {
         "properties": {
           "items": {
@@ -2746,6 +2912,31 @@
           "offset"
         ],
         "title": "Page[VintageOut]",
+        "type": "object"
+      },
+      "PaymentToken": {
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "decimals": {
+            "title": "Decimals",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "address",
+          "decimals"
+        ],
+        "title": "PaymentToken",
         "type": "object"
       },
       "PeriodCreate": {
@@ -3130,6 +3321,80 @@
         ],
         "type": "array"
       },
+      "Price": {
+        "properties": {
+          "decimal": {
+            "title": "Decimal",
+            "type": "string"
+          },
+          "units": {
+            "title": "Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "units",
+          "decimal"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricePoint": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "block_number": {
+            "title": "Block Number",
+            "type": "integer"
+          },
+          "credit_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "temporary",
+                  "long_term"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Type"
+          },
+          "price_per_unit": {
+            "$ref": "#/components/schemas/Price"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "time",
+          "block_number",
+          "token_id",
+          "credit_type",
+          "amount",
+          "price_per_unit"
+        ],
+        "title": "PricePoint",
+        "type": "object"
+      },
       "ProjectChainOut": {
         "properties": {
           "events": {
@@ -3294,6 +3559,62 @@
           "awards"
         ],
         "title": "ProjectForwardFundOut",
+        "type": "object"
+      },
+      "ProjectMarket": {
+        "properties": {
+          "active_listings": {
+            "items": {
+              "$ref": "#/components/schemas/ListingOut"
+            },
+            "title": "Active Listings",
+            "type": "array"
+          },
+          "last_price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Price"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "payment_token": {
+            "$ref": "#/components/schemas/PaymentToken"
+          },
+          "price_history": {
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            },
+            "title": "Price History",
+            "type": "array"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ProjectRef"
+          },
+          "trades": {
+            "items": {
+              "$ref": "#/components/schemas/TradeOut"
+            },
+            "title": "Trades",
+            "type": "array"
+          },
+          "volume_units": {
+            "title": "Volume Units",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project",
+          "payment_token",
+          "active_listings",
+          "trades",
+          "price_history",
+          "volume_units",
+          "last_price"
+        ],
+        "title": "ProjectMarket",
         "type": "object"
       },
       "ProjectOut": {
@@ -5292,6 +5613,10 @@
             ],
             "title": "Block Time"
           },
+          "certificate_pdf_url": {
+            "title": "Certificate Pdf Url",
+            "type": "string"
+          },
           "credit_type": {
             "anyOf": [
               {
@@ -5364,7 +5689,8 @@
           "indexed_at",
           "verification",
           "qr_png_url",
-          "qr_svg_url"
+          "qr_svg_url",
+          "certificate_pdf_url"
         ],
         "title": "RetirementDetail",
         "type": "object"
@@ -5585,6 +5911,37 @@
           "balance_wei"
         ],
         "title": "SignerStatus",
+        "type": "object"
+      },
+      "StewardshipSummary": {
+        "description": "The project's current stewardship score (off-chain, non-transferable; see\n`GET /projects/{id}/stewardship` for the explained breakdown, staff only).",
+        "properties": {
+          "insufficient_data": {
+            "title": "Insufficient Data",
+            "type": "boolean"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_version": {
+            "title": "Score Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "score",
+          "insufficient_data",
+          "score_version"
+        ],
+        "title": "StewardshipSummary",
         "type": "object"
       },
       "SubmissionCreate": {
@@ -6110,6 +6467,89 @@
         "title": "TokenPair",
         "type": "object"
       },
+      "TradeOut": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "block_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Time"
+          },
+          "chain": {
+            "$ref": "#/components/schemas/ChainRef"
+          },
+          "credit_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "temporary",
+                  "long_term"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Credit Type"
+          },
+          "fee": {
+            "$ref": "#/components/schemas/Price"
+          },
+          "listing_id": {
+            "title": "Listing Id",
+            "type": "integer"
+          },
+          "payment_token": {
+            "$ref": "#/components/schemas/PaymentToken"
+          },
+          "price_per_unit": {
+            "$ref": "#/components/schemas/Price"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "integer"
+          },
+          "total_price": {
+            "$ref": "#/components/schemas/Price"
+          }
+        },
+        "required": [
+          "listing_id",
+          "token_id",
+          "credit_type",
+          "project",
+          "amount",
+          "price_per_unit",
+          "total_price",
+          "fee",
+          "payment_token",
+          "chain",
+          "block_time"
+        ],
+        "title": "TradeOut",
+        "type": "object"
+      },
       "TreeRecord": {
         "properties": {
           "alive": {
@@ -6377,6 +6817,85 @@
           "sha256_hex"
         ],
         "title": "VerifyHashRequest",
+        "type": "object"
+      },
+      "VintageFacts": {
+        "properties": {
+          "credit_type": {
+            "enum": [
+              "temporary",
+              "long_term"
+            ],
+            "title": "Credit Type",
+            "type": "string"
+          },
+          "credit_unit": {
+            "enum": [
+              "tCCC",
+              "lCCC"
+            ],
+            "title": "Credit Unit",
+            "type": "string"
+          },
+          "expired": {
+            "title": "Expired",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "mrv_report_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mrv Report Id"
+          },
+          "report_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Hash"
+          },
+          "report_id": {
+            "title": "Report Id",
+            "type": "integer"
+          },
+          "token_id": {
+            "title": "Token Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "token_id",
+          "credit_type",
+          "credit_unit",
+          "report_id",
+          "report_hash",
+          "mrv_report_id",
+          "expires_at",
+          "expired"
+        ],
+        "title": "VintageFacts",
         "type": "object"
       },
       "VintageOut": {
@@ -9474,6 +9993,311 @@
         ]
       }
     },
+    "/api/v1/public/marketplace/listings": {
+      "get": {
+        "description": "Active listings of unexpired vintages, joined with the project's public facts, the anchored\nMRV report hash and the project's current stewardship score (with its `score_version`).",
+        "operationId": "list_listings_api_v1_public_marketplace_listings_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "credit_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "temporary",
+                    "long_term"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Credit Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "description": "Max price per unit, payment-token base units",
+            "in": "query",
+            "name": "max_price",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Max price per unit, payment-token base units",
+              "title": "Max Price"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "newest",
+              "enum": [
+                "newest",
+                "price_asc",
+                "price_desc"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ListingOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Listings",
+        "tags": [
+          "public marketplace"
+        ]
+      }
+    },
+    "/api/v1/public/marketplace/listings/{listing_id}": {
+      "get": {
+        "description": "One listing in any state (active, sold_out or cancelled).",
+        "operationId": "get_listing_api_v1_public_marketplace_listings__listing_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "listing_id",
+            "required": true,
+            "schema": {
+              "title": "Listing Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Listing",
+        "tags": [
+          "public marketplace"
+        ]
+      }
+    },
+    "/api/v1/public/marketplace/projects/{project_id}/market": {
+      "get": {
+        "description": "A public project's active listings, its trades and the price history (one point per trade,\noldest first).",
+        "operationId": "project_market_api_v1_public_marketplace_projects__project_id__market_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMarket"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Market",
+        "tags": [
+          "public marketplace"
+        ]
+      }
+    },
+    "/api/v1/public/marketplace/trades": {
+      "get": {
+        "description": "Purchases, newest first.",
+        "operationId": "list_trades_api_v1_public_marketplace_trades_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "project_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_TradeOut_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Trades",
+        "tags": [
+          "public marketplace"
+        ]
+      }
+    },
     "/api/v1/public/projects": {
       "get": {
         "description": "Registered and in-review projects (drafts and rejected projects are never listed).",
@@ -9917,6 +10741,45 @@
         "summary": "Get Retirement",
         "tags": [
           "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/retirements/{retirement_id}/certificate.pdf": {
+      "get": {
+        "description": "Printable retirement certificate: retirement facts, the vintage's MRV report hash, the\nverification payload hash and a QR code to the public certificate page. The same retirement\nalways gives the same bytes. 503 until the indexer has stored the block time.",
+        "operationId": "retirement_certificate_pdf_api_v1_public_retirements__retirement_id__certificate_pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "retirement_id",
+            "required": true,
+            "schema": {
+              "title": "Retirement Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retirement Certificate Pdf",
+        "tags": [
+          "public marketplace"
         ]
       }
     },

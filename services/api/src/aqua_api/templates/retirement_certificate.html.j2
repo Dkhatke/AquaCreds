@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Retirement certificate #{{ c.retirement_id }} — AquaCreds</title>
+<meta name="author" content="AquaCreds public registry">
+<meta name="description" content="Retirement {{ c.retirement_id }}: {{ c.amount }} {{ c.credit_unit }} of token {{ c.token_id }}, tx {{ c.tx_hash }}">
+<meta name="generator" content="AquaCreds">
+<meta name="dcterms.created" content="{{ c.block_time_iso }}">
+<meta name="dcterms.modified" content="{{ c.block_time_iso }}">
+<style>
+  @page {
+    size: A4; margin: 18mm 16mm 20mm 16mm;
+    @top-center { content: "{{ c.status_label }}"; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 8pt; color: #a33; }
+    @bottom-center { content: "Verify at {{ c.certificate_url }}"; font-family: "DejaVu Sans", Arial, sans-serif; font-size: 7.5pt; color: #666; }
+  }
+  body { font-family: "DejaVu Sans", "Helvetica Neue", Arial, sans-serif; font-size: 9.5pt; color: #1b1b1b; line-height: 1.35; }
+  h1 { font-size: 19pt; margin: 0 0 1mm; color: #0b4f5c; }
+  h2 { font-size: 12pt; margin: 6mm 0 2mm; color: #0b4f5c; border-bottom: 0.4pt solid #9bb; padding-bottom: 1mm; }
+  .banner { border: 1pt solid #a33; background: #fdf0f0; color: #7a1f1f; padding: 2.5mm 3mm; font-weight: bold; margin: 3mm 0; }
+  .headline { font-size: 14pt; margin: 4mm 0; }
+  .headline b { color: #0b4f5c; }
+  table { border-collapse: collapse; width: 100%; margin: 1mm 0 2mm; }
+  td { border: 0.4pt solid #bbb; padding: 1.2mm 1.5mm; vertical-align: top; text-align: left; }
+  table.kv td:first-child { width: 34%; color: #444; }
+  .mono { font-family: "DejaVu Sans Mono", Menlo, "Courier New", monospace; font-size: 8.3pt; word-break: break-all; }
+  .qr { float: right; width: 38mm; margin: 0 0 2mm 4mm; text-align: center; font-size: 7pt; color: #555; }
+  .qr img { width: 38mm; height: 38mm; }
+  .small { font-size: 8pt; color: #555; }
+</style>
+</head>
+<body>
+<div class="qr"><img src="{{ c.qr_data_uri }}" alt="QR code"><br>Scan to verify</div>
+<h1>Retirement certificate</h1>
+<div class="small">AquaCreds public registry · certificate #{{ c.retirement_id }}</div>
+<div class="banner">{{ c.status_label }}</div>
+<p class="headline"><b>{{ c.amount }} {{ c.credit_unit }}</b> ({{ c.amount }} tCO₂e) permanently retired{% if c.project_name %} from <b>{{ c.project_name }}</b>{% endif %}.</p>
+
+<h2>Retirement</h2>
+<table class="kv">
+  <tr><td>Beneficiary</td><td>{{ c.beneficiary or "—" }}</td></tr>
+  <tr><td>Purpose</td><td>{{ c.purpose or "—" }}</td></tr>
+  <tr><td>Amount</td><td>{{ c.amount }} {{ c.credit_unit }}</td></tr>
+  <tr><td>Retired at (block time, UTC)</td><td>{{ c.block_time_text }}</td></tr>
+</table>
+
+<h2>Vintage</h2>
+<table class="kv">
+  <tr><td>Project</td><td>{{ c.project_name or "Not public in this registry" }}</td></tr>
+  <tr><td>On-chain project id</td><td class="mono">{{ c.project_key or "—" }}</td></tr>
+  <tr><td>Token id (ERC-1155)</td><td>{{ c.token_id }}</td></tr>
+  <tr><td>Credit type</td><td>{{ c.credit_type_text }}</td></tr>
+  <tr><td>Registry report id</td><td>{{ c.report_id if c.report_id is not none else "—" }}</td></tr>
+  <tr><td>MRV report hash (SHA-256)</td><td class="mono">{{ c.report_hash or "—" }}</td></tr>
+  <tr><td>Methodology</td><td>{{ c.methodology }}</td></tr>
+</table>
+
+<h2>On-chain record</h2>
+<table class="kv">
+  <tr><td>Chain id</td><td>{{ c.chain_id }}</td></tr>
+  <tr><td>Contract (AquaCredit)</td><td class="mono">{{ c.contract_address }}</td></tr>
+  <tr><td>Event</td><td>CreditsRetired, log index {{ c.log_index }}</td></tr>
+  <tr><td>Transaction hash</td><td class="mono">{{ c.tx_hash }}</td></tr>
+  <tr><td>Block</td><td>{{ c.block_number }} <span class="mono">{{ c.block_hash }}</span></td></tr>
+  {% if c.explorer_url %}<tr><td>Explorer</td><td class="mono">{{ c.explorer_url }}</td></tr>{% endif %}
+</table>
+
+<h2>Verification</h2>
+<table class="kv">
+  <tr><td>Certificate page</td><td class="mono">{{ c.certificate_url }}</td></tr>
+  <tr><td>Verification payload SHA-256</td><td class="mono">{{ c.payload_sha256 }}</td></tr>
+</table>
+<p class="small">The payload hash is the SHA-256 of the RFC 8785 canonical JSON of the verification fields
+shown on the certificate page (chain id, contract, transaction hash, log index, retirement id, token id,
+amount, beneficiary, purpose). Anyone can check the CreditsRetired log at this transaction on any RPC or
+explorer without trusting AquaCreds. {{ c.status_label }}: credits are estimates from the stated methodology
+profile and do not claim compliance until reviewed by an accredited verifier.</p>
+</body>
+</html>

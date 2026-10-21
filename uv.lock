@@ -234,6 +234,7 @@ dependencies = [
     { name = "email-validator" },
     { name = "fastapi" },
     { name = "geojson-pydantic" },
+    { name = "jinja2" },
     { name = "orjson" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "pyotp" },
@@ -241,6 +242,7 @@ dependencies = [
     { name = "segno" },
     { name = "shapely" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "weasyprint" },
 ]
 
 [package.metadata]
@@ -254,6 +256,7 @@ requires-dist = [
     { name = "email-validator", specifier = "~=2.3" },
     { name = "fastapi", specifier = "~=0.146.0" },
     { name = "geojson-pydantic", specifier = "~=2.2" },
+    { name = "jinja2", specifier = "~=3.1" },
     { name = "orjson", specifier = "~=3.13" },
     { name = "pyjwt", extras = ["crypto"], specifier = "~=2.15" },
     { name = "pyotp", specifier = "~=2.10" },
@@ -261,6 +264,7 @@ requires-dist = [
     { name = "segno", specifier = "~=1.6.6" },
     { name = "shapely", specifier = "~=2.2" },
     { name = "uvicorn", extras = ["standard"], specifier = "~=0.54.0" },
+    { name = "weasyprint", specifier = "~=70.0" },
 ]
 
 [[package]]

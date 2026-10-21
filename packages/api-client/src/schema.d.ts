@@ -885,6 +885,88 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/public/marketplace/listings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Listings
+     * @description Active listings of unexpired vintages, joined with the project's public facts, the anchored
+     *     MRV report hash and the project's current stewardship score (with its `score_version`).
+     */
+    get: operations["list_listings_api_v1_public_marketplace_listings_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/marketplace/listings/{listing_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Listing
+     * @description One listing in any state (active, sold_out or cancelled).
+     */
+    get: operations["get_listing_api_v1_public_marketplace_listings__listing_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/marketplace/projects/{project_id}/market": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Project Market
+     * @description A public project's active listings, its trades and the price history (one point per trade,
+     *     oldest first).
+     */
+    get: operations["project_market_api_v1_public_marketplace_projects__project_id__market_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/marketplace/trades": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Trades
+     * @description Purchases, newest first.
+     */
+    get: operations["list_trades_api_v1_public_marketplace_trades_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/public/projects": {
     parameters: {
       query?: never;
@@ -1033,6 +1115,28 @@ export interface paths {
     };
     /** Get Retirement */
     get: operations["get_retirement_api_v1_public_retirements__retirement_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/retirements/{retirement_id}/certificate.pdf": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Retirement Certificate Pdf
+     * @description Printable retirement certificate: retirement facts, the vintage's MRV report hash, the
+     *     verification payload hash and a QR code to the public certificate page. The same retirement
+     *     always gives the same bytes. 503 until the indexer has stored the block time.
+     */
+    get: operations["retirement_certificate_pdf_api_v1_public_retirements__retirement_id__certificate_pdf_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -1967,6 +2071,32 @@ export interface components {
       /** Tx Hash */
       tx_hash: string;
     };
+    /** ListingOut */
+    ListingOut: {
+      /** Amount Listed */
+      amount_listed: number;
+      /** Amount Sold */
+      amount_sold: number;
+      closed: components["schemas"]["ChainRef"] | null;
+      listed: components["schemas"]["ChainRef"];
+      /** Listed At */
+      listed_at: string | null;
+      /** Listing Id */
+      listing_id: number;
+      payment_token: components["schemas"]["PaymentToken"];
+      price_per_unit: components["schemas"]["Price"];
+      project: components["schemas"]["ProjectRef"];
+      project_facts: components["schemas"]["PublicProjectSummary"] | null;
+      /** Remaining */
+      remaining: number;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: "active" | "sold_out" | "cancelled";
+      stewardship: components["schemas"]["StewardshipSummary"] | null;
+      vintage: components["schemas"]["VintageFacts"];
+    };
     /** LoginIn */
     LoginIn: {
       /**
@@ -2331,6 +2461,17 @@ export interface components {
      * @enum {string}
      */
     OrgType: "ngo" | "panchayat" | "company" | "government";
+    /** Page[ListingOut] */
+    Page_ListingOut_: {
+      /** Items */
+      items: components["schemas"]["ListingOut"][];
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Total */
+      total: number;
+    };
     /** Page[PublicProjectSummary] */
     Page_PublicProjectSummary_: {
       /** Items */
@@ -2353,6 +2494,17 @@ export interface components {
       /** Total */
       total: number;
     };
+    /** Page[TradeOut] */
+    Page_TradeOut_: {
+      /** Items */
+      items: components["schemas"]["TradeOut"][];
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Total */
+      total: number;
+    };
     /** Page[VintageOut] */
     Page_VintageOut_: {
       /** Items */
@@ -2363,6 +2515,13 @@ export interface components {
       offset: number;
       /** Total */
       total: number;
+    };
+    /** PaymentToken */
+    PaymentToken: {
+      /** Address */
+      address: string | null;
+      /** Decimals */
+      decimals: number;
     };
     /** PeriodCreate */
     PeriodCreate: {
@@ -2517,6 +2676,27 @@ export interface components {
     };
     Position2D: [number, number];
     Position3D: [number, number, number];
+    /** Price */
+    Price: {
+      /** Decimal */
+      decimal: string;
+      /** Units */
+      units: number;
+    };
+    /** PricePoint */
+    PricePoint: {
+      /** Amount */
+      amount: number;
+      /** Block Number */
+      block_number: number;
+      /** Credit Type */
+      credit_type: ("temporary" | "long_term") | null;
+      price_per_unit: components["schemas"]["Price"];
+      /** Time */
+      time: string | null;
+      /** Token Id */
+      token_id: number;
+    };
     /** ProjectChainOut */
     ProjectChainOut: {
       /** Events */
@@ -2591,6 +2771,20 @@ export interface components {
       project_id: string;
       /** Project Key */
       project_key: string;
+    };
+    /** ProjectMarket */
+    ProjectMarket: {
+      /** Active Listings */
+      active_listings: components["schemas"]["ListingOut"][];
+      last_price: components["schemas"]["Price"] | null;
+      payment_token: components["schemas"]["PaymentToken"];
+      /** Price History */
+      price_history: components["schemas"]["PricePoint"][];
+      project: components["schemas"]["ProjectRef"];
+      /** Trades */
+      trades: components["schemas"]["TradeOut"][];
+      /** Volume Units */
+      volume_units: number;
     };
     /** ProjectOut */
     ProjectOut: {
@@ -3338,6 +3532,8 @@ export interface components {
       block_number: number;
       /** Block Time */
       block_time: string | null;
+      /** Certificate Pdf Url */
+      certificate_pdf_url: string;
       /** Credit Type */
       credit_type: ("temporary" | "long_term") | null;
       /**
@@ -3428,6 +3624,19 @@ export interface components {
       /** Balance Wei */
       balance_wei: number | null;
       role: components["schemas"]["ChainSigner"];
+    };
+    /**
+     * StewardshipSummary
+     * @description The project's current stewardship score (off-chain, non-transferable; see
+     *     `GET /projects/{id}/stewardship` for the explained breakdown, staff only).
+     */
+    StewardshipSummary: {
+      /** Insufficient Data */
+      insufficient_data: boolean;
+      /** Score */
+      score: number | null;
+      /** Score Version */
+      score_version: string;
     };
     /** SubmissionCreate */
     SubmissionCreate: {
@@ -3650,6 +3859,25 @@ export interface components {
        */
       token_type: string;
     };
+    /** TradeOut */
+    TradeOut: {
+      /** Amount */
+      amount: number;
+      /** Block Time */
+      block_time: string | null;
+      chain: components["schemas"]["ChainRef"];
+      /** Credit Type */
+      credit_type: ("temporary" | "long_term") | null;
+      fee: components["schemas"]["Price"];
+      /** Listing Id */
+      listing_id: number;
+      payment_token: components["schemas"]["PaymentToken"];
+      price_per_unit: components["schemas"]["Price"];
+      project: components["schemas"]["ProjectRef"] | null;
+      /** Token Id */
+      token_id: number;
+      total_price: components["schemas"]["Price"];
+    };
     /** TreeRecord */
     TreeRecord: {
       /**
@@ -3776,6 +4004,31 @@ export interface components {
        * @description 64 hex characters, optional 0x prefix
        */
       sha256_hex: string;
+    };
+    /** VintageFacts */
+    VintageFacts: {
+      /**
+       * Credit Type
+       * @enum {string}
+       */
+      credit_type: "temporary" | "long_term";
+      /**
+       * Credit Unit
+       * @enum {string}
+       */
+      credit_unit: "tCCC" | "lCCC";
+      /** Expired */
+      expired: boolean;
+      /** Expires At */
+      expires_at: string | null;
+      /** Mrv Report Id */
+      mrv_report_id: string | null;
+      /** Report Hash */
+      report_hash: string | null;
+      /** Report Id */
+      report_id: number;
+      /** Token Id */
+      token_id: number;
     };
     /** VintageOut */
     VintageOut: {
@@ -5627,6 +5880,139 @@ export interface operations {
       };
     };
   };
+  list_listings_api_v1_public_marketplace_listings_get: {
+    parameters: {
+      query?: {
+        project_id?: string | null;
+        credit_type?: ("temporary" | "long_term") | null;
+        state?: string | null;
+        /** @description Max price per unit, payment-token base units */
+        max_price?: number | null;
+        sort?: "newest" | "price_asc" | "price_desc";
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_ListingOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_listing_api_v1_public_marketplace_listings__listing_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        listing_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ListingOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  project_market_api_v1_public_marketplace_projects__project_id__market_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectMarket"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_trades_api_v1_public_marketplace_trades_get: {
+    parameters: {
+      query?: {
+        project_id?: string | null;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Page_TradeOut_"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   list_projects_api_v1_public_projects_get: {
     parameters: {
       query?: {
@@ -5868,6 +6254,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["RetirementDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  retirement_certificate_pdf_api_v1_public_retirements__retirement_id__certificate_pdf_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        retirement_id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/pdf": unknown;
         };
       };
       /** @description Validation Error */

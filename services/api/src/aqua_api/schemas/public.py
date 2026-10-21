@@ -237,6 +237,7 @@ class RetirementDetail(RetirementOut):
     verification: CertificateVerification
     qr_png_url: str
     qr_svg_url: str
+    certificate_pdf_url: str  # printable certificate (GET /public/retirements/{id}/certificate.pdf)
 
 
 class VerifyHashRequest(BaseModel):
