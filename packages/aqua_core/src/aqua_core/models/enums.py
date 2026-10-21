@@ -155,6 +155,7 @@ class AnalysisKind(StrEnum):
     BACKFILL = "backfill"  # all scenes since the backfill start date (once, at registration)
     INCREMENTAL = "incremental"  # nightly: only scenes newer than the latest observation
     COMPOSITE = "composite"  # seasonal (dry-season) median + percentile composite
+    CLASSIFICATION = "classification"  # ecosystem classifier on one dry season (aqua.ml)
 
 
 class AnalysisStatus(StrEnum):
@@ -168,6 +169,7 @@ class AlertKind(StrEnum):
     VEGETATION_LOSS = "vegetation_loss"  # Sentinel-2 NDVI below the project's own envelope
     # Sentinel-1 VH backscatter drop (heuristic; never high severity on SAR alone)
     SAR_BACKSCATTER_DROP = "sar_backscatter_drop"
+    MANGROVE_AREA_LOSS = "mangrove_area_loss"  # classified mangrove area fell vs previous season
 
 
 class SarTrigger(StrEnum):

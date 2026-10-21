@@ -110,6 +110,22 @@ class Settings(BaseSettings):
     geo_sar_alert_min_history: int = Field(default=6, ge=1, le=200)
     geo_sar_alert_min_valid_fraction: float = Field(default=0.6, ge=0, le=1)
 
+    # Ecosystem classifier serving (worker `ml` queue, aqua.ml.classify_project). The model files
+    # live in object storage under models/ecosystem_classifier/v1/ and are SHA-256-checked against
+    # the hashes pinned in aqua_worker.model_store before use; this is the local disk cache.
+    ml_model_cache_dir: str = "/tmp/aquacreds/models"  # noqa: S108 - per-container cache
+    # Pixels whose highest class probability is below this are counted as low confidence. A review
+    # flag only: the v1 probabilities are moderately calibrated (held-out ECE 0.08).
+    ml_low_confidence_threshold: float = Field(default=0.6, gt=0, lt=1)
+    # Prediction runs tile by tile (square tiles of this many 10 m pixels) to bound memory.
+    ml_classify_tile_px: int = Field(default=256, ge=32, le=2048)
+    # Mangrove-area loss alert: classified mangrove area fell by more than this percentage versus
+    # the previous dry season (same model version), and by at least the minimum area.
+    ml_mangrove_loss_alert_pct: float = Field(default=10.0, gt=0, lt=100)
+    ml_mangrove_loss_min_ha: float = Field(default=1.0, ge=0)
+    # Beat: classify the dry season that just ended for every active project (day of April, UTC).
+    ml_annual_classification_day: int = Field(default=15, ge=1, le=30)
+
     # ---------------------------------------------------------------- blockchain (Phase 6)
     chain_rpc_url: str = "http://localhost:8545"
     chain_id: int = 31337  # Anvil; Polygon Amoy = 80002

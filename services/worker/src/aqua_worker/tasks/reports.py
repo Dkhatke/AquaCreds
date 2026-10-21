@@ -28,7 +28,7 @@ import math
 import statistics
 import uuid
 from collections import Counter
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from celery import shared_task
@@ -50,6 +50,7 @@ from aqua_core.models import (
     ChainTransaction,
     ChainTxPurpose,
     ChainTxStatus,
+    Classification,
     FieldSubmission,
     Methodology,
     MonitoringPeriod,
@@ -179,7 +180,9 @@ async def satellite_summary(
     session: AsyncSession, project: Project, period: MonitoringPeriod
 ) -> SatelliteSummary | None:
     """Context only (satellites never create credits): scene counts and the median NDVI p50 of
-    clear scenes in the period, plus provenance of the latest successful analysis run."""
+    clear scenes in the period, provenance of the latest successful analysis run and, when one
+    exists, the latest ecosystem classification of a dry season that ended by the period end
+    (`stats["classification"]`, with the model version, SHA-256 and held-out metrics)."""
     scenes = list(
         await session.scalars(
             select(SceneObservation)
@@ -197,7 +200,8 @@ async def satellite_summary(
         .order_by(AnalysisRun.finished_at.desc().nulls_last(), AnalysisRun.created_at.desc())
         .limit(1)
     )
-    if not scenes and run is None:
+    classification = await latest_classification(session, project.id, period.end_date)
+    if not scenes and run is None and classification is None:
         return None
     clear = [s for s in scenes if s.clear_fraction >= CLEAR_SCENE_FRACTION]
     ndvi = [
@@ -225,7 +229,69 @@ async def satellite_summary(
         provenance["analysis_run_kind"] = run.kind.value
         if run.finished_at is not None:
             provenance["analysis_run_finished_at"] = run.finished_at.isoformat()
+    if classification is not None:
+        stats["classification"] = classification_context(classification)
+        provenance["classification_id"] = str(classification.id)
+        provenance["classification_model"] = (
+            f"{classification.model_version} sha256:{classification.model_sha256}"
+        )
     return SatelliteSummary(stats=stats, provenance=provenance)
+
+
+CLASSIFICATION_LABEL = (
+    "context only: credits come from field plots; the classified mangrove area is not used in "
+    "any carbon figure"
+)
+
+
+async def latest_classification(
+    session: AsyncSession, project_id: uuid.UUID, period_end: date
+) -> Classification | None:
+    """The newest classification of the latest dry season that ended by the period end."""
+    # a season starting in November of year s ends on 31 March of s + 1
+    last_ended = period_end.year - (1 if period_end >= date(period_end.year, 3, 31) else 2)
+    found: Classification | None = await session.scalar(
+        select(Classification)
+        .where(
+            Classification.project_id == project_id,
+            Classification.season_start_year <= last_ended,
+        )
+        .order_by(Classification.season_start_year.desc(), Classification.created_at.desc())
+        .limit(1)
+    )
+    return found
+
+
+def classification_context(row: Classification) -> dict[str, Any]:
+    """The classification figures quoted in a report, with the model's held-out metrics."""
+    from aqua_worker.model_store import ECOSYSTEM_CLASSIFIER_V1
+
+    metrics = (
+        dict(ECOSYSTEM_CLASSIFIER_V1.heldout_metrics)
+        if row.model_version == ECOSYSTEM_CLASSIFIER_V1.version
+        else None
+    )
+    year = row.season_start_year
+    return {
+        "label": CLASSIFICATION_LABEL,
+        "dry_season": f"Nov {year} - Mar {year + 1}",
+        "season_start_year": year,
+        "mangrove_ha": row.mangrove_ha,
+        "class_areas_ha": dict(sorted(row.class_areas_ha.items())),
+        "mangrove_mean_confidence": row.mangrove_mean_confidence,
+        "low_confidence_share": row.low_confidence_share,
+        "low_confidence_threshold": row.low_confidence_threshold,
+        "unclassified_pixels": row.unclassified_pixels,
+        "polygon_pixels": row.polygon_pixels,
+        "scene_count": len(row.scenes),
+        "model_version": row.model_version,
+        "model_sha256": row.model_sha256,
+        "model_heldout_metrics": metrics,
+        "area_method": (
+            f"classified pixels x {row.pixel_area_m2:g} m2 (10 m UTM grid, EPSG:{row.epsg}) / "
+            f"UTM areal scale {row.areal_scale:.6f}, pixel centres inside the boundary"
+        ),
+    }
 
 
 async def previous_report(

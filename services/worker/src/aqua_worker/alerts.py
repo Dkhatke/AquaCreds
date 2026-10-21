@@ -1,5 +1,6 @@
 """Loss alerts against a project's OWN history (pure functions): the Sentinel-2 NDVI rule below,
-and the Sentinel-1 `sar_backscatter_drop` heuristic at the end of this module.
+the Sentinel-1 `sar_backscatter_drop` heuristic, and mangrove-area loss between consecutive
+dry-season classifications (`AreaLossRule`, at the end of this module).
 
 Rule (documented so org admins and verifiers can see exactly why an alert fired):
 
@@ -387,3 +388,85 @@ def detect_sar_backscatter_drop(
             )
         )
     return out
+
+
+# ---------------------------------------------------------------- mangrove area (classifier)
+
+METRIC_MANGROVE_HA = "mangrove_ha"
+
+
+@dataclass(frozen=True)
+class AreaLossRule:
+    """Mangrove-area loss between consecutive dry-season classifications (settings ML_*).
+
+    An alert fires when the classified mangrove area of season *y* is lower than that of season
+    *y − 1* by more than `threshold_pct` percent **and** by at least `min_ha` hectares (so a few
+    pixels on a tiny project cannot alert). Both classifications must come from the same model
+    version: areas from different models are not comparable. Severity: high when the drop is at
+    least twice the threshold, otherwise medium. The alert is dated on the last day of season *y*
+    (31 March), so re-running the same season never alerts twice."""
+
+    threshold_pct: float = 10.0
+    min_ha: float = 1.0
+
+    @classmethod
+    def from_settings(cls, settings: Any) -> "AreaLossRule":
+        return cls(settings.ml_mangrove_loss_alert_pct, settings.ml_mangrove_loss_min_ha)
+
+
+@dataclass(frozen=True)
+class SeasonArea:
+    classification_id: str
+    season_start_year: int
+    model_version: str
+    mangrove_ha: float
+    mangrove_mean_confidence: float | None = None
+
+
+def season_end(season_start_year: int) -> date:
+    return date(season_start_year + 1, 3, 31)
+
+
+def detect_mangrove_area_loss(
+    previous: SeasonArea | None, current: SeasonArea, rule: AreaLossRule
+) -> AlertCandidate | None:
+    if previous is None or previous.model_version != current.model_version:
+        return None
+    if previous.season_start_year != current.season_start_year - 1 or previous.mangrove_ha <= 0:
+        return None
+    drop_ha = previous.mangrove_ha - current.mangrove_ha
+    drop_pct = 100.0 * drop_ha / previous.mangrove_ha
+    if drop_pct <= rule.threshold_pct or drop_ha < rule.min_ha:
+        return None
+    severity = AlertSeverity.HIGH if drop_pct >= 2 * rule.threshold_pct else AlertSeverity.MEDIUM
+
+    def label(year: int) -> str:
+        return f"{year}-{(year + 1) % 100:02d}"
+
+    message = (
+        f"Mangrove area loss suspected: the ecosystem classifier ({current.model_version}) maps "
+        f"{current.mangrove_ha:.2f} ha of mangrove in dry season {label(current.season_start_year)} "
+        f"versus {previous.mangrove_ha:.2f} ha in {label(previous.season_start_year)}, a drop of "
+        f"{drop_ha:.2f} ha ({drop_pct:.1f} %; alert threshold {rule.threshold_pct:g} % and "
+        f"{rule.min_ha:g} ha). Classified areas carry model error (see the model card): check "
+        "the classification map and recent imagery, and verify on the ground."
+    )
+    return AlertCandidate(
+        kind=AlertKind.MANGROVE_AREA_LOSS,
+        metric=METRIC_MANGROVE_HA,
+        observed_on=season_end(current.season_start_year),
+        observed_value=round(current.mangrove_ha, 4),
+        severity=severity,
+        expected={
+            "previous_season_start_year": previous.season_start_year,
+            "previous_mangrove_ha": previous.mangrove_ha,
+            "previous_classification_id": previous.classification_id,
+            "current_classification_id": current.classification_id,
+            "model_version": current.model_version,
+            "drop_ha": round(drop_ha, 4),
+            "drop_pct": round(drop_pct, 4),
+            "threshold_pct": rule.threshold_pct,
+            "min_ha": rule.min_ha,
+        },
+        message=message,
+    )

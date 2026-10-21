@@ -45,7 +45,8 @@
       "AlertKind": {
         "enum": [
           "vegetation_loss",
-          "sar_backscatter_drop"
+          "sar_backscatter_drop",
+          "mangrove_area_loss"
         ],
         "title": "AlertKind",
         "type": "string"
@@ -163,7 +164,8 @@
         "enum": [
           "backfill",
           "incremental",
-          "composite"
+          "composite",
+          "classification"
         ],
         "title": "AnalysisKind",
         "type": "string"
@@ -1046,6 +1048,373 @@
         ],
         "title": "ChainTxStatus",
         "type": "string"
+      },
+      "ClassificationDetail": {
+        "properties": {
+          "areal_scale": {
+            "title": "Areal Scale",
+            "type": "number"
+          },
+          "class_areas_ha": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Class Areas Ha",
+            "type": "object"
+          },
+          "classes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "classes_cog_sha256": {
+            "title": "Classes Cog Sha256",
+            "type": "string"
+          },
+          "classified_pixels": {
+            "title": "Classified Pixels",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dem_items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dem Items",
+            "type": "array"
+          },
+          "downloads": {
+            "$ref": "#/components/schemas/ClassificationDownloads"
+          },
+          "epsg": {
+            "title": "Epsg",
+            "type": "integer"
+          },
+          "features_sha256": {
+            "title": "Features Sha256",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "low_confidence_share": {
+            "title": "Low Confidence Share",
+            "type": "number"
+          },
+          "low_confidence_threshold": {
+            "title": "Low Confidence Threshold",
+            "type": "number"
+          },
+          "mangrove_ha": {
+            "title": "Mangrove Ha",
+            "type": "number"
+          },
+          "mangrove_mean_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mangrove Mean Confidence"
+          },
+          "model_sha256": {
+            "title": "Model Sha256",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "pixel_area_m2": {
+            "title": "Pixel Area M2",
+            "type": "number"
+          },
+          "polygon_pixels": {
+            "title": "Polygon Pixels",
+            "type": "integer"
+          },
+          "probability_cog_sha256": {
+            "title": "Probability Cog Sha256",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "scenes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Scenes",
+            "type": "array"
+          },
+          "season_start_year": {
+            "title": "Season Start Year",
+            "type": "integer"
+          },
+          "unclassified_pixels": {
+            "title": "Unclassified Pixels",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "run_id",
+          "season_start_year",
+          "model_version",
+          "model_sha256",
+          "features_sha256",
+          "provider",
+          "scenes",
+          "dem_items",
+          "epsg",
+          "pixel_area_m2",
+          "areal_scale",
+          "polygon_pixels",
+          "classified_pixels",
+          "unclassified_pixels",
+          "classes",
+          "class_areas_ha",
+          "mangrove_ha",
+          "mangrove_mean_confidence",
+          "low_confidence_threshold",
+          "low_confidence_share",
+          "classes_cog_sha256",
+          "probability_cog_sha256",
+          "created_at",
+          "downloads"
+        ],
+        "title": "ClassificationDetail",
+        "type": "object"
+      },
+      "ClassificationDownloads": {
+        "properties": {
+          "classes_url": {
+            "title": "Classes Url",
+            "type": "string"
+          },
+          "probability_url": {
+            "title": "Probability Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "classes_url",
+          "probability_url"
+        ],
+        "title": "ClassificationDownloads",
+        "type": "object"
+      },
+      "ClassificationOut": {
+        "description": "One ecosystem-classifier result. Areas: classified 10 m pixels x pixel area / UTM areal\nscale, pixel centres inside the boundary. Context for MRV only: credits come from plots.",
+        "properties": {
+          "areal_scale": {
+            "title": "Areal Scale",
+            "type": "number"
+          },
+          "class_areas_ha": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Class Areas Ha",
+            "type": "object"
+          },
+          "classes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "classes_cog_sha256": {
+            "title": "Classes Cog Sha256",
+            "type": "string"
+          },
+          "classified_pixels": {
+            "title": "Classified Pixels",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dem_items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Dem Items",
+            "type": "array"
+          },
+          "epsg": {
+            "title": "Epsg",
+            "type": "integer"
+          },
+          "features_sha256": {
+            "title": "Features Sha256",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "low_confidence_share": {
+            "title": "Low Confidence Share",
+            "type": "number"
+          },
+          "low_confidence_threshold": {
+            "title": "Low Confidence Threshold",
+            "type": "number"
+          },
+          "mangrove_ha": {
+            "title": "Mangrove Ha",
+            "type": "number"
+          },
+          "mangrove_mean_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mangrove Mean Confidence"
+          },
+          "model_sha256": {
+            "title": "Model Sha256",
+            "type": "string"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "pixel_area_m2": {
+            "title": "Pixel Area M2",
+            "type": "number"
+          },
+          "polygon_pixels": {
+            "title": "Polygon Pixels",
+            "type": "integer"
+          },
+          "probability_cog_sha256": {
+            "title": "Probability Cog Sha256",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "scenes": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Scenes",
+            "type": "array"
+          },
+          "season_start_year": {
+            "title": "Season Start Year",
+            "type": "integer"
+          },
+          "unclassified_pixels": {
+            "title": "Unclassified Pixels",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "run_id",
+          "season_start_year",
+          "model_version",
+          "model_sha256",
+          "features_sha256",
+          "provider",
+          "scenes",
+          "dem_items",
+          "epsg",
+          "pixel_area_m2",
+          "areal_scale",
+          "polygon_pixels",
+          "classified_pixels",
+          "unclassified_pixels",
+          "classes",
+          "class_areas_ha",
+          "mangrove_ha",
+          "mangrove_mean_confidence",
+          "low_confidence_threshold",
+          "low_confidence_share",
+          "classes_cog_sha256",
+          "probability_cog_sha256",
+          "created_at"
+        ],
+        "title": "ClassificationOut",
+        "type": "object"
+      },
+      "ClassificationRequest": {
+        "description": "Dry season starting in November of `season_start_year` (e.g. 2020 → Nov 2020–Mar 2021).",
+        "properties": {
+          "season_start_year": {
+            "maximum": 2100.0,
+            "minimum": 2016.0,
+            "title": "Season Start Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "season_start_year"
+        ],
+        "title": "ClassificationRequest",
+        "type": "object"
       },
       "ComponentScoreOut": {
         "properties": {
@@ -6814,6 +7183,55 @@
         ]
       }
     },
+    "/api/v1/classifications/{classification_id}": {
+      "get": {
+        "description": "One result with time-limited download URLs for the class map and probability COGs.",
+        "operationId": "get_classification_api_v1_classifications__classification_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "classification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Classification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassificationDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Classification",
+        "tags": [
+          "ecosystem classification"
+        ]
+      }
+    },
     "/api/v1/forward-fund/requests": {
       "get": {
         "operationId": "list_requests_api_v1_forward_fund_requests_get",
@@ -8214,6 +8632,134 @@
         "summary": "Register Project On Chain",
         "tags": [
           "chain"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/classifications": {
+      "get": {
+        "description": "Classification results, newest season first (re-runs of a season: newest first).",
+        "operationId": "list_classifications_api_v1_projects__project_id__classifications_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "season_start_year",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 2016,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Season Start Year"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ClassificationOut"
+                  },
+                  "title": "Response List Classifications Api V1 Projects  Project Id  Classifications Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Classifications",
+        "tags": [
+          "ecosystem classification"
+        ]
+      },
+      "post": {
+        "description": "Classify one completed dry season (Nov `season_start_year` – Mar of the next year) with\nthe ecosystem classifier. Organisation admins of the project and registry admins only.",
+        "operationId": "request_classification_api_v1_projects__project_id__classifications_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisRunOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Classification",
+        "tags": [
+          "ecosystem classification"
         ]
       }
     },

@@ -320,6 +320,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/classifications/{classification_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Classification
+     * @description One result with time-limited download URLs for the class map and probability COGs.
+     */
+    get: operations["get_classification_api_v1_classifications__classification_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/forward-fund/requests": {
     parameters: {
       query?: never;
@@ -654,6 +674,31 @@ export interface paths {
     put?: never;
     /** Register Project On Chain */
     post: operations["register_project_on_chain_api_v1_projects__project_id__chain_register_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{project_id}/classifications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Classifications
+     * @description Classification results, newest season first (re-runs of a season: newest first).
+     */
+    get: operations["list_classifications_api_v1_projects__project_id__classifications_get"];
+    put?: never;
+    /**
+     * Request Classification
+     * @description Classify one completed dry season (Nov `season_start_year` – Mar of the next year) with
+     *     the ecosystem classifier. Organisation admins of the project and registry admins only.
+     */
+    post: operations["request_classification_api_v1_projects__project_id__classifications_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1220,7 +1265,7 @@ export interface components {
      * AlertKind
      * @enum {string}
      */
-    AlertKind: "vegetation_loss" | "sar_backscatter_drop";
+    AlertKind: "vegetation_loss" | "sar_backscatter_drop" | "mangrove_area_loss";
     /** AlertOut */
     AlertOut: {
       /** Acknowledged At */
@@ -1271,7 +1316,7 @@ export interface components {
      * AnalysisKind
      * @enum {string}
      */
-    AnalysisKind: "backfill" | "incremental" | "composite";
+    AnalysisKind: "backfill" | "incremental" | "composite" | "classification";
     /** AnalysisRunOut */
     AnalysisRunOut: {
       /**
@@ -1621,6 +1666,158 @@ export interface components {
      * @enum {string}
      */
     ChainTxStatus: "queued" | "waiting_for_gas" | "submitted" | "confirmed" | "failed" | "reverted";
+    /** ClassificationDetail */
+    ClassificationDetail: {
+      /** Areal Scale */
+      areal_scale: number;
+      /** Class Areas Ha */
+      class_areas_ha: {
+        [key: string]: number;
+      };
+      /** Classes */
+      classes: string[];
+      /** Classes Cog Sha256 */
+      classes_cog_sha256: string;
+      /** Classified Pixels */
+      classified_pixels: number;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Dem Items */
+      dem_items: string[];
+      downloads: components["schemas"]["ClassificationDownloads"];
+      /** Epsg */
+      epsg: number;
+      /** Features Sha256 */
+      features_sha256: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Low Confidence Share */
+      low_confidence_share: number;
+      /** Low Confidence Threshold */
+      low_confidence_threshold: number;
+      /** Mangrove Ha */
+      mangrove_ha: number;
+      /** Mangrove Mean Confidence */
+      mangrove_mean_confidence: number | null;
+      /** Model Sha256 */
+      model_sha256: string;
+      /** Model Version */
+      model_version: string;
+      /** Pixel Area M2 */
+      pixel_area_m2: number;
+      /** Polygon Pixels */
+      polygon_pixels: number;
+      /** Probability Cog Sha256 */
+      probability_cog_sha256: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Provider */
+      provider: string;
+      /** Run Id */
+      run_id: string | null;
+      /** Scenes */
+      scenes: {
+        [key: string]: unknown;
+      }[];
+      /** Season Start Year */
+      season_start_year: number;
+      /** Unclassified Pixels */
+      unclassified_pixels: number;
+    };
+    /** ClassificationDownloads */
+    ClassificationDownloads: {
+      /** Classes Url */
+      classes_url: string;
+      /** Probability Url */
+      probability_url: string;
+    };
+    /**
+     * ClassificationOut
+     * @description One ecosystem-classifier result. Areas: classified 10 m pixels x pixel area / UTM areal
+     *     scale, pixel centres inside the boundary. Context for MRV only: credits come from plots.
+     */
+    ClassificationOut: {
+      /** Areal Scale */
+      areal_scale: number;
+      /** Class Areas Ha */
+      class_areas_ha: {
+        [key: string]: number;
+      };
+      /** Classes */
+      classes: string[];
+      /** Classes Cog Sha256 */
+      classes_cog_sha256: string;
+      /** Classified Pixels */
+      classified_pixels: number;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Dem Items */
+      dem_items: string[];
+      /** Epsg */
+      epsg: number;
+      /** Features Sha256 */
+      features_sha256: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Low Confidence Share */
+      low_confidence_share: number;
+      /** Low Confidence Threshold */
+      low_confidence_threshold: number;
+      /** Mangrove Ha */
+      mangrove_ha: number;
+      /** Mangrove Mean Confidence */
+      mangrove_mean_confidence: number | null;
+      /** Model Sha256 */
+      model_sha256: string;
+      /** Model Version */
+      model_version: string;
+      /** Pixel Area M2 */
+      pixel_area_m2: number;
+      /** Polygon Pixels */
+      polygon_pixels: number;
+      /** Probability Cog Sha256 */
+      probability_cog_sha256: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Provider */
+      provider: string;
+      /** Run Id */
+      run_id: string | null;
+      /** Scenes */
+      scenes: {
+        [key: string]: unknown;
+      }[];
+      /** Season Start Year */
+      season_start_year: number;
+      /** Unclassified Pixels */
+      unclassified_pixels: number;
+    };
+    /**
+     * ClassificationRequest
+     * @description Dry season starting in November of `season_start_year` (e.g. 2020 → Nov 2020–Mar 2021).
+     */
+    ClassificationRequest: {
+      /** Season Start Year */
+      season_start_year: number;
+    };
     /** ComponentScoreOut */
     ComponentScoreOut: {
       /** Inputs */
@@ -4109,6 +4306,37 @@ export interface operations {
       };
     };
   };
+  get_classification_api_v1_classifications__classification_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        classification_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClassificationDetail"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   list_requests_api_v1_forward_fund_requests_get: {
     parameters: {
       query?: {
@@ -4908,6 +5136,74 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ChainTxOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_classifications_api_v1_projects__project_id__classifications_get: {
+    parameters: {
+      query?: {
+        season_start_year?: number | null;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClassificationOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  request_classification_api_v1_projects__project_id__classifications_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ClassificationRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AnalysisRunOut"];
         };
       };
       /** @description Validation Error */

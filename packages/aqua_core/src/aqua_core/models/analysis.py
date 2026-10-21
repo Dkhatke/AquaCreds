@@ -1,5 +1,5 @@
-"""Satellite analysis: runs (backfill / nightly / composite), per-scene Sentinel-2 and per-pass
-Sentinel-1 time series, alerts."""
+"""Satellite analysis: runs (backfill / nightly / composite / classification), per-scene
+Sentinel-2 and per-pass Sentinel-1 time series, alerts, ecosystem classifications."""
 
 import uuid
 from datetime import date, datetime
@@ -142,6 +142,68 @@ class Alert(UUIDPk, Base):
         sa.ForeignKey("users.id", ondelete="SET NULL")
     )
     acknowledged_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now()
+    )
+
+
+class Classification(UUIDPk, Base):
+    """Result of one ecosystem-classifier run on a project's dry-season scene stack.
+
+    One row per successful `aqua.ml.classify_project` run (re-runs add rows; the latest per
+    season and model version is the current one). Its own table rather than `AnalysisRun.outputs`
+    because alerts, the stewardship score and MRV reports query it year over year by typed columns;
+    the `AnalysisRun` (kind `classification`) still records the job lifecycle and errors.
+
+    Areas are classified pixels x pixel area on the 10 m UTM grid, corrected by the UTM areal scale
+    factor at the polygon centroid (`areal_scale`), in hectares, over the pixels whose centres fall
+    inside the project polygon. Pixels without a prediction (fewer than `min_clear` clear looks, or
+    non-finite features) are counted in `unclassified_pixels`, never assigned a class.
+    """
+
+    __tablename__ = "classifications"
+    __table_args__ = (
+        sa.Index("ix_classifications_project_season", "project_id", "season_start_year"),
+        sa.CheckConstraint("mangrove_ha >= 0", name="mangrove_ha_nonnegative"),
+        sa.CheckConstraint(
+            "low_confidence_share BETWEEN 0 AND 1", name="low_confidence_share_range"
+        ),
+        sa.CheckConstraint(
+            "mangrove_mean_confidence IS NULL OR mangrove_mean_confidence BETWEEN 0 AND 1",
+            name="mangrove_mean_confidence_range",
+        ),
+    )
+
+    project_id: Mapped[uuid.UUID] = mapped_column(sa.ForeignKey("projects.id", ondelete="CASCADE"))
+    run_id: Mapped[uuid.UUID | None] = mapped_column(
+        sa.ForeignKey("analysis_runs.id", ondelete="SET NULL")
+    )
+    season_start_year: Mapped[int]  # dry season Nov <year> - Mar <year + 1>
+    model_version: Mapped[str] = mapped_column(sa.String(60))
+    model_sha256: Mapped[str] = mapped_column(sa.String(64))  # model.onnx
+    features_sha256: Mapped[str] = mapped_column(sa.String(64))  # features.json (order, classes)
+    provider: Mapped[str] = mapped_column(sa.String(40))
+    # [{"item_id", "acquired_on", "cloud_cover"}] in date order, plus DEM item ids
+    scenes: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    dem_items: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    epsg: Mapped[int]
+    pixel_area_m2: Mapped[float] = mapped_column(sa.Double)
+    areal_scale: Mapped[float] = mapped_column(sa.Double)
+    polygon_pixels: Mapped[int]
+    classified_pixels: Mapped[int]
+    unclassified_pixels: Mapped[int]
+    # model classes in class-index order (the values of the classes COG)
+    classes: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    # {"mangrove": 12.34, "water": ..., ...} for every model class (0.0 when absent)
+    class_areas_ha: Mapped[dict[str, float]] = mapped_column(JSONB, default=dict)
+    mangrove_ha: Mapped[float] = mapped_column(sa.Double)
+    mangrove_mean_confidence: Mapped[float | None] = mapped_column(sa.Double)
+    low_confidence_threshold: Mapped[float] = mapped_column(sa.Double)
+    low_confidence_share: Mapped[float] = mapped_column(sa.Double)  # of classified pixels
+    classes_cog_key: Mapped[str] = mapped_column(sa.String(300))
+    classes_cog_sha256: Mapped[str] = mapped_column(sa.String(64))
+    probability_cog_key: Mapped[str] = mapped_column(sa.String(300))
+    probability_cog_sha256: Mapped[str] = mapped_column(sa.String(64))
     created_at: Mapped[datetime] = mapped_column(
         sa.DateTime(timezone=True), server_default=sa.func.now()
     )

@@ -105,7 +105,9 @@
 {% if r.satellite %}
 <p class="small">Context only: satellite products support stratification and checks; they do not create credits.</p>
 <table class="kv">
-  {% for k, v in r.satellite.stats|dictsort %}<tr><td class="mono">{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
+  {% for k, v in r.satellite.stats|dictsort %}{% if v is mapping %}<tr><td class="mono">{{ k }}</td><td>{% if v.label %}<em>{{ v.label }}</em>{% endif %}</td></tr>
+  {% for k2, v2 in v|dictsort %}{% if k2 != "label" %}<tr><td class="mono small">{{ k }}.{{ k2 }}</td><td class="small">{% if v2 is mapping %}{% for k3, v3 in v2|dictsort %}{{ k3 }}: {{ v3 }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}{{ v2 }}{% endif %}</td></tr>{% endif %}{% endfor %}
+  {% else %}<tr><td class="mono">{{ k }}</td><td>{{ v }}</td></tr>{% endif %}{% endfor %}
   {% for k, v in r.satellite.provenance|dictsort %}<tr><td class="mono small">provenance: {{ k }}</td><td class="small">{{ v }}</td></tr>{% endfor %}
 </table>
 {% else %}<p>No satellite summary supplied.</p>{% endif %}
