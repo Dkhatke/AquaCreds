@@ -40,7 +40,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from aqua_core import audit
+from aqua_core import audit, notifications
 from aqua_core.db import create_engine, session_factory
 from aqua_core.logging import get_logger
 from aqua_core.models import (
@@ -701,6 +701,7 @@ async def _store_alerts(
                 "observed_value": c.observed_value,
             },
         )
+        await notifications.alert_raised(session, project_id, alert_id, c.severity, c.message)
     await session.commit()
     if created:
         log.warning("geo.alerts.raised", project_id=str(project_id), count=len(created))

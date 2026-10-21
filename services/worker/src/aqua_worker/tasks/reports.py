@@ -41,7 +41,7 @@ from aqua_chain import actions
 from aqua_chain.errors import RetryableChainError
 from aqua_chain.relayer import Relayer
 from aqua_chain.runtime import build_relayer
-from aqua_core import audit
+from aqua_core import audit, notifications
 from aqua_core.db import create_engine, session_factory
 from aqua_core.geometry import to_point
 from aqua_core.models import (
@@ -475,6 +475,7 @@ async def build_report_core(
                     "warnings": len(report.warnings),
                 },
             )
+            await notifications.report_submitted_for_review(session, row, project)
             await session.commit()
             return {
                 "status": "built",

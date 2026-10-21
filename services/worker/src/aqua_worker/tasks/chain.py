@@ -32,7 +32,7 @@ from aqua_chain.gas import TopUpPolicy, summary, top_up_org_wallets
 from aqua_chain.indexer import IndexerConfig, index_events
 from aqua_chain.relayer import Relayer
 from aqua_chain.runtime import build_relayer, indexer_config
-from aqua_core import audit
+from aqua_core import audit, notifications
 from aqua_core.db import create_engine, session_factory
 from aqua_core.logging import get_logger
 from aqua_core.models import ChainTransaction, ChainTxStatus, Project
@@ -77,6 +77,7 @@ async def _queue_and_process(
         await session.commit()
         tx_id = tx.id
     await relayer.process(tx_id)
+    await notifications.chain_tx_settled(relayer.sessionmaker, tx_id)
     return await transaction_summary(relayer.sessionmaker, tx_id)
 
 
@@ -170,6 +171,7 @@ async def issue_credits_core(
 
 async def send_core(relayer: Relayer, tx_id: uuid.UUID) -> dict[str, Any]:
     await relayer.process(tx_id)
+    await notifications.chain_tx_settled(relayer.sessionmaker, tx_id)
     return await transaction_summary(relayer.sessionmaker, tx_id)
 
 

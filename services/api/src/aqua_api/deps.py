@@ -10,6 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from aqua_api.security import decode_access_token
+from aqua_core import notifications
 from aqua_core.models import OrgRole, PlatformRole, User
 from aqua_core.settings import Settings
 from aqua_core.storage import ObjectStorage
@@ -24,6 +25,9 @@ def get_app_settings(request: Request) -> Settings:
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     async with request.app.state.sessionmaker() as session:
+        settings: Settings = request.app.state.settings
+        enabled = settings.notification_email_enabled
+        notifications.bind_email_dispatch(session, request.app.state.enqueue, enabled=enabled)
         yield session
 
 

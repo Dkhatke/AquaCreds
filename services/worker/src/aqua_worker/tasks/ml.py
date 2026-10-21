@@ -36,7 +36,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from aqua_core import audit
+from aqua_core import audit, notifications
 from aqua_core.logging import get_logger
 from aqua_core.models import (
     Alert,
@@ -237,6 +237,7 @@ async def _store_alert(
                 "observed_value": c.observed_value,
             },
         )
+        await notifications.alert_raised(session, project_id, alert_id, c.severity, c.message)
     return alert_id
 
 

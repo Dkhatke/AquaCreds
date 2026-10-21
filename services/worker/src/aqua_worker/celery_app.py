@@ -14,6 +14,7 @@ from celery.schedules import crontab
 from celery.signals import setup_logging, worker_ready
 from kombu.entity import Queue
 
+from aqua_core import notifications
 from aqua_core.logging import configure_logging, get_logger
 from aqua_core.settings import Settings, get_settings
 
@@ -103,6 +104,11 @@ def create_celery() -> Celery:
         beat_schedule=beat_schedule(settings),
     )
     app.autodiscover_tasks(["aqua_worker"], related_name="tasks", force=True)
+    # Notification emails are queued after the commit of the transaction that created them.
+    notifications.set_default_email_dispatch(
+        lambda name, *args, queue="default": app.send_task(name, args=list(args), queue=queue),
+        enabled=settings.notification_email_enabled,
+    )
     return app
 
 

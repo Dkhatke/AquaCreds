@@ -39,6 +39,7 @@ from aqua_api.services.projects import (
     submission_issues,
     to_db_geometry,
 )
+from aqua_core import notifications
 from aqua_core.models import (
     Membership,
     Organization,
@@ -364,6 +365,7 @@ async def submit_project(
         entity_id=project.id,
         data={"documents": sorted(d.sha256 for d in project.documents)},
     )
+    await notifications.project_submitted(session, project)
     await session.commit()
     await session.refresh(project)
     return _out(project)
