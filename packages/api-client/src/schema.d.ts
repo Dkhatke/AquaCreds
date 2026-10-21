@@ -1402,6 +1402,8 @@ export interface components {
     CapacityOut: {
       /** Available */
       available: number;
+      /** Capacity Sources */
+      capacity_sources: components["schemas"]["CapacitySourceOut"][];
       /** Committed */
       committed: number;
       /**
@@ -1413,6 +1415,22 @@ export interface components {
       report_ids: number[];
       /** Source */
       source: string;
+      /** Sources Agree */
+      sources_agree: boolean;
+      /** Total */
+      total: number;
+    };
+    /** CapacitySourceOut */
+    CapacitySourceOut: {
+      /** Description */
+      description: string;
+      /**
+       * Name
+       * @enum {string}
+       */
+      name: "mrv_reports" | "onchain_report_approved";
+      /** Report Ids */
+      report_ids: string[];
       /** Total */
       total: number;
     };
@@ -1498,7 +1516,7 @@ export interface components {
      * @description Which platform key signs. Distinct derived accounts enforce separation of duties.
      * @enum {string}
      */
-    ChainSigner: "registrar" | "verifier" | "issuer" | "org_wallet";
+    ChainSigner: "registrar" | "verifier" | "issuer" | "org_wallet" | "funder";
     /** ChainStatusOut */
     ChainStatusOut: {
       /** Chain Id */
@@ -1590,14 +1608,19 @@ export interface components {
       | "issue_credits"
       | "forward_fund_offer"
       | "forward_fund_withdraw"
+      | "gas_top_up"
       | "other";
     /**
      * ChainTxStatus
      * @description Relayer lifecycle: queued → submitted → confirmed | reverted, or failed (never broadcast,
      *     or rejected by the node). `confirmed` only after N block confirmations.
+     *
+     *     `waiting_for_gas`: a custodial org-wallet transaction whose wallet balance is below the
+     *     estimated cost. Nothing was signed or broadcast and no nonce is held; the gas top-up task
+     *     funds the wallet and resubmits it.
      * @enum {string}
      */
-    ChainTxStatus: "queued" | "submitted" | "confirmed" | "failed" | "reverted";
+    ChainTxStatus: "queued" | "waiting_for_gas" | "submitted" | "confirmed" | "failed" | "reverted";
     /** ComponentScoreOut */
     ComponentScoreOut: {
       /** Inputs */
@@ -1740,6 +1763,8 @@ export interface components {
       amount: number;
       /** Block Number */
       block_number: number;
+      /** Block Time */
+      block_time: string | null;
       /** Explorer Url */
       explorer_url: string | null;
       /** Tx Hash */
