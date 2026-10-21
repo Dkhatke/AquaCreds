@@ -374,6 +374,102 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/notifications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Notifications
+     * @description Newest first.
+     */
+    get: operations["list_notifications_api_v1_notifications_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/notifications/preferences": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Preferences
+     * @description Email preference per kind. In-app notifications are always on.
+     */
+    get: operations["get_preferences_api_v1_notifications_preferences_get"];
+    /**
+     * Set Preferences
+     * @description Set (true/false) or reset (null) the email preference of the listed kinds; others keep
+     *     their current setting. This is also where the email unsubscribe link leads.
+     */
+    put: operations["set_preferences_api_v1_notifications_preferences_put"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/notifications/read-all": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mark All Read */
+    post: operations["mark_all_read_api_v1_notifications_read_all_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/notifications/unread-count": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Unread Count */
+    get: operations["unread_count_api_v1_notifications_unread_count_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/notifications/{notification_id}/read": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mark Read */
+    post: operations["mark_read_api_v1_notifications__notification_id__read_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/orgs": {
     parameters: {
       query?: never;
@@ -1997,6 +2093,21 @@ export interface components {
      * @enum {string}
      */
     Ecosystem: "mangrove" | "salt_marsh" | "seagrass";
+    /** EmailPreferenceOut */
+    EmailPreferenceOut: {
+      /** Customised */
+      customised: boolean;
+      /** Default */
+      default: boolean;
+      /**
+       * Email
+       * @description Effective setting (the user's choice, else the default)
+       */
+      email: boolean;
+      kind: components["schemas"]["NotificationKind"];
+      /** Note */
+      note?: string | null;
+    };
     /**
      * EvidenceStats
      * @description Aggregate field-evidence statistics. Individual submissions are never public.
@@ -2106,6 +2217,11 @@ export interface components {
       email: string;
       /** Password */
       password: string;
+    };
+    /** MarkedRead */
+    MarkedRead: {
+      /** Updated */
+      updated: number;
     };
     /** MeasurementCreate */
     MeasurementCreate: {
@@ -2300,6 +2416,95 @@ export interface components {
       expires_at: string;
       /** Nonce */
       nonce: string;
+    };
+    /**
+     * NotificationKind
+     * @description Events a user must act on (fan-out rules: `aqua_core.notifications`).
+     * @enum {string}
+     */
+    NotificationKind:
+      | "report_submitted_for_review"
+      | "report_decided"
+      | "changes_requested"
+      | "alert_raised"
+      | "submission_rejected"
+      | "project_submitted"
+      | "project_registered"
+      | "credits_issued"
+      | "forward_fund_offer_status"
+      | "mfa_recovery_codes_low";
+    /** NotificationOut */
+    NotificationOut: {
+      /** Body */
+      body: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Emailed At */
+      emailed_at: string | null;
+      /** Entity Id */
+      entity_id: string | null;
+      /** Entity Type */
+      entity_type: string | null;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      kind: components["schemas"]["NotificationKind"];
+      /**
+       * Link
+       * @description Web path to open, e.g. /reports/<id>
+       */
+      link: string | null;
+      /** Org Id */
+      org_id: string | null;
+      /** Read At */
+      read_at: string | null;
+      severity: components["schemas"]["AlertSeverity"] | null;
+      /** Title */
+      title: string;
+    };
+    /** NotificationPage */
+    NotificationPage: {
+      /** Items */
+      items: components["schemas"]["NotificationOut"][];
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /**
+       * Total
+       * @description Matching notifications (all pages)
+       */
+      total: number;
+      /**
+       * Unread
+       * @description Unread notifications of the user (any page)
+       */
+      unread: number;
+    };
+    /** NotificationPreferencesIn */
+    NotificationPreferencesIn: {
+      /**
+       * Email
+       * @description Per kind: true/false to choose, null to go back to the default
+       */
+      email: {
+        [key: string]: boolean | null;
+      };
+    };
+    /** NotificationPreferencesOut */
+    NotificationPreferencesOut: {
+      /**
+       * Email Enabled
+       * @description Whether this deployment sends email at all
+       */
+      email_enabled: boolean;
+      /** Preferences */
+      preferences: components["schemas"]["EmailPreferenceOut"][];
     };
     /** OfferIn */
     OfferIn: {
@@ -3892,6 +4097,11 @@ export interface components {
       /** Species */
       species: string;
     };
+    /** UnreadCount */
+    UnreadCount: {
+      /** Unread */
+      unread: number;
+    };
     /**
      * UpfrontOut
      * @description The optional share paid to winners at award time. It is never refunded.
@@ -4643,6 +4853,164 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["RequestDetailOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_notifications_api_v1_notifications_get: {
+    parameters: {
+      query?: {
+        /** @description Only unread notifications */
+        unread?: boolean;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationPage"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_preferences_api_v1_notifications_preferences_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationPreferencesOut"];
+        };
+      };
+    };
+  };
+  set_preferences_api_v1_notifications_preferences_put: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NotificationPreferencesIn"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationPreferencesOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  mark_all_read_api_v1_notifications_read_all_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MarkedRead"];
+        };
+      };
+    };
+  };
+  unread_count_api_v1_notifications_unread_count_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnreadCount"];
+        };
+      };
+    };
+  };
+  mark_read_api_v1_notifications__notification_id__read_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        notification_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationOut"];
         };
       };
       /** @description Validation Error */

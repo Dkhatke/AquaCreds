@@ -20,6 +20,7 @@ from aqua_core.models.enums import (
     DocumentKind,
     Ecosystem,
     Methodology,
+    NotificationKind,
     OrgRole,
     OrgType,
     PeriodKind,
@@ -46,6 +47,7 @@ from aqua_core.models.identity import (
     RefreshToken,
     User,
 )
+from aqua_core.models.notification import Notification, NotificationPreference
 from aqua_core.models.project import Project, TenureDocument
 from aqua_core.models.report import MRVReport
 
@@ -73,6 +75,9 @@ __all__ = [
     "Methodology",
     "MfaRecoveryCode",
     "MonitoringPeriod",
+    "Notification",
+    "NotificationKind",
+    "NotificationPreference",
     "OrgRole",
     "OrgType",
     "OrgWallet",

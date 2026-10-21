@@ -8,7 +8,7 @@ from celery import shared_task
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from aqua_core import audit
+from aqua_core import audit, notifications
 from aqua_core.db import create_engine, session_factory
 from aqua_core.geometry import to_point
 from aqua_core.models import CaptureNonce, FieldSubmission, SubmissionStatus
@@ -117,6 +117,8 @@ async def run_checks(
             entity_id=sub.id,
             data={"trust_score": trust, "status": sub.status.value, "sha256": sub.sha256},
         )
+        if sub.status is SubmissionStatus.REJECTED:
+            await notifications.submission_rejected(session, sub)
         await session.commit()
         return {"id": str(sub.id), "status": sub.status.value, "trust_score": trust}
 

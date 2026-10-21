@@ -37,6 +37,7 @@ from aqua_api.schemas.report import (
     ReviewRequest,
 )
 from aqua_api.services import audit
+from aqua_core import notifications
 from aqua_core.models import (
     ChainEvent,
     ChainTransaction,
@@ -320,6 +321,10 @@ async def review_report(
 
     report_status, period_status = DECISIONS[body.decision]
     new_project_status = project_transition(period.kind, body.decision, project.status)
+    registered = (
+        new_project_status is ProjectStatus.REGISTERED
+        and project.status is not ProjectStatus.REGISTERED
+    )
     report.status = report_status
     report.verifier_id = user.id
     report.decided_at = utcnow()
@@ -360,6 +365,7 @@ async def review_report(
             },
         )
         project.status = new_project_status
+    await notifications.report_reviewed(session, report, project, registered=registered)
     await session.commit()
 
     if report_status is ReportStatus.APPROVED:

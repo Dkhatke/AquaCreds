@@ -193,3 +193,18 @@ class ReportStatus(StrEnum):
     CHANGES_REQUESTED = "changes_requested"
     APPROVED = "approved"
     REJECTED = "rejected"
+
+
+class NotificationKind(StrEnum):
+    """Events a user must act on (fan-out rules: `aqua_core.notifications`)."""
+
+    REPORT_SUBMITTED_FOR_REVIEW = "report_submitted_for_review"  # independent verifiers
+    REPORT_DECIDED = "report_decided"  # org admins: approved / rejected
+    CHANGES_REQUESTED = "changes_requested"  # org admins
+    ALERT_RAISED = "alert_raised"  # org admins (carries the alert severity)
+    SUBMISSION_REJECTED = "submission_rejected"  # the field agent who submitted
+    PROJECT_SUBMITTED = "project_submitted"  # registry admins outside the org
+    PROJECT_REGISTERED = "project_registered"  # org admins
+    CREDITS_ISSUED = "credits_issued"  # org admins of the receiving org
+    FORWARD_FUND_OFFER_STATUS = "forward_fund_offer_status"  # org admins
+    MFA_RECOVERY_CODES_LOW = "mfa_recovery_codes_low"  # the user

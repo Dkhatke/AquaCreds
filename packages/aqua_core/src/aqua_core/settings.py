@@ -196,6 +196,23 @@ class Settings(BaseSettings):
     # client address, e.g. the Docker network Caddy runs on. Empty = use the TCP peer address.
     trusted_proxy_ips: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
+    # ---------------------------------------------------------------- notifications
+    # In-app notifications are always on. Email is optional and OFF by default: when enabled, the
+    # `default` worker sends `aqua.default.send_notification_email` through any SMTP provider
+    # (e.g. a free Brevo / Resend / Mailjet tier). Backend `console` only logs (development).
+    notification_email_enabled: bool = False
+    notification_email_backend: Literal["console", "smtp"] = "console"
+    notification_email_from: str = "AquaCreds <no-reply@localhost>"
+    # Emails per user per rolling hour; the rest stay in-app only (email_status=rate_limited).
+    notification_email_rate_per_hour: int = Field(default=10, ge=1, le=1000)
+    smtp_host: str | None = None
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    # starttls (port 587), ssl (implicit TLS, port 465) or none (local relays / tests only).
+    smtp_security: Literal["starttls", "ssl", "none"] = "starttls"
+    smtp_username: str | None = None
+    smtp_password: SecretStr = SecretStr("")
+    smtp_timeout_s: float = Field(default=20.0, gt=0, le=120)
+
     @field_validator(
         "cors_origins",
         "trusted_proxy_ips",
@@ -315,6 +332,15 @@ class Settings(BaseSettings):
             problems.append("MFA_ENCRYPTION_KEY must be url-safe base64 Fernet key(s) (32 bytes)")
         if self.mfa_required_for_staff is False:
             problems.append("MFA_REQUIRED_FOR_STAFF must not be disabled in production")
+        if self.notification_email_enabled:
+            if self.notification_email_backend != "smtp":
+                problems.append("NOTIFICATION_EMAIL_BACKEND must be smtp when email is enabled")
+            elif not self.smtp_host:
+                problems.append("SMTP_HOST must be set when notification email is enabled")
+            elif self.smtp_security == "none":
+                problems.append("SMTP_SECURITY=none sends credentials in clear text")
+            if "@localhost" in self.notification_email_from:
+                problems.append("NOTIFICATION_EMAIL_FROM must be a real sender address")
         if problems:
             raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
 

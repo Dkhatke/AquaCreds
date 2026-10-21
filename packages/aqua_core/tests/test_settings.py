@@ -130,3 +130,36 @@ def test_funder_uses_its_own_key() -> None:
     assert settings.chain_funder_index == 4
     assert settings.chain_org_wallet_top_up <= settings.chain_org_wallet_daily_cap
     assert settings.chain_org_wallet_daily_cap <= settings.chain_funder_daily_cap
+
+
+def test_notification_email_is_off_by_default_and_checked_in_production() -> None:
+    dev = Settings(_env_file=None)
+    assert dev.notification_email_enabled is False
+    assert dev.notification_email_backend == "console"
+    _prod().assert_production_safe()  # email off: nothing else to configure
+
+    cases = [
+        ({}, "NOTIFICATION_EMAIL_BACKEND must be smtp"),
+        ({"notification_email_backend": "smtp"}, "SMTP_HOST must be set"),
+        (
+            {
+                "notification_email_backend": "smtp",
+                "smtp_host": "smtp.example",
+                "smtp_security": "none",
+            },
+            "SMTP_SECURITY=none",
+        ),
+        (
+            {"notification_email_backend": "smtp", "smtp_host": "smtp.example"},
+            "NOTIFICATION_EMAIL_FROM must be a real sender",
+        ),
+    ]
+    for overrides, problem in cases:
+        with pytest.raises(RuntimeError, match=problem):
+            _prod(notification_email_enabled=True, **overrides).assert_production_safe()
+    _prod(
+        notification_email_enabled=True,
+        notification_email_backend="smtp",
+        smtp_host="smtp-relay.example",
+        notification_email_from="AquaCreds <alerts@aquacreds.example>",
+    ).assert_production_safe()

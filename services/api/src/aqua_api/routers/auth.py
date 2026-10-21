@@ -40,6 +40,7 @@ from aqua_api.security import (
     verify_password,
 )
 from aqua_api.services import audit
+from aqua_core import notifications
 from aqua_core.models import MfaRecoveryCode, RefreshToken, User
 from aqua_core.models._types import utcnow
 from aqua_core.settings import Settings
@@ -54,7 +55,7 @@ _BAD_CODE = HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid authentication 
 LimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
 
 # Token responses after a recovery-code sign-in report the remaining count at or below this.
-LOW_RECOVERY_CODES = 2
+LOW_RECOVERY_CODES = notifications.LOW_RECOVERY_CODES
 
 
 async def _issue_tokens(
@@ -162,6 +163,7 @@ async def _consume_code(
                 entity_id=user.id,
                 data={"remaining": int(remaining or 0)},
             )
+            await notifications.mfa_recovery_codes_low(session, user.id, int(remaining or 0))
             return int(remaining or 0)
     raise _BAD_CODE
 
