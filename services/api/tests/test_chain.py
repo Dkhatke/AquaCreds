@@ -282,7 +282,12 @@ async def test_register_submit_approve_issue_and_index(
     assert status_body["configured"] is True
     assert status_body["chain_id"] == 31337
     assert status_body["error"] is None
-    assert {s["role"] for s in status_body["signers"]} == {"registrar", "verifier", "issuer"}
+    assert {s["role"] for s in status_body["signers"]} == {
+        "registrar",
+        "verifier",
+        "issuer",
+        "funder",
+    }
     assert all(s["balance_wei"] > 0 for s in status_body["signers"])
     assert status_body["contracts"]["AquaRegistry"] == deployment.registry
     assert status_body["indexer_cursors"]["AquaRegistry"] >= deployment.block

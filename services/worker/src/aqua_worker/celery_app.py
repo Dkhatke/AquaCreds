@@ -30,6 +30,7 @@ def beat_schedule(settings: Settings) -> dict[str, Any]:
     - geo-reap-stale-runs: hourly; on `default` because the geo worker (concurrency 1) can be busy
       for hours with the very job that may have died.
     - chain-index-events: every CHAIN_INDEX_INTERVAL_S, only when the chain is configured.
+    - chain-top-up-org-wallets: every CHAIN_TOP_UP_INTERVAL_S, only when the chain is configured.
     """
     schedule: dict[str, Any] = {
         "geo-nightly-ingest": {
@@ -50,6 +51,12 @@ def beat_schedule(settings: Settings) -> dict[str, Any]:
             "schedule": interval,
             # A tick still waiting when the next is due is redundant (the indexer is cursor-based).
             "options": {"queue": "chain", "expires": interval},
+        }
+        top_up = settings.chain_top_up_interval_s
+        schedule["chain-top-up-org-wallets"] = {
+            "task": "aqua.chain.top_up_org_wallets",
+            "schedule": top_up,
+            "options": {"queue": "chain", "expires": top_up},
         }
     else:
         log.info(

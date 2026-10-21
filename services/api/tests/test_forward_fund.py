@@ -2,8 +2,11 @@
 key), relayed offers from custodial org wallets via the API, award, delivery, refund, indexing,
 and the read API's escrow arithmetic checked against the contract's views."""
 
+import hashlib
+import json
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -128,6 +131,74 @@ async def _approve_capacity(
     return report_id
 
 
+TODAY = datetime.now(UTC).date()
+START = TODAY - timedelta(days=3 * 365)
+
+
+async def _mrv_report(
+    sql: Any,
+    project_id: str,
+    user_id: Any,
+    lccc: int,
+    *,
+    period_id: str | None = None,
+    version: int = 1,
+) -> tuple[str, str]:
+    """An approved MRV report row (synthetic test values), creating its monitoring period."""
+    if period_id is None:
+        period_id = str(uuid.uuid4())
+        await sql(
+            "INSERT INTO monitoring_periods (id, project_id, kind, status, start_date, end_date, "
+            "created_by) VALUES (:id, :p, 'monitoring', 'approved', :s, :e, :u)",
+            id=period_id,
+            p=project_id,
+            s=START,
+            e=TODAY,
+            u=user_id,
+        )
+    rid = uuid.uuid4()
+    await sql(
+        """
+        INSERT INTO mrv_reports (id, project_id, period_id, version, status, report_hash,
+            lccc_units, tccc_units, period_start_year, period_end_year, tree_stock_tco2e,
+            tccc_tco2e, json_key, pdf_key, csv_key, generated_at, generated_by, decided_at)
+        VALUES (:id, :p, :period, :v, 'approved', :hash, :lccc, 10, 2026, 2029, 100.0, 50.0,
+            :j, :pdf, :csv, now(), :u, now())
+        """,
+        id=rid,
+        p=project_id,
+        period=period_id,
+        v=version,
+        hash=hashlib.sha256(rid.bytes).hexdigest(),
+        lccc=lccc,
+        j=f"reports/{rid}.json",
+        pdf=f"reports/{rid}.pdf",
+        csv=f"reports/{rid}.csv",
+        u=user_id,
+    )
+    return str(rid), period_id
+
+
+async def _good_stewardship(sql: Any, project_id: str) -> None:
+    """Clear Sentinel-2 scenes with stable NDVI before the project start and in the last year."""
+    await sql("UPDATE projects SET start_date=:d WHERE id=:id", d=START, id=project_id)
+    for days in (40, 80, 120, 160):
+        for day in (START - timedelta(days=days), TODAY - timedelta(days=days)):
+            await sql(
+                """
+                INSERT INTO scene_observations (id, project_id, item_id, acquired_at, acquired_on,
+                    cloud_cover, clear_fraction, clear_pixels, polygon_pixels, index_stats, provider)
+                VALUES (gen_random_uuid(), :p, :item, :at, :day, 10.0, 0.9, 900, 1000,
+                    CAST(:stats AS jsonb), 'planetary_computer')
+                """,
+                p=project_id,
+                item=f"S2_{uuid.uuid4().hex[:8]}",
+                day=day,
+                at=datetime(day.year, day.month, day.day, 5, tzinfo=UTC),
+                stats=json.dumps({"ndvi": {"p50": 0.6}, "mvi": {"p50": 2.0}}),
+            )
+
+
 async def _chain_now(w3: Any) -> int:
     return int((await w3.eth.get_block("latest"))["timestamp"])
 
@@ -235,15 +306,48 @@ async def test_forward_fund_auction_end_to_end(
         "items"
     ] == []
 
-    # --- eligibility: no verified removal capacity yet → refused before anything is relayed
+    # --- stewardship gate: an org without verification history / survival data is refused
     r = await _offer(e, e.a, request_id=rid, price_per_unit=8 * USDC, quantity=60)
     assert r.status_code == 409
+    detail = r.json()["detail"]
+    assert detail["message"].startswith("Organisation does not meet")
+    assert "fail: at least one project with an approved report" in detail["failing"]
+    assert all(f.startswith("fail:") for f in detail["failing"])
+    assert len(detail["reasons"]) == 5
+    assert enqueued == []
+
+    # approved MRV reports + satellite survival make the org eligible ...
+    for pid in (e.a, e.b):
+        await _good_stewardship(sql, pid)
+    await _mrv_report(sql, e.a, e.admin.id, 120)
+    _, period_b = await _mrv_report(sql, e.b, e.admin.id, 40)
+    # ... but nothing is anchored on-chain yet: the smaller source (chain: 0) wins
+    r = await _offer(e, e.a, request_id=rid, price_per_unit=8 * USDC, quantity=60)
+    assert r.status_code == 409, r.text
     assert r.json()["detail"] == "no verified removal capacity yet"
+    cap = (await e.admin.get(f"/projects/{e.a}/forward-fund")).json()["capacity"]
+    assert (cap["total"], cap["sources_agree"]) == (0, False)
+    assert {s["name"]: s["total"] for s in cap["capacity_sources"]} == {
+        "mrv_reports": 120,
+        "onchain_report_approved": 0,
+    }
     assert enqueued == []
 
     report_a = await _approve_capacity(relayer, anvil_url, e.a, lccc=120, period_end=2029)
     await _approve_capacity(relayer, anvil_url, e.b, lccc=40, period_end=2029)
     await e.index()
+    cap = (await e.admin.get(f"/projects/{e.a}/forward-fund")).json()["capacity"]
+    assert (cap["total"], cap["sources_agree"], cap["report_ids"]) == (120, True, [report_a])
+    assert cap["source"].startswith("approved MRV reports (agrees with on-chain")
+
+    # a reversal recorded in the DB (negative lCCC) but not yet on-chain: DB is smaller, wins
+    reversal, _ = await _mrv_report(sql, e.b, e.admin.id, -15, period_id=period_b, version=2)
+    cap = (await e.admin.get(f"/projects/{e.b}/forward-fund")).json()["capacity"]
+    assert (cap["total"], cap["sources_agree"]) == (25, False)
+    assert cap["source"].startswith("approved MRV reports: lower than on-chain")
+    over = await _offer(e, e.b, request_id=rid, price_per_unit=9 * USDC, quantity=26)
+    assert "available removal capacity 25 (verified 25" in over.json()["detail"]
+    await sql("DELETE FROM mrv_reports WHERE id=:id", id=reversal)
 
     # --- role checks: member (non-admin) 403, outsider 404, registry admin 403
     member = await make_actor("Field Member")
@@ -382,6 +486,7 @@ async def test_forward_fund_auction_end_to_end(
     view = (await e.admin.get(f"/projects/{e.a}/forward-fund")).json()
     assert view["disclaimer"] == DISCLAIMER
     assert view["capacity"]["total"] == 120
+    assert view["capacity"]["sources_agree"] is True
     assert view["capacity"]["committed"] == 30  # 60 awarded − 30 delivered
     assert view["capacity"]["available"] == 90
     assert [o["status"] for o in view["offers"]] == ["awarded"]

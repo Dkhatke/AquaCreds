@@ -3,7 +3,8 @@
 Lifecycle (`ChainTxStatus`):
 
     queued ──estimate reverts / node rejects──▶ failed      (no nonce consumed, no hash invented)
-       │
+       │  └─org wallet balance < gas × maxFee + value──▶ waiting_for_gas ─(funded)─▶ submitted
+       │                                                  (nothing signed, no nonce held)
        └─sign + persist (write-ahead) ─▶ submitted ──receipt.status=1, N confirmations──▶ confirmed
                                             └──────receipt.status=0, N confirmations──▶ reverted
 
@@ -18,6 +19,12 @@ organisation's HD-derived wallet (e.g. a forward-fund offer, where the org walle
 project owner). Its `signer` is `org_wallet` and `from_address` is the org wallet; the key is
 derived from its `OrgWallet` row at submit time. Platform-role transactions never fall back to an
 org wallet key, and org-wallet transactions never use a platform-role key.
+
+Gas: an org-wallet transaction is never broadcast while the wallet's balance is below its
+worst-case cost (gas limit × max fee per gas + value); it is parked as `waiting_for_gas` and
+resubmitted by `aqua_chain.gas.top_up_org_wallets` once the funder account has topped it up.
+Native-token transfers (`contract="native"`, `function="transfer"`, args `[to, "<wei>"]`) are
+supported for that funder only.
 """
 
 from dataclasses import dataclass
@@ -25,6 +32,7 @@ from typing import Any
 
 from eth_account.signers.local import LocalAccount
 from eth_typing import HexStr
+from eth_utils.address import to_checksum_address
 from eth_utils.crypto import keccak
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -52,13 +60,16 @@ from aqua_core.models import (
     OrgWallet,
 )
 from aqua_core.models._types import utcnow
-from aqua_core.models.chain import NONCE_HOLDING_STATUSES
+from aqua_core.models.chain import NATIVE_CONTRACT, NATIVE_TRANSFER, NONCE_HOLDING_STATUSES
 from aqua_core.settings import Settings
 
 log = get_logger("aqua_chain.relayer")
 
 ALLOWED_TRANSITIONS: dict[ChainTxStatus, frozenset[ChainTxStatus]] = {
-    ChainTxStatus.QUEUED: frozenset({ChainTxStatus.SUBMITTED, ChainTxStatus.FAILED}),
+    ChainTxStatus.QUEUED: frozenset(
+        {ChainTxStatus.SUBMITTED, ChainTxStatus.FAILED, ChainTxStatus.WAITING_FOR_GAS}
+    ),
+    ChainTxStatus.WAITING_FOR_GAS: frozenset({ChainTxStatus.SUBMITTED, ChainTxStatus.FAILED}),
     ChainTxStatus.SUBMITTED: frozenset(
         {ChainTxStatus.CONFIRMED, ChainTxStatus.REVERTED, ChainTxStatus.FAILED}
     ),
@@ -67,6 +78,8 @@ ALLOWED_TRANSITIONS: dict[ChainTxStatus, frozenset[ChainTxStatus]] = {
     ChainTxStatus.REVERTED: frozenset(),
 }
 TERMINAL_STATUSES = frozenset(s for s, nxt in ALLOWED_TRANSITIONS.items() if not nxt)
+SUBMITTABLE_STATUSES = frozenset({ChainTxStatus.QUEUED, ChainTxStatus.WAITING_FOR_GAS})
+NATIVE_TRANSFER_GAS = 21_000
 # Errors from the node meaning "this exact transaction is already in the pool".
 _ALREADY_KNOWN = ("already known", "known transaction", "already imported")
 _TRANSIENT_RPC = (OSError, TimeoutError, ProviderConnectionError)
@@ -161,6 +174,45 @@ class Relayer:
         await session.flush()
         return tx
 
+    async def queue_native_transfer(
+        self,
+        session: AsyncSession,
+        *,
+        purpose: ChainTxPurpose,
+        entity_type: str,
+        entity_id: str,
+        signer: ChainSigner,
+        to_address: str,
+        value_wei: int,
+        requested_by: Any = None,
+    ) -> ChainTransaction:
+        """Queue a plain native-token transfer from a platform signer (the funder). Org wallets
+        never send native transfers: their keys only sign the actions they own."""
+        if signer == ChainSigner.ORG_WALLET:
+            raise ChainError("custodial org wallets never send native transfers")
+        if value_wei <= 0:
+            raise ChainError("a native transfer needs a positive value")
+        to = to_checksum_address(to_address)
+        tx = ChainTransaction(
+            chain_id=self.client.chain_id,
+            purpose=purpose,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            signer=signer,
+            from_address=self.signers.address(signer),
+            to_address=to,
+            contract=NATIVE_CONTRACT,
+            function=NATIVE_TRANSFER,
+            args=[to, str(value_wei)],  # decimal string: wei exceeds 2^53
+            status=ChainTxStatus.QUEUED,
+            requested_by=requested_by,
+            result={},
+            attempts=0,
+        )
+        session.add(tx)
+        await session.flush()
+        return tx
+
     # ------------------------------------------------------------ processing
 
     async def process(self, tx_id: Any) -> ChainTxStatus:
@@ -175,7 +227,7 @@ class Relayer:
             tx = await session.get(ChainTransaction, tx_id, with_for_update=True)
             if tx is None:
                 raise LookupError(f"chain transaction {tx_id} not found")
-            if tx.status is not ChainTxStatus.QUEUED:
+            if tx.status not in SUBMITTABLE_STATUSES:
                 return tx.status
             account, problem = await self._signing_account(session, tx)
             if problem or account is None:
@@ -183,12 +235,23 @@ class Relayer:
                 await session.commit()
                 return ChainTxStatus.FAILED
 
-            contract = self.client.contract(tx.contract)
-            inputs = artifacts.function_abi(tx.contract, tx.function)["inputs"]
-            fn = contract.get_function_by_name(tx.function)(*from_json_args(inputs, tx.args))
+            native = tx.contract == NATIVE_CONTRACT
+            fn: Any = None
+            value = 0
+            if native:
+                value = int(tx.args[1])
+            else:
+                contract = self.client.contract(tx.contract)
+                inputs = artifacts.function_abi(tx.contract, tx.function)["inputs"]
+                fn = contract.get_function_by_name(tx.function)(*from_json_args(inputs, tx.args))
             tx.attempts += 1
             try:
-                estimate = await fn.estimate_gas({"from": account.address})
+                if native:
+                    estimate = await self.client.w3.eth.estimate_gas(
+                        {"from": account.address, "to": tx.to_address, "value": Wei(value)}
+                    )
+                else:
+                    estimate = await fn.estimate_gas({"from": account.address})
             except ContractLogicError as exc:
                 decoded = decode_revert(exc.data)
                 await self._finish(
@@ -198,6 +261,18 @@ class Relayer:
                     error=(decoded.describe() if decoded else str(exc))
                     + " (rejected during gas estimation; not broadcast)",
                     error_name=decoded.name if decoded else None,
+                )
+                await session.commit()
+                return ChainTxStatus.FAILED
+            except Web3RPCError as exc:
+                if not native:
+                    raise
+                # e.g. "insufficient funds": the funder cannot pay this transfer
+                await self._finish(
+                    session,
+                    tx,
+                    ChainTxStatus.FAILED,
+                    error=f"native transfer rejected during gas estimation: {exc} (not broadcast)",
                 )
                 await session.commit()
                 return ChainTxStatus.FAILED
@@ -214,6 +289,23 @@ class Relayer:
             fees = await self.client.fee_quote(
                 cap_wei=self.policy.gas_price_cap_wei, priority_wei=self.policy.priority_fee_wei
             )  # GasPriceTooHighError → rollback; tx stays queued and is retried later
+            if tx.signer == ChainSigner.ORG_WALLET or native:
+                cost = gas_limit * fees.max_fee_per_gas + value
+                balance = await self.client.balance(account.address)
+                if balance < cost and tx.signer == ChainSigner.ORG_WALLET:
+                    await self._wait_for_gas(session, tx, balance=balance, cost=cost)
+                    await session.commit()
+                    return ChainTxStatus.WAITING_FOR_GAS
+                if balance < cost:  # the funder itself is out of gas: refill it from a faucet
+                    await self._finish(
+                        session,
+                        tx,
+                        ChainTxStatus.FAILED,
+                        error=f"{tx.signer} {account.address} holds {balance} wei, the transfer "
+                        f"may cost up to {cost} wei (not broadcast)",
+                    )
+                    await session.commit()
+                    return ChainTxStatus.FAILED
 
             await session.execute(
                 text("SELECT pg_advisory_xact_lock(:k)"),
@@ -227,9 +319,12 @@ class Relayer:
                 "gas": gas_limit,
                 "maxFeePerGas": Wei(fees.max_fee_per_gas),
                 "maxPriorityFeePerGas": Wei(fees.max_priority_fee_per_gas),
-                "value": Wei(0),
+                "value": Wei(value),
             }
-            built = await fn.build_transaction(params)
+            if native:
+                built: Any = {**params, "to": to_checksum_address(tx.to_address)}
+            else:
+                built = await fn.build_transaction(params)
             signed = account.sign_transaction(built)
             tx.nonce = nonce
             tx.tx_hash = signed.hash.to_0x_hex()
@@ -238,6 +333,7 @@ class Relayer:
             tx.gas_limit = gas_limit
             tx.max_fee_per_gas = fees.max_fee_per_gas
             tx.submitted_at = utcnow()
+            tx.error = None  # clears a previous waiting-for-gas note
             transition(tx, ChainTxStatus.SUBMITTED)
             await self._audit(session, tx)
             await session.commit()  # write-ahead: persisted before it leaves the process
@@ -299,7 +395,10 @@ class Relayer:
                 None,
                 f"queued for chain {tx.chain_id}, relayer is on chain {self.client.chain_id}",
             )
-        if self.client.address_of(tx.contract).lower() != tx.to_address.lower():
+        if (
+            tx.contract != NATIVE_CONTRACT
+            and self.client.address_of(tx.contract).lower() != tx.to_address.lower()
+        ):
             return None, f"{tx.contract} address changed since the transaction was queued"
         if tx.signer != ChainSigner.ORG_WALLET:
             role_account = self.signers.account(tx.signer)
@@ -317,6 +416,26 @@ class Relayer:
         return (
             None,
             f"org wallet index {wallet.derivation_index} no longer derives {tx.from_address}",
+        )
+
+    async def _wait_for_gas(
+        self, session: AsyncSession, tx: ChainTransaction, *, balance: int, cost: int
+    ) -> None:
+        """Park an org-wallet transaction until its wallet is funded. Nothing is signed and no
+        nonce is taken; the audit entry is written once, on entering the state."""
+        tx.error = (
+            f"waiting for gas: {tx.from_address} holds {balance} wei, the transaction may cost "
+            f"up to {cost} wei (not broadcast)"
+        )
+        if tx.status is ChainTxStatus.QUEUED:
+            transition(tx, ChainTxStatus.WAITING_FOR_GAS)
+            await self._audit(session, tx)
+        log.info(
+            "chain.tx_waiting_for_gas",
+            tx_id=str(tx.id),
+            wallet=tx.from_address,
+            balance_wei=balance,
+            cost_wei=cost,
         )
 
     async def _next_nonce(self, session: AsyncSession, tx: ChainTransaction) -> int:

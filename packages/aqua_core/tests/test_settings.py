@@ -121,3 +121,12 @@ def test_chain_configured_needs_mnemonic_and_contracts() -> None:
         chain_credit_address="0x" + "22" * 20,
     )
     assert settings.chain_configured
+
+
+def test_funder_uses_its_own_key() -> None:
+    with pytest.raises(ValidationError, match="separation of duties"):
+        Settings(_env_file=None, chain_funder_index=1)  # the registrar's index
+    settings = Settings(_env_file=None)
+    assert settings.chain_funder_index == 4
+    assert settings.chain_org_wallet_top_up <= settings.chain_org_wallet_daily_cap
+    assert settings.chain_org_wallet_daily_cap <= settings.chain_funder_daily_cap

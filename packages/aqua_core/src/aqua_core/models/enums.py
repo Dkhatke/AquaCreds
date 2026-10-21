@@ -109,9 +109,14 @@ class SubmissionKind(StrEnum):
 
 class ChainTxStatus(StrEnum):
     """Relayer lifecycle: queued → submitted → confirmed | reverted, or failed (never broadcast,
-    or rejected by the node). `confirmed` only after N block confirmations."""
+    or rejected by the node). `confirmed` only after N block confirmations.
+
+    `waiting_for_gas`: a custodial org-wallet transaction whose wallet balance is below the
+    estimated cost. Nothing was signed or broadcast and no nonce is held; the gas top-up task
+    funds the wallet and resubmits it."""
 
     QUEUED = "queued"
+    WAITING_FOR_GAS = "waiting_for_gas"
     SUBMITTED = "submitted"
     CONFIRMED = "confirmed"
     FAILED = "failed"
@@ -126,6 +131,7 @@ class ChainTxPurpose(StrEnum):
     ISSUE_CREDITS = "issue_credits"
     FORWARD_FUND_OFFER = "forward_fund_offer"
     FORWARD_FUND_WITHDRAW = "forward_fund_withdraw"
+    GAS_TOP_UP = "gas_top_up"  # native-token transfer from the funder to an org wallet
     OTHER = "other"
 
 
@@ -136,6 +142,7 @@ class ChainSigner(StrEnum):
     VERIFIER = "verifier"
     ISSUER = "issuer"
     ORG_WALLET = "org_wallet"  # a custodial organisation wallet (e.g. a forward-fund offer)
+    FUNDER = "funder"  # pays native gas top-ups to custodial org wallets, nothing else
 
 
 class SubmissionStatus(StrEnum):

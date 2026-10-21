@@ -571,7 +571,7 @@ async def test_retirement_certificate_and_qr(
     assert cert["purpose"] == "FY2027 scope 1 offset"
     assert cert["tx_hash"] == seeded["retire_tx"]
     assert cert["project"]["name"] == "Project registered"
-    assert cert["block_time"] is None  # buyer-signed tx: no relayer record
+    assert cert["block_time"] is None  # seeded without a block time (the indexer backfills it)
     verification = cert["verification"]
     assert verification["certificate_url"] == "http://localhost:3000/registry/retirements/1"
     assert verification["chain"]["tx_hash"] == seeded["retire_tx"]
@@ -611,11 +611,23 @@ async def test_certificate_url_uses_configured_base(
     )
 
 
-async def test_block_time_from_relayer_record(
+async def test_block_time_from_indexed_event(
     world: World, client: httpx.AsyncClient, sql: Any
 ) -> None:
+    """block_time is the indexed block timestamp, never the relayer's confirmation time."""
     seeded = await _seed_credits(sql, world)
-    confirmed = datetime(2027, 1, 2, 3, 4, 5, tzinfo=UTC)
+    mined = datetime(2027, 1, 2, 3, 4, 5, tzinfo=UTC)
+    await sql(
+        "UPDATE chain_events SET block_time = :t WHERE tx_hash = :tx",
+        t=mined,
+        tx=seeded["retire_tx"],
+    )
+    await sql(
+        "UPDATE chain_events SET block_time = :t WHERE tx_hash = :tx",
+        t=mined,
+        tx=seeded["issuance_txs"][0],
+    )
+    confirmed = datetime(2027, 1, 2, 3, 9, 0, tzinfo=UTC)
     await sql(
         "INSERT INTO chain_transactions (id, chain_id, purpose, entity_type, entity_id, signer, "
         "from_address, to_address, contract, function, args, status, tx_hash, confirmed_at, "
@@ -628,7 +640,11 @@ async def test_block_time_from_relayer_record(
         at=confirmed,
     )
     cert = (await client.get("/public/retirements/1")).json()
-    assert datetime.fromisoformat(cert["block_time"]) == confirmed
+    assert datetime.fromisoformat(cert["block_time"]) == mined
+    vintages = (await client.get("/public/vintages")).json()["items"]
+    issuances = {i["tx_hash"]: i for v in vintages for i in v["issuances"]}
+    assert datetime.fromisoformat(issuances[seeded["issuance_txs"][0]]["block_time"]) == mined
+    assert issuances[seeded["issuance_txs"][1]]["block_time"] is None
 
 
 async def test_verify_hash(world: World, client: httpx.AsyncClient, sql: Any) -> None:

@@ -3,7 +3,8 @@
 Reads are derived from indexed contract events (`chain_events`), optionally checked against live
 contract views (`?onchain=true`). Writes are limited to custodial project owners: an org admin
 can have the platform relay `submitOffer` / `withdrawOffer` from the organisation's HD wallet (the
-project's on-chain owner). Buyers act with their own wallets (createRequest, award,
+project's on-chain owner), once the organisation passes the forward-funding stewardship
+criteria and only within the project's verified removal capacity. Buyers act with their own wallets (createRequest, award,
 refundUndelivered, withdraw); the platform never relays buyer actions.
 
 An advance is never a guarantee of credits: every response carries a disclaimer, and upfront
@@ -22,6 +23,7 @@ from aqua_api.schemas.chain import ChainTxOut
 from aqua_api.schemas.forward_fund import (
     AwardOut,
     CapacityOut,
+    CapacitySourceOut,
     DeliveryOut,
     OfferIn,
     OfferOut,
@@ -34,9 +36,11 @@ from aqua_api.schemas.forward_fund import (
 )
 from aqua_api.services import audit
 from aqua_api.services.forward_fund import (
+    EligibilityCheck,
     RemovalCapacity,
     RemovalCapacityProvider,
     capacity_provider,
+    eligibility_check,
 )
 from aqua_chain import forward_fund as ff
 from aqua_chain.encoding import project_id_bytes32, to_hex
@@ -50,12 +54,14 @@ from aqua_core.models import (
     Project,
     User,
 )
+from aqua_core.models.chain import PENDING_STATUSES
 from aqua_core.settings import Settings
 
 router = APIRouter(tags=["forward-fund"])
 
 CapacityDep = Annotated[RemovalCapacityProvider, Depends(capacity_provider)]
-PENDING = (ChainTxStatus.QUEUED, ChainTxStatus.SUBMITTED)
+EligibilityDep = Annotated[EligibilityCheck, Depends(eligibility_check)]
+PENDING = PENDING_STATUSES  # queued, waiting for gas, or broadcast: still in flight
 
 
 # ---------------------------------------------------------------- helpers
@@ -293,6 +299,16 @@ def _capacity_out(capacity: RemovalCapacity, committed: int) -> CapacityOut:
         available=max(capacity.total - committed, 0),
         source=capacity.source,
         report_ids=list(capacity.report_ids),
+        sources_agree=capacity.sources_agree,
+        capacity_sources=[
+            CapacitySourceOut(
+                name=src.name,
+                total=src.total,
+                description=src.description,
+                report_ids=list(src.report_ids),
+            )
+            for src in capacity.sources
+        ],
     )
 
 
@@ -379,7 +395,7 @@ async def project_forward_fund(
     ids = {key: project.id}
     offers = [o for r in book.values() for o in r.offers.values() if o.project_key == key]
     awards = [a for r in book.values() for a in r.awards.values() if a.project_key == key]
-    capacity = await capacity_of(session, _chain_id(request), key)
+    capacity = await capacity_of(session, _chain_id(request), project.id)
     return ProjectForwardFundOut(
         project_id=project.id,
         project_key=key,
@@ -405,6 +421,7 @@ async def submit_offer(
     session: SessionDep,
     settings: SettingsDep,
     capacity_of: CapacityDep,
+    eligible_org: EligibilityDep,
 ) -> ChainTransaction:
     project = await _admin_project(session, project_id, user, settings)
     book = await _book(request, session)
@@ -441,8 +458,19 @@ async def submit_offer(
             status.HTTP_409_CONFLICT, "An offer for this request is already being relayed"
         )
 
-    # Off-chain eligibility (§Phase 7 step 2): never offer more than verified capacity allows.
-    capacity = await capacity_of(session, _chain_id(request), key)
+    # Off-chain eligibility (§Phase 7 step 2). (a) stewardship of the organisation:
+    eligible, reasons = await eligible_org(session, project.org_id)
+    if not eligible:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {
+                "message": "Organisation does not meet the forward-funding stewardship criteria",
+                "failing": [r for r in reasons if r.startswith("fail:")],
+                "reasons": reasons,
+            },
+        )
+    # (b) never offer more than verified capacity allows.
+    capacity = await capacity_of(session, _chain_id(request), project.id)
     if capacity.total <= 0:
         raise HTTPException(status.HTTP_409_CONFLICT, "no verified removal capacity yet")
     in_flight = sum(int(t.args[3]) for t in pending if t.function == "submitOffer")

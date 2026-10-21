@@ -169,6 +169,61 @@ backups can't be used with a new VM.
   a fine-grained or classic PAT with only `read:packages`, then on the VM run
   `echo <PAT> | docker login ghcr.io -u <github-user> --password-stdin`.
 
+### 3.9 Chain wallets on Amoy (signers + gas funder)
+
+Every chain key is derived from `RELAYER_MNEMONIC` (BIP-44 `m/44'/60'/0'/0/{index}`):
+
+| Index setting | Default | Signs | Needs test POL |
+|---|---|---|---|
+| `CHAIN_REGISTRAR_INDEX` | 1 | project registration, report submission | yes |
+| `CHAIN_VERIFIER_INDEX` | 2 | report approval / rejection | yes |
+| `CHAIN_ISSUER_INDEX` | 3 | credit issuance | yes |
+| `CHAIN_FUNDER_INDEX` | 4 | **only** gas top-ups to custodial org wallets | yes (the gas budget) |
+| `CHAIN_ORG_INDEX_OFFSET` + n | 1000 + n | an organisation's own forward-fund offers | no: topped up automatically |
+
+The funder is a separate key on purpose. Its balance is the whole gas budget for org wallets, and
+its nonces never queue behind registry actions. If it is ever drained, registration and verification
+keep working.
+
+**Print the addresses** once the stack is up:
+```bash
+infra/scripts/compose.sh exec worker-chain python -c "from aqua_core.settings import get_settings; \
+from aqua_chain.wallets import Signers; \
+print({k.value: v for k, v in Signers.from_settings(get_settings()).addresses().items()})"
+```
+
+**Fund them from a faucet.** Use the Polygon faucet (`https://faucet.polygon.technology`, network
+*Amoy*, token *POL*) or an RPC provider's Amoy faucet (Alchemy, QuickNode). Paste each address
+above. Faucets limit how much you can claim per address and per day, and the limits change, so
+check the faucet page. Give the funder the largest share, because it pays every org wallet. Check
+balances on `https://amoy.polygonscan.com/address/<address>`.
+
+**How top-ups work.** `aqua.chain.top_up_org_wallets` runs on beat every `CHAIN_TOP_UP_INTERVAL_S`
+(300 s). It only looks at org wallets that have a `queued` or `waiting_for_gas` transaction; idle
+wallets are never funded. A wallet whose balance is below `CHAIN_ORG_WALLET_MIN_BALANCE`, or that has
+a transaction waiting for gas, gets one transfer of `CHAIN_ORG_WALLET_TOP_UP` from the funder. The
+waiting transactions are then resubmitted. Each top-up is a `chain_transactions` row (signer
+`funder`, purpose `gas_top_up`) and an audit-log entry. The relayer never broadcasts an org-wallet
+transaction whose balance is below gas limit × max fee + value. Such a transaction is parked as
+`waiting_for_gas` with the balance and the cost in `error`; nothing is signed and no nonce is
+taken.
+
+| Setting (wei) | Default | Meaning |
+|---|---|---|
+| `CHAIN_ORG_WALLET_MIN_BALANCE` | `10000000000000000` (0.01 POL) | top up below this |
+| `CHAIN_ORG_WALLET_TOP_UP` | `20000000000000000` (0.02 POL) | amount per top-up |
+| `CHAIN_ORG_WALLET_DAILY_CAP` | `60000000000000000` (0.06 POL) | per wallet, rolling 24 h |
+| `CHAIN_FUNDER_DAILY_CAP` | `200000000000000000` (0.2 POL) | all wallets together, rolling 24 h |
+
+Caps count queued, submitted and confirmed top-ups. A capped wallet stays `waiting_for_gas`, and
+the worker logs `chain.gas_top_up_capped`. To unblock it, raise the cap or fund the wallet by hand.
+If the funder itself runs dry, the top-up fails with its balance and the cost in `error`, and you
+refill the funder from the faucet. The balance check uses the worst case, gas limit (estimate ×
+1.2) × max fee (2 × base fee + tip). If offers keep landing in `waiting_for_gas` right after a
+top-up, raise `CHAIN_ORG_WALLET_TOP_UP`; `gas_limit` and `max_fee_per_gas` on past
+`chain_transactions` rows show the real figures. Size the caps to the faucet allowance you actually
+get.
+
 ## 4. First deploy
 
 CI pushes `ghcr.io/dkhatke/aquacreds-{api,worker}` with tags `main` and `sha-<7 chars>` on every

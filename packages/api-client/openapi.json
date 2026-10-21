@@ -494,6 +494,13 @@
             "title": "Available",
             "type": "integer"
           },
+          "capacity_sources": {
+            "items": {
+              "$ref": "#/components/schemas/CapacitySourceOut"
+            },
+            "title": "Capacity Sources",
+            "type": "array"
+          },
           "committed": {
             "title": "Committed",
             "type": "integer"
@@ -514,6 +521,10 @@
             "title": "Source",
             "type": "string"
           },
+          "sources_agree": {
+            "title": "Sources Agree",
+            "type": "boolean"
+          },
           "total": {
             "title": "Total",
             "type": "integer"
@@ -524,9 +535,46 @@
           "committed",
           "available",
           "source",
-          "report_ids"
+          "report_ids",
+          "sources_agree",
+          "capacity_sources"
         ],
         "title": "CapacityOut",
+        "type": "object"
+      },
+      "CapacitySourceOut": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "enum": [
+              "mrv_reports",
+              "onchain_report_approved"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "report_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Report Ids",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "total",
+          "description",
+          "report_ids"
+        ],
+        "title": "CapacitySourceOut",
         "type": "object"
       },
       "CertificateVerification": {
@@ -700,7 +748,8 @@
           "registrar",
           "verifier",
           "issuer",
-          "org_wallet"
+          "org_wallet",
+          "funder"
         ],
         "title": "ChainSigner",
         "type": "string"
@@ -979,15 +1028,17 @@
           "issue_credits",
           "forward_fund_offer",
           "forward_fund_withdraw",
+          "gas_top_up",
           "other"
         ],
         "title": "ChainTxPurpose",
         "type": "string"
       },
       "ChainTxStatus": {
-        "description": "Relayer lifecycle: queued → submitted → confirmed | reverted, or failed (never broadcast,\nor rejected by the node). `confirmed` only after N block confirmations.",
+        "description": "Relayer lifecycle: queued → submitted → confirmed | reverted, or failed (never broadcast,\nor rejected by the node). `confirmed` only after N block confirmations.\n\n`waiting_for_gas`: a custodial org-wallet transaction whose wallet balance is below the\nestimated cost. Nothing was signed or broadcast and no nonce is held; the gas top-up task\nfunds the wallet and resubmits it.",
         "enum": [
           "queued",
+          "waiting_for_gas",
           "submitted",
           "confirmed",
           "failed",
@@ -1339,6 +1390,18 @@
             "title": "Block Number",
             "type": "integer"
           },
+          "block_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Time"
+          },
           "explorer_url": {
             "anyOf": [
               {
@@ -1359,6 +1422,7 @@
           "amount",
           "tx_hash",
           "block_number",
+          "block_time",
           "explorer_url"
         ],
         "title": "IssuanceOut",

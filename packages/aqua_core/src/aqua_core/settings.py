@@ -130,6 +130,9 @@ class Settings(BaseSettings):
     chain_registrar_index: int = Field(default=1, ge=0)
     chain_verifier_index: int = Field(default=2, ge=0)
     chain_issuer_index: int = Field(default=3, ge=0)
+    # Funder: a dedicated account that only sends native gas top-ups to custodial org wallets, so
+    # its balance is a bounded gas budget and its nonces never queue behind registry actions.
+    chain_funder_index: int = Field(default=4, ge=0)
     chain_org_index_offset: int = Field(default=1000, ge=0)  # org wallets: offset + n
     chain_confirmations: int = Field(default=3, ge=1)
     chain_gas_limit_cap: int = Field(default=3_000_000, gt=21_000)
@@ -138,6 +141,15 @@ class Settings(BaseSettings):
     chain_index_batch_blocks: int = Field(default=2000, ge=1)
     chain_reorg_depth: int = Field(default=12, ge=0)  # indexer re-scans this many recent blocks
     chain_index_interval_s: float = Field(default=30.0, gt=0)  # beat: aqua.chain.index_events
+    # Gas top-up of custodial org wallets (beat: aqua.chain.top_up_org_wallets). All amounts in wei
+    # of the native token (POL on Amoy). A wallet with pending transactions whose balance is below
+    # the minimum (or that has a transaction waiting for gas) receives one top-up per run, within a
+    # rolling-24 h cap per wallet and a rolling-24 h cap across all wallets.
+    chain_org_wallet_min_balance: int = Field(default=10**16, ge=0)  # 0.01 POL
+    chain_org_wallet_top_up: int = Field(default=2 * 10**16, gt=0)  # 0.02 POL per top-up
+    chain_org_wallet_daily_cap: int = Field(default=6 * 10**16, gt=0)  # 0.06 POL / wallet / 24 h
+    chain_funder_daily_cap: int = Field(default=2 * 10**17, gt=0)  # 0.2 POL / all wallets / 24 h
+    chain_top_up_interval_s: float = Field(default=300.0, gt=0)
 
     # ---------------------------------------------------------------- worker ops (Phase 9)
     # A run still `running` this long after it started is marked failed by aqua.geo.reap_stale_runs.
@@ -220,6 +232,7 @@ class Settings(BaseSettings):
             "CHAIN_REGISTRAR_INDEX": self.chain_registrar_index,
             "CHAIN_VERIFIER_INDEX": self.chain_verifier_index,
             "CHAIN_ISSUER_INDEX": self.chain_issuer_index,
+            "CHAIN_FUNDER_INDEX": self.chain_funder_index,
         }
         if len(set(roles.values())) != len(roles):
             raise ValueError(
