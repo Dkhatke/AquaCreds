@@ -1,5 +1,7 @@
-// Copies the held-out metrics of the production classifier from the model card
-// (ml/model_cards/<version>_metrics.json, written by `dvc repro train_classifier`) into the web app.
+// Copies the held-out metrics of each classifier version from its model card
+// (ml/model_cards/<stem>_metrics.json, written by `dvc repro train_classifier`) into the web app.
+// v1 stays because classifications recorded as v1 should still show v1's metrics; v1.1 is the
+// production model.
 // The API does not expose model metrics yet (see PR "API gaps"); a unit test fails if this copy
 // drifts from the source. Usage: pnpm --filter @aquacreds/web sync:model-card
 import { createHash } from "node:crypto";
@@ -8,10 +10,17 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-export const SOURCE = join(here, "../../../ml/model_cards/ecosystem_classifier_v1_metrics.json");
-export const TARGET = join(here, "../src/data/model-cards/ecosystem_classifier_v1.json");
+// File stems: the version with "." replaced by "_" (ecosystem_classifier_v1.1 → …_v1_1).
+export const STEMS = ["ecosystem_classifier_v1", "ecosystem_classifier_v1_1"];
+export const sourceOf = (stem) => `ml/model_cards/${stem}_metrics.json`;
+export const SOURCES = Object.fromEntries(
+  STEMS.map((stem) => [stem, join(here, "../../..", sourceOf(stem))]),
+);
+export const TARGETS = Object.fromEntries(
+  STEMS.map((stem) => [stem, join(here, `../src/data/model-cards/${stem}.json`)]),
+);
 
-export function extract(raw) {
+export function extract(raw, stem) {
   const card = JSON.parse(raw);
   const winner = card.models[card.winner];
   const h = winner.heldout;
@@ -24,7 +33,7 @@ export function extract(raw) {
   return {
     model_version: card.model_version,
     algorithm: card.winner,
-    source: "ml/model_cards/ecosystem_classifier_v1_metrics.json",
+    source: sourceOf(stem),
     source_sha256: createHash("sha256").update(raw).digest("hex"),
     heldout: {
       region: "Gulf of Kutch (68.0–70.8°E, 22–24°N), never used for training or tuning",
@@ -40,9 +49,11 @@ export function extract(raw) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const out = extract(readFileSync(SOURCE, "utf8"));
-  writeFileSync(TARGET, `${JSON.stringify(out, null, 2)}\n`);
-  console.log(
-    `wrote ${TARGET} (${out.model_version}, source sha256 ${out.source_sha256.slice(0, 12)})`,
-  );
+  for (const stem of STEMS) {
+    const out = extract(readFileSync(SOURCES[stem], "utf8"), stem);
+    writeFileSync(TARGETS[stem], `${JSON.stringify(out, null, 2)}\n`);
+    console.log(
+      `wrote ${TARGETS[stem]} (${out.model_version}, source sha256 ${out.source_sha256.slice(0, 12)})`,
+    );
+  }
 }

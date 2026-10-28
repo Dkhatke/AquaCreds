@@ -1,0 +1,53 @@
+{
+  "model_version": "ecosystem_classifier_v1.1",
+  "algorithm": "lightgbm",
+  "source": "ml/model_cards/ecosystem_classifier_v1_1_metrics.json",
+  "source_sha256": "b7e9e12009e65ccb5ca781921b0c6d05de7b55e34f53bdedb29ddb3ec33da3e8",
+  "heldout": {
+    "region": "Gulf of Kutch (68.0–70.8°E, 22–24°N), never used for training or tuning",
+    "n": 1133,
+    "accuracy": 0.7546337157987644,
+    "macro_f1": 0.6378040221765754,
+    "mangrove_vs_rest_f1": 0.9451476793248944,
+    "per_class": {
+      "built_bare": {
+        "f1": 0.5395,
+        "precision": 0.4141,
+        "recall": 0.7736,
+        "support": 53
+      },
+      "cropland_aquaculture": {
+        "f1": 0.5502,
+        "precision": 0.5575,
+        "recall": 0.5431,
+        "support": 116
+      },
+      "mangrove": {
+        "f1": 0.9451,
+        "precision": 0.9825,
+        "recall": 0.9106,
+        "support": 123
+      },
+      "terrestrial_other": {
+        "f1": 0.6,
+        "precision": 0.5825,
+        "recall": 0.6186,
+        "support": 97
+      },
+      "tidal_flat": {
+        "f1": 0.3258,
+        "precision": 0.2397,
+        "recall": 0.5088,
+        "support": 57
+      },
+      "water": {
+        "f1": 0.8661,
+        "precision": 0.9434,
+        "recall": 0.8006,
+        "support": 687
+      }
+    }
+  },
+  "cv_macro_f1_mean": 0.7596,
+  "note": "Spatial CV scores are slightly optimistic (same folds for tuning); the held-out region is the clean estimate."
+}

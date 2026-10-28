@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { formatPercent } from "@/lib/format";
-import { modelCard } from "@/lib/model-cards";
+import { modelCard, PRODUCTION_MODEL_VERSION } from "@/lib/model-cards";
 
 export function Technology() {
-  const card = modelCard("ecosystem_classifier_v1");
+  const card = modelCard(PRODUCTION_MODEL_VERSION);
   const items = [
     {
       title: "AI / ML",
