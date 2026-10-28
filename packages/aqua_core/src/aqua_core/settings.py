@@ -142,6 +142,11 @@ class Settings(BaseSettings):
     ml_mangrove_loss_min_ha: float = Field(default=1.0, ge=0)
     # Beat: classify the dry season that just ended for every active project (day of April, UTC).
     ml_annual_classification_day: int = Field(default=15, ge=1, le=30)
+    # Field-photo verifier (Model C, aqua_worker.photo_verifier): an advisory evidence check
+    # ("does this photo plausibly show mangroves, which genus?"). Off by default; when on, the
+    # model files are fetched from models/photo_verifier/v1/ and SHA-256-checked like the
+    # classifier. It only ever warns: it never rejects a submission on its own.
+    photo_verifier_enabled: bool = False
 
     # ---------------------------------------------------------------- blockchain (Phase 6)
     chain_rpc_url: str = "http://localhost:8545"

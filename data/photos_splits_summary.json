@@ -1,0 +1,151 @@
+{
+ "heldout_state": "Maharashtra",
+ "per_split": {
+  "train": 1568,
+  "val": 472,
+  "test_observer": 398,
+  "test_state": 354,
+  "excluded_overlap": 69
+ },
+ "per_split_label": {
+  "excluded_overlap": {
+   "non_mangrove": 44,
+   "mangrove": 25
+  },
+  "test_observer": {
+   "non_mangrove": 200,
+   "mangrove": 198
+  },
+  "test_state": {
+   "mangrove": 228,
+   "non_mangrove": 126
+  },
+  "train": {
+   "mangrove": 893,
+   "non_mangrove": 675
+  },
+  "val": {
+   "mangrove": 360,
+   "non_mangrove": 112
+  }
+ },
+ "observers_per_split": {
+  "excluded_overlap": 22,
+  "test_observer": 185,
+  "test_state": 112,
+  "train": 708,
+  "val": 119
+ },
+ "per_split_class": {
+  "excluded_overlap": {
+   "aegiceras": 5,
+   "avicennia": 0,
+   "beach_dune": 3,
+   "bruguiera": 8,
+   "casuarina": 4,
+   "ceriops": 1,
+   "coastal_trees": 3,
+   "coconut": 2,
+   "excoecaria": 1,
+   "grassland": 4,
+   "heritiera": 0,
+   "kandelia": 1,
+   "lumnitzera": 0,
+   "mudflat_proxy": 21,
+   "prosopis": 3,
+   "rhizophora": 2,
+   "salt_marsh": 1,
+   "sonneratia": 6,
+   "urban_proxy": 3,
+   "xylocarpus": 1
+  },
+  "test_observer": {
+   "aegiceras": 26,
+   "avicennia": 11,
+   "beach_dune": 12,
+   "bruguiera": 12,
+   "casuarina": 26,
+   "ceriops": 33,
+   "coastal_trees": 15,
+   "coconut": 34,
+   "excoecaria": 8,
+   "grassland": 25,
+   "heritiera": 28,
+   "kandelia": 6,
+   "lumnitzera": 7,
+   "mudflat_proxy": 13,
+   "prosopis": 45,
+   "rhizophora": 22,
+   "salt_marsh": 22,
+   "sonneratia": 14,
+   "urban_proxy": 8,
+   "xylocarpus": 31
+  },
+  "test_state": {
+   "aegiceras": 25,
+   "avicennia": 46,
+   "beach_dune": 20,
+   "bruguiera": 11,
+   "casuarina": 13,
+   "ceriops": 10,
+   "coastal_trees": 17,
+   "coconut": 22,
+   "excoecaria": 20,
+   "grassland": 3,
+   "heritiera": 1,
+   "kandelia": 4,
+   "lumnitzera": 10,
+   "mudflat_proxy": 17,
+   "prosopis": 2,
+   "rhizophora": 28,
+   "salt_marsh": 6,
+   "sonneratia": 71,
+   "urban_proxy": 26,
+   "xylocarpus": 2
+  },
+  "train": {
+   "aegiceras": 80,
+   "avicennia": 62,
+   "beach_dune": 67,
+   "bruguiera": 76,
+   "casuarina": 91,
+   "ceriops": 96,
+   "coastal_trees": 66,
+   "coconut": 82,
+   "excoecaria": 63,
+   "grassland": 60,
+   "heritiera": 93,
+   "kandelia": 113,
+   "lumnitzera": 112,
+   "mudflat_proxy": 56,
+   "prosopis": 99,
+   "rhizophora": 79,
+   "salt_marsh": 96,
+   "sonneratia": 28,
+   "urban_proxy": 58,
+   "xylocarpus": 91
+  },
+  "val": {
+   "aegiceras": 19,
+   "avicennia": 36,
+   "beach_dune": 8,
+   "bruguiera": 48,
+   "casuarina": 16,
+   "ceriops": 15,
+   "coastal_trees": 8,
+   "coconut": 10,
+   "excoecaria": 63,
+   "grassland": 17,
+   "heritiera": 32,
+   "kandelia": 31,
+   "lumnitzera": 26,
+   "mudflat_proxy": 3,
+   "prosopis": 11,
+   "rhizophora": 24,
+   "salt_marsh": 34,
+   "sonneratia": 36,
+   "urban_proxy": 5,
+   "xylocarpus": 30
+  }
+ }
+}

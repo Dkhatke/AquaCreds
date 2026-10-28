@@ -34,9 +34,13 @@ class Check:
     outcome: Outcome
     reason: str
     hard: bool = False
+    details: dict[str, Any] | None = None  # machine-readable evidence (e.g. model outputs)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        out = asdict(self)
+        if self.details is None:
+            del out["details"]
+        return out
 
 
 # ---------------------------------------------------------------- primitives
@@ -237,6 +241,40 @@ def check_duplicates(exact_matches: int, nearest_phash_distance: int | None) -> 
             )
         )
     return checks
+
+
+def check_photo_model(result: dict[str, Any], pass_at: float, low: float) -> Check:
+    """Photo-verifier outcome (advisory; never hard, so it can never reject a submission alone).
+
+    `result` is `aqua_worker.photo_verifier.photo_plausibility(...)`. Bands, fixed per model
+    version in its labels.json and justified in ml/model_cards/photo_verifier_v1.md:
+    P(mangrove) ≥ pass_at → pass; low ≤ P < pass_at → warn (uncertain); P < low → warn (unlikely).
+    Both warnings cost the standard WARN_PENALTY; a verifier looks at the photo either way.
+    """
+    p = float(result["mangrove_prob"])
+    top = result.get("top_genera") or []
+    genus = f"; most likely genus {top[0]['genus']}" if top and p >= pass_at else ""
+    version = result.get("model_version", "?")
+    if p >= pass_at:
+        return Check(
+            "photo_model",
+            "pass",
+            f"Photo looks like mangrove vegetation (p={p:.2f}{genus}; {version})",
+            details=result,
+        )
+    if p >= low:
+        return Check(
+            "photo_model",
+            "warn",
+            f"Unsure whether the photo shows mangroves (p={p:.2f}; {version}): check it visually",
+            details=result,
+        )
+    return Check(
+        "photo_model",
+        "warn",
+        f"Photo does not look like mangrove vegetation (p={p:.2f}; {version}): check it visually",
+        details=result,
+    )
 
 
 def not_yet_available(name: str, why: str) -> Check:

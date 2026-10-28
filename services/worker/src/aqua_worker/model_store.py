@@ -55,13 +55,15 @@ class ModelManifest:
     model_file: str
     features_file: str
     sha256: Mapping[str, str]  # file name → SHA-256 (hex)
-    # Scene stack the model was trained on (features_extract.py config).
-    season_months: tuple[int, ...]
-    max_scenes: int
-    max_tile_cloud_pct: float
+    # Scene stack the model was trained on (features_extract.py config); satellite models only.
+    season_months: tuple[int, ...] = ()
+    max_scenes: int = 0
+    max_tile_cloud_pct: float = 0.0
     # Held-out (Gulf of Kutch) metrics from the model card, quoted in MRV reports.
     heldout_metrics: Mapping[str, Any] = field(default_factory=dict)
     model_card: str = ""
+    # Largest file `fetch` will download for this model (bounded read from object storage).
+    max_file_bytes: int = MAX_MODEL_FILE_BYTES
 
     @property
     def files(self) -> tuple[str, ...]:
@@ -179,7 +181,7 @@ def fetch(
             continue
         key = manifest.prefix + name
         try:
-            data = storage.get_bytes(key, MAX_MODEL_FILE_BYTES)
+            data = storage.get_bytes(key, manifest.max_file_bytes)
         except Exception as exc:
             raise ModelUnavailableError(
                 f"cannot download {key} from object storage ({type(exc).__name__}: {exc}); "

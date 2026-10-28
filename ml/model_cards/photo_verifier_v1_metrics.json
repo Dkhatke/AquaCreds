@@ -1,0 +1,1479 @@
+{
+ "generated": "2026-10-28T20:20:11+0530",
+ "bootstrap": "1000 observer-cluster resamples, 95% percentile CI",
+ "splits": {
+  "train": {
+   "images": 1568,
+   "mangrove": 893,
+   "observers": 708
+  },
+  "val": {
+   "images": 472,
+   "mangrove": 360,
+   "observers": 119
+  },
+  "test_observer": {
+   "images": 398,
+   "mangrove": 198,
+   "observers": 185
+  },
+  "test_state": {
+   "images": 354,
+   "mangrove": 228,
+   "observers": 112
+  },
+  "test_observer_observed_2021plus": {
+   "images": 181,
+   "mangrove": 101,
+   "observers": 86
+  },
+  "test_state_observed_2021plus": {
+   "images": 162,
+   "mangrove": 140,
+   "observers": 68
+  }
+ },
+ "ranking_by_test_observer_f1": [
+  "probe_bioclip_v1",
+  "probe_bioclip25_student",
+  "mobilenetv2_finetune",
+  "zeroshot_bioclip25_student"
+ ],
+ "top2_paired_f1_difference": {
+  "a": "probe_bioclip_v1",
+  "b": "probe_bioclip25_student",
+  "value": 0.0455,
+  "ci95": [
+   0.017,
+   0.0792
+  ]
+ },
+ "candidates": {
+  "zeroshot_bioclip25_student": {
+   "threshold_val_best_f1": 0.0,
+   "threshold_val_recall95": 0.0,
+   "threshold_val_precision95": 1e-06,
+   "val": {
+    "n": 472,
+    "n_pos": 360,
+    "n_observers": 119,
+    "precision": {
+     "value": 0.9294,
+     "ci95": [
+      0.8508,
+      0.963
+     ]
+    },
+    "recall": {
+     "value": 0.9139,
+     "ci95": [
+      0.869,
+      0.9373
+     ]
+    },
+    "f1": {
+     "value": 0.9216,
+     "ci95": [
+      0.8637,
+      0.9471
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.2232,
+     "ci95": [
+      0.1538,
+      0.3044
+     ]
+    },
+    "auroc": {
+     "value": 0.9258,
+     "ci95": [
+      0.8937,
+      0.948
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.4018,
+     "ci95": [
+      0.2889,
+      0.4901
+     ]
+    },
+    "ece": {
+     "value": 0.6281,
+     "ci95": [
+      0.4634,
+      0.7259
+     ]
+    },
+    "genus_top1": {
+     "value": 0.1278,
+     "ci95": [
+      0.0778,
+      0.1943
+     ]
+    },
+    "genus_top3": {
+     "value": 0.3,
+     "ci95": [
+      0.1667,
+      0.3642
+     ]
+    }
+   },
+   "test_observer": {
+    "n": 398,
+    "n_pos": 198,
+    "n_observers": 185,
+    "precision": {
+     "value": 0.7543,
+     "ci95": [
+      0.6654,
+      0.8429
+     ]
+    },
+    "recall": {
+     "value": 0.8838,
+     "ci95": [
+      0.8436,
+      0.9224
+     ]
+    },
+    "f1": {
+     "value": 0.814,
+     "ci95": [
+      0.7543,
+      0.8643
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.285,
+     "ci95": [
+      0.1961,
+      0.386
+     ]
+    },
+    "auroc": {
+     "value": 0.8992,
+     "ci95": [
+      0.8569,
+      0.9318
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.415,
+     "ci95": [
+      0.3314,
+      0.5194
+     ]
+    },
+    "ece": {
+     "value": 0.4128,
+     "ci95": [
+      0.3117,
+      0.5355
+     ]
+    },
+    "genus_top1": {
+     "value": 0.1111,
+     "ci95": [
+      0.0609,
+      0.17
+     ]
+    },
+    "genus_top3": {
+     "value": 0.2273,
+     "ci95": [
+      0.1516,
+      0.3163
+     ]
+    }
+   },
+   "test_state": {
+    "n": 354,
+    "n_pos": 228,
+    "n_observers": 112,
+    "precision": {
+     "value": 0.8249,
+     "ci95": [
+      0.7263,
+      0.8886
+     ]
+    },
+    "recall": {
+     "value": 0.9298,
+     "ci95": [
+      0.8902,
+      0.9682
+     ]
+    },
+    "f1": {
+     "value": 0.8742,
+     "ci95": [
+      0.8091,
+      0.9142
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.3571,
+     "ci95": [
+      0.2549,
+      0.4584
+     ]
+    },
+    "auroc": {
+     "value": 0.895,
+     "ci95": [
+      0.8502,
+      0.9357
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.5238,
+     "ci95": [
+      0.4198,
+      0.6356
+     ]
+    },
+    "ece": {
+     "value": 0.5225,
+     "ci95": [
+      0.4244,
+      0.5873
+     ]
+    },
+    "genus_top1": {
+     "value": 0.2412,
+     "ci95": [
+      0.1818,
+      0.3264
+     ]
+    },
+    "genus_top3": {
+     "value": 0.3728,
+     "ci95": [
+      0.2994,
+      0.4572
+     ]
+    }
+   },
+   "test_observer_observed_2021plus": {
+    "n": 181,
+    "n_pos": 101,
+    "n_observers": 86,
+    "precision": {
+     "value": 0.8958,
+     "ci95": [
+      0.8152,
+      0.9712
+     ]
+    },
+    "recall": {
+     "value": 0.8515,
+     "ci95": [
+      0.7787,
+      0.9065
+     ]
+    },
+    "f1": {
+     "value": 0.8731,
+     "ci95": [
+      0.8166,
+      0.9198
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.125,
+     "ci95": [
+      0.0548,
+      0.2308
+     ]
+    },
+    "auroc": {
+     "value": 0.9347,
+     "ci95": [
+      0.8968,
+      0.966
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.2375,
+     "ci95": [
+      0.1111,
+      0.339
+     ]
+    },
+    "ece": {
+     "value": 0.4874,
+     "ci95": [
+      0.3234,
+      0.6853
+     ]
+    },
+    "genus_top1": {
+     "value": 0.1287,
+     "ci95": [
+      0.0494,
+      0.2184
+     ]
+    },
+    "genus_top3": {
+     "value": 0.2079,
+     "ci95": [
+      0.1,
+      0.3366
+     ]
+    }
+   },
+   "test_state_observed_2021plus": {
+    "n": 162,
+    "n_pos": 140,
+    "n_observers": 68,
+    "precision": {
+     "value": 0.9632,
+     "ci95": [
+      0.9237,
+      0.9925
+     ]
+    },
+    "recall": {
+     "value": 0.9357,
+     "ci95": [
+      0.8788,
+      0.9822
+     ]
+    },
+    "f1": {
+     "value": 0.9493,
+     "ci95": [
+      0.9137,
+      0.9774
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.2273,
+     "ci95": [
+      0.0625,
+      0.4
+     ]
+    },
+    "auroc": {
+     "value": 0.9357,
+     "ci95": [
+      0.8692,
+      0.9828
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.5909,
+     "ci95": [
+      0.3333,
+      0.8182
+     ]
+    },
+    "ece": {
+     "value": 0.6946,
+     "ci95": [
+      0.6131,
+      0.7584
+     ]
+    },
+    "genus_top1": {
+     "value": 0.3143,
+     "ci95": [
+      0.2321,
+      0.3819
+     ]
+    },
+    "genus_top3": {
+     "value": 0.4143,
+     "ci95": [
+      0.3175,
+      0.4912
+     ]
+    }
+   }
+  },
+  "probe_bioclip25_student": {
+   "threshold_val_best_f1": 0.205727,
+   "threshold_val_recall95": 0.525086,
+   "threshold_val_precision95": 0.070527,
+   "val": {
+    "n": 472,
+    "n_pos": 360,
+    "n_observers": 119,
+    "precision": {
+     "value": 0.9727,
+     "ci95": [
+      0.9333,
+      0.9877
+     ]
+    },
+    "recall": {
+     "value": 0.9889,
+     "ci95": [
+      0.9733,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.9807,
+     "ci95": [
+      0.9578,
+      0.99
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.0893,
+     "ci95": [
+      0.042,
+      0.153
+     ]
+    },
+    "auroc": {
+     "value": 0.9909,
+     "ci95": [
+      0.9782,
+      0.9981
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.0268,
+     "ci95": [
+      0.0,
+      0.0633
+     ]
+    },
+    "ece": {
+     "value": 0.0462,
+     "ci95": [
+      0.0353,
+      0.0723
+     ]
+    },
+    "genus_top1": {
+     "value": 0.6806,
+     "ci95": [
+      0.6256,
+      0.7824
+     ]
+    },
+    "genus_top3": {
+     "value": 0.8889,
+     "ci95": [
+      0.8624,
+      0.9427
+     ]
+    }
+   },
+   "test_observer": {
+    "n": 398,
+    "n_pos": 198,
+    "n_observers": 185,
+    "precision": {
+     "value": 0.9028,
+     "ci95": [
+      0.8392,
+      0.9586
+     ]
+    },
+    "recall": {
+     "value": 0.9848,
+     "ci95": [
+      0.9665,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.942,
+     "ci95": [
+      0.9053,
+      0.9714
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.105,
+     "ci95": [
+      0.0581,
+      0.1564
+     ]
+    },
+    "auroc": {
+     "value": 0.9923,
+     "ci95": [
+      0.9858,
+      0.9974
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.035,
+     "ci95": [
+      0.0059,
+      0.0702
+     ]
+    },
+    "ece": {
+     "value": 0.0307,
+     "ci95": [
+      0.0247,
+      0.0521
+     ]
+    },
+    "genus_top1": {
+     "value": 0.7172,
+     "ci95": [
+      0.6422,
+      0.7824
+     ]
+    },
+    "genus_top3": {
+     "value": 0.9141,
+     "ci95": [
+      0.8726,
+      0.9507
+     ]
+    }
+   },
+   "test_state": {
+    "n": 354,
+    "n_pos": 228,
+    "n_observers": 112,
+    "precision": {
+     "value": 0.8941,
+     "ci95": [
+      0.8285,
+      0.9405
+     ]
+    },
+    "recall": {
+     "value": 1.0,
+     "ci95": [
+      1.0,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.9441,
+     "ci95": [
+      0.9062,
+      0.9694
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.2143,
+     "ci95": [
+      0.1307,
+      0.3041
+     ]
+    },
+    "auroc": {
+     "value": 0.9957,
+     "ci95": [
+      0.9926,
+      0.9986
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.0873,
+     "ci95": [
+      0.037,
+      0.1406
+     ]
+    },
+    "ece": {
+     "value": 0.0362,
+     "ci95": [
+      0.0287,
+      0.0676
+     ]
+    },
+    "genus_top1": {
+     "value": 0.6184,
+     "ci95": [
+      0.5706,
+      0.6713
+     ]
+    },
+    "genus_top3": {
+     "value": 0.8553,
+     "ci95": [
+      0.8212,
+      0.8939
+     ]
+    }
+   },
+   "test_observer_observed_2021plus": {
+    "n": 181,
+    "n_pos": 101,
+    "n_observers": 86,
+    "precision": {
+     "value": 0.9515,
+     "ci95": [
+      0.8921,
+      1.0
+     ]
+    },
+    "recall": {
+     "value": 0.9703,
+     "ci95": [
+      0.9307,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.9608,
+     "ci95": [
+      0.925,
+      0.9898
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.0625,
+     "ci95": [
+      0.0,
+      0.1455
+     ]
+    },
+    "auroc": {
+     "value": 0.9939,
+     "ci95": [
+      0.9877,
+      0.9993
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.025,
+     "ci95": [
+      0.0,
+      0.0455
+     ]
+    },
+    "ece": {
+     "value": 0.0407,
+     "ci95": [
+      0.0264,
+      0.0785
+     ]
+    },
+    "genus_top1": {
+     "value": 0.7723,
+     "ci95": [
+      0.6862,
+      0.8605
+     ]
+    },
+    "genus_top3": {
+     "value": 0.9406,
+     "ci95": [
+      0.8921,
+      0.9885
+     ]
+    }
+   },
+   "test_state_observed_2021plus": {
+    "n": 162,
+    "n_pos": 140,
+    "n_observers": 68,
+    "precision": {
+     "value": 0.9589,
+     "ci95": [
+      0.9037,
+      0.9939
+     ]
+    },
+    "recall": {
+     "value": 1.0,
+     "ci95": [
+      1.0,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.979,
+     "ci95": [
+      0.9494,
+      0.9969
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.2727,
+     "ci95": [
+      0.0499,
+      0.4839
+     ]
+    },
+    "auroc": {
+     "value": 0.9922,
+     "ci95": [
+      0.9813,
+      0.9992
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.1818,
+     "ci95": [
+      0.0,
+      0.4
+     ]
+    },
+    "ece": {
+     "value": 0.0368,
+     "ci95": [
+      0.0265,
+      0.0677
+     ]
+    },
+    "genus_top1": {
+     "value": 0.6143,
+     "ci95": [
+      0.5443,
+      0.6842
+     ]
+    },
+    "genus_top3": {
+     "value": 0.8643,
+     "ci95": [
+      0.8085,
+      0.9149
+     ]
+    }
+   }
+  },
+  "probe_bioclip_v1": {
+   "threshold_val_best_f1": 0.188603,
+   "threshold_val_recall95": 0.703666,
+   "threshold_val_precision95": 0.047998,
+   "val": {
+    "n": 472,
+    "n_pos": 360,
+    "n_observers": 119,
+    "precision": {
+     "value": 0.9782,
+     "ci95": [
+      0.955,
+      0.9905
+     ]
+    },
+    "recall": {
+     "value": 0.9972,
+     "ci95": [
+      0.9892,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.9876,
+     "ci95": [
+      0.9745,
+      0.9938
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.0714,
+     "ci95": [
+      0.03,
+      0.1217
+     ]
+    },
+    "auroc": {
+     "value": 0.997,
+     "ci95": [
+      0.9935,
+      0.9994
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.0089,
+     "ci95": [
+      0.0,
+      0.0303
+     ]
+    },
+    "ece": {
+     "value": 0.0349,
+     "ci95": [
+      0.027,
+      0.0534
+     ]
+    },
+    "genus_top1": {
+     "value": 0.8139,
+     "ci95": [
+      0.7787,
+      0.8857
+     ]
+    },
+    "genus_top3": {
+     "value": 0.9528,
+     "ci95": [
+      0.9312,
+      0.9818
+     ]
+    }
+   },
+   "test_observer": {
+    "n": 398,
+    "n_pos": 198,
+    "n_observers": 185,
+    "precision": {
+     "value": 0.9754,
+     "ci95": [
+      0.9515,
+      0.9948
+     ]
+    },
+    "recall": {
+     "value": 1.0,
+     "ci95": [
+      1.0,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.9875,
+     "ci95": [
+      0.9751,
+      0.9974
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.025,
+     "ci95": [
+      0.0083,
+      0.0443
+     ]
+    },
+    "auroc": {
+     "value": 0.9971,
+     "ci95": [
+      0.9885,
+      1.0
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.005,
+     "ci95": [
+      0.0,
+      0.0205
+     ]
+    },
+    "ece": {
+     "value": 0.0259,
+     "ci95": [
+      0.0192,
+      0.0345
+     ]
+    },
+    "genus_top1": {
+     "value": 0.798,
+     "ci95": [
+      0.7302,
+      0.8535
+     ]
+    },
+    "genus_top3": {
+     "value": 0.9495,
+     "ci95": [
+      0.9102,
+      0.9816
+     ]
+    }
+   },
+   "test_state": {
+    "n": 354,
+    "n_pos": 228,
+    "n_observers": 112,
+    "precision": {
+     "value": 0.9268,
+     "ci95": [
+      0.88,
+      0.9604
+     ]
+    },
+    "recall": {
+     "value": 1.0,
+     "ci95": [
+      1.0,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.962,
+     "ci95": [
+      0.9362,
+      0.9798
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.1429,
+     "ci95": [
+      0.0794,
+      0.2162
+     ]
+    },
+    "auroc": {
+     "value": 0.996,
+     "ci95": [
+      0.9915,
+      0.9991
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.0317,
+     "ci95": [
+      0.007,
+      0.0635
+     ]
+    },
+    "ece": {
+     "value": 0.0226,
+     "ci95": [
+      0.0251,
+      0.0502
+     ]
+    },
+    "genus_top1": {
+     "value": 0.6886,
+     "ci95": [
+      0.6323,
+      0.7586
+     ]
+    },
+    "genus_top3": {
+     "value": 0.8772,
+     "ci95": [
+      0.8341,
+      0.919
+     ]
+    }
+   },
+   "test_observer_observed_2021plus": {
+    "n": 181,
+    "n_pos": 101,
+    "n_observers": 86,
+    "precision": {
+     "value": 0.9712,
+     "ci95": [
+      0.931,
+      1.0
+     ]
+    },
+    "recall": {
+     "value": 1.0,
+     "ci95": [
+      1.0,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.9854,
+     "ci95": [
+      0.9643,
+      1.0
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.0375,
+     "ci95": [
+      0.0,
+      0.0824
+     ]
+    },
+    "auroc": {
+     "value": 0.9999,
+     "ci95": [
+      0.999,
+      1.0
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.0,
+     "ci95": [
+      0.0,
+      0.0
+     ]
+    },
+    "ece": {
+     "value": 0.0302,
+     "ci95": [
+      0.0222,
+      0.0444
+     ]
+    },
+    "genus_top1": {
+     "value": 0.8317,
+     "ci95": [
+      0.7363,
+      0.9091
+     ]
+    },
+    "genus_top3": {
+     "value": 0.9802,
+     "ci95": [
+      0.9533,
+      1.0
+     ]
+    }
+   },
+   "test_state_observed_2021plus": {
+    "n": 162,
+    "n_pos": 140,
+    "n_observers": 68,
+    "precision": {
+     "value": 0.9524,
+     "ci95": [
+      0.9065,
+      0.9854
+     ]
+    },
+    "recall": {
+     "value": 1.0,
+     "ci95": [
+      1.0,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.9756,
+     "ci95": [
+      0.9509,
+      0.9926
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.3182,
+     "ci95": [
+      0.1333,
+      0.5
+     ]
+    },
+    "auroc": {
+     "value": 0.9873,
+     "ci95": [
+      0.9712,
+      0.998
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.0909,
+     "ci95": [
+      0.0,
+      0.2222
+     ]
+    },
+    "ece": {
+     "value": 0.0331,
+     "ci95": [
+      0.0306,
+      0.0722
+     ]
+    },
+    "genus_top1": {
+     "value": 0.6786,
+     "ci95": [
+      0.5921,
+      0.7717
+     ]
+    },
+    "genus_top3": {
+     "value": 0.8857,
+     "ci95": [
+      0.8214,
+      0.9391
+     ]
+    }
+   }
+  },
+  "mobilenetv2_finetune": {
+   "threshold_val_best_f1": 0.341269,
+   "threshold_val_recall95": 0.474477,
+   "threshold_val_precision95": 0.442208,
+   "val": {
+    "n": 472,
+    "n_pos": 360,
+    "n_observers": 119,
+    "precision": {
+     "value": 0.9367,
+     "ci95": [
+      0.8691,
+      0.9688
+     ]
+    },
+    "recall": {
+     "value": 0.9861,
+     "ci95": [
+      0.9668,
+      0.9972
+     ]
+    },
+    "f1": {
+     "value": 0.9608,
+     "ci95": [
+      0.9165,
+      0.9803
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.2143,
+     "ci95": [
+      0.117,
+      0.2968
+     ]
+    },
+    "auroc": {
+     "value": 0.975,
+     "ci95": [
+      0.9571,
+      0.9915
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.1518,
+     "ci95": [
+      0.0763,
+      0.2214
+     ]
+    },
+    "ece": {
+     "value": 0.0981,
+     "ci95": [
+      0.0673,
+      0.1304
+     ]
+    },
+    "genus_top1": {
+     "value": 0.575,
+     "ci95": [
+      0.5133,
+      0.6549
+     ]
+    },
+    "genus_top3": {
+     "value": 0.8222,
+     "ci95": [
+      0.7796,
+      0.8619
+     ]
+    }
+   },
+   "test_observer": {
+    "n": 398,
+    "n_pos": 198,
+    "n_observers": 185,
+    "precision": {
+     "value": 0.8784,
+     "ci95": [
+      0.7942,
+      0.9537
+     ]
+    },
+    "recall": {
+     "value": 0.9848,
+     "ci95": [
+      0.9653,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.9286,
+     "ci95": [
+      0.8804,
+      0.9702
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.135,
+     "ci95": [
+      0.0728,
+      0.1723
+     ]
+    },
+    "auroc": {
+     "value": 0.9894,
+     "ci95": [
+      0.9826,
+      0.9968
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.05,
+     "ci95": [
+      0.0176,
+      0.0745
+     ]
+    },
+    "ece": {
+     "value": 0.0817,
+     "ci95": [
+      0.0701,
+      0.1061
+     ]
+    },
+    "genus_top1": {
+     "value": 0.5657,
+     "ci95": [
+      0.4898,
+      0.6459
+     ]
+    },
+    "genus_top3": {
+     "value": 0.8485,
+     "ci95": [
+      0.7928,
+      0.8935
+     ]
+    }
+   },
+   "test_state": {
+    "n": 354,
+    "n_pos": 228,
+    "n_observers": 112,
+    "precision": {
+     "value": 0.861,
+     "ci95": [
+      0.7926,
+      0.9225
+     ]
+    },
+    "recall": {
+     "value": 0.9781,
+     "ci95": [
+      0.9538,
+      0.9959
+     ]
+    },
+    "f1": {
+     "value": 0.9158,
+     "ci95": [
+      0.8746,
+      0.9502
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.2857,
+     "ci95": [
+      0.1505,
+      0.4014
+     ]
+    },
+    "auroc": {
+     "value": 0.9631,
+     "ci95": [
+      0.9318,
+      0.9897
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.2222,
+     "ci95": [
+      0.1068,
+      0.3223
+     ]
+    },
+    "ece": {
+     "value": 0.0758,
+     "ci95": [
+      0.0674,
+      0.1129
+     ]
+    },
+    "genus_top1": {
+     "value": 0.5395,
+     "ci95": [
+      0.4669,
+      0.615
+     ]
+    },
+    "genus_top3": {
+     "value": 0.7763,
+     "ci95": [
+      0.7182,
+      0.8333
+     ]
+    }
+   },
+   "test_observer_observed_2021plus": {
+    "n": 181,
+    "n_pos": 101,
+    "n_observers": 86,
+    "precision": {
+     "value": 0.8772,
+     "ci95": [
+      0.7677,
+      0.9636
+     ]
+    },
+    "recall": {
+     "value": 0.9901,
+     "ci95": [
+      0.9663,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.9302,
+     "ci95": [
+      0.8636,
+      0.9768
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.175,
+     "ci95": [
+      0.0909,
+      0.2581
+     ]
+    },
+    "auroc": {
+     "value": 0.9827,
+     "ci95": [
+      0.973,
+      0.9974
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.0625,
+     "ci95": [
+      0.0185,
+      0.1111
+     ]
+    },
+    "ece": {
+     "value": 0.0784,
+     "ci95": [
+      0.0657,
+      0.1366
+     ]
+    },
+    "genus_top1": {
+     "value": 0.5248,
+     "ci95": [
+      0.4174,
+      0.6297
+     ]
+    },
+    "genus_top3": {
+     "value": 0.8218,
+     "ci95": [
+      0.7555,
+      0.8868
+     ]
+    }
+   },
+   "test_state_observed_2021plus": {
+    "n": 162,
+    "n_pos": 140,
+    "n_observers": 68,
+    "precision": {
+     "value": 0.9521,
+     "ci95": [
+      0.9026,
+      0.985
+     ]
+    },
+    "recall": {
+     "value": 0.9929,
+     "ci95": [
+      0.9748,
+      1.0
+     ]
+    },
+    "f1": {
+     "value": 0.972,
+     "ci95": [
+      0.9447,
+      0.9903
+     ]
+    },
+    "false_accept_rate": {
+     "value": 0.3182,
+     "ci95": [
+      0.1333,
+      0.4667
+     ]
+    },
+    "auroc": {
+     "value": 0.9838,
+     "ci95": [
+      0.9652,
+      0.9974
+     ]
+    },
+    "far_at_val_recall95": {
+     "value": 0.1818,
+     "ci95": [
+      0.0,
+      0.381
+     ]
+    },
+    "ece": {
+     "value": 0.1314,
+     "ci95": [
+      0.114,
+      0.1692
+     ]
+    },
+    "genus_top1": {
+     "value": 0.5429,
+     "ci95": [
+      0.4375,
+      0.6328
+     ]
+    },
+    "genus_top3": {
+     "value": 0.7714,
+     "ci95": [
+      0.6829,
+      0.8526
+     ]
+    }
+   }
+  }
+ },
+ "export": {
+  "candidate": "probe_bioclip_v1",
+  "files": {
+   "model.onnx": {
+    "sha256": "3609c78f1ff91dbfd83a84dc2c58d6006c13497f99ea303683e4269b17971e69",
+    "bytes": 345207351
+   },
+   "labels.json": {
+    "sha256": "1f54be790ddfe83a5d9469ebb15734194385507e9eaf874909fcc944edc19ae1",
+    "bytes": 2018
+   }
+  },
+  "thresholds": {
+   "pass_at": 0.703666,
+   "low": 0.188603,
+   "rule": "pass_at = val recall-0.95 threshold; low = val best-F1 threshold"
+  },
+  "parity": {
+   "images": 200,
+   "max_abs_diff_p_mangrove": 1.6093254089355469e-06,
+   "atol": 0.0001
+  },
+  "latency_cpu_onnxruntime": {
+   "machine": "arm64 macOS-26.5.1-arm64-arm-64bit",
+   "includes": "JPEG decode + resize + ONNX Runtime CPU inference, batch 1",
+   "threads_1": {
+    "median_ms": 51.4,
+    "p95_ms": 58.0
+   },
+   "threads_2": {
+    "median_ms": 43.3,
+    "p95_ms": 44.9
+   },
+   "threads_4": {
+    "median_ms": 43.3,
+    "p95_ms": 45.4
+   },
+   "oracle_arm_4core_ESTIMATE_ms": {
+    "basis": "Mac median at 2 threads x (2.0, 3.0) (not measured on the VM)",
+    "range": [
+     87,
+     130
+    ]
+   }
+  }
+ }
+}

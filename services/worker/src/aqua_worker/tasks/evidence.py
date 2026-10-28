@@ -2,6 +2,7 @@
 
 import asyncio
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 from celery import shared_task
@@ -11,11 +12,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from aqua_core import audit, notifications
 from aqua_core.db import create_engine, session_factory
 from aqua_core.geometry import to_point
+from aqua_core.logging import get_logger
 from aqua_core.models import CaptureNonce, FieldSubmission, SubmissionStatus
 from aqua_core.models._types import utcnow
 from aqua_core.settings import get_settings
 from aqua_core.storage import ObjectStorage, S3ObjectStorage
 from aqua_worker import evidence as ev
+
+log = get_logger("aqua_worker.tasks.evidence")
+
+PhotoCheck = Callable[[bytes], ev.Check]
 
 
 async def _geofence_distance_m(session: AsyncSession, sub: FieldSubmission) -> float:
@@ -59,7 +65,9 @@ async def run_checks(
     storage: ObjectStorage,
     submission_id: uuid.UUID,
     max_bytes: int,
+    photo_check: PhotoCheck | None = None,
 ) -> dict[str, Any]:
+    """`photo_check` runs the photo verifier on the image bytes; None = verifier disabled."""
     async with sessionmaker() as session:
         sub = await session.get(FieldSubmission, submission_id, with_for_update=True)
         if sub is None:
@@ -95,9 +103,14 @@ async def run_checks(
             ev.check_geofence(await _geofence_distance_m(session, sub), sub.gps_accuracy_m)
         )
         checks += ev.check_duplicates(*await _duplicates(session, sub, phash))
-        checks.append(
-            ev.not_yet_available("photo_model", "Photo verifier model not deployed yet (Phase 1f)")
-        )
+        if photo_check is None:
+            checks.append(
+                ev.not_yet_available(
+                    "photo_model", "Photo verifier disabled (PHOTO_VERIFIER_ENABLED)"
+                )
+            )
+        else:
+            checks.append(await asyncio.to_thread(photo_check, data))
         checks.append(
             ev.not_yet_available("satellite_consistency", "Satellite consistency runs in Phase 4")
         )
@@ -123,15 +136,44 @@ async def run_checks(
         return {"id": str(sub.id), "status": sub.status.value, "trust_score": trust}
 
 
+def photo_check_from_settings(storage: ObjectStorage) -> PhotoCheck | None:
+    """The photo-verifier check when PHOTO_VERIFIER_ENABLED, else None.
+
+    If it is enabled but the model cannot be loaded, the failure is logged as an error and shown
+    on the submission as a `skipped` check naming the error (never a made-up result); the other
+    evidence checks still run."""
+    settings = get_settings()
+    if not settings.photo_verifier_enabled:
+        return None
+    from aqua_worker import photo_verifier as pv
+    from aqua_worker.model_store import ModelUnavailableError
+
+    try:
+        model = pv.get_photo_model(storage, settings.ml_model_cache_dir)
+    except ModelUnavailableError as exc:
+        log.error("photo_verifier.unavailable", error=str(exc)[:500])
+        reason = f"Photo verifier enabled but unavailable: {str(exc)[:200]}"
+        return lambda _data: ev.not_yet_available("photo_model", reason)
+    thresholds = model.spec.thresholds
+
+    def check(data: bytes) -> ev.Check:
+        result = pv.photo_plausibility(data, model)
+        return ev.check_photo_model(result, thresholds.pass_at, thresholds.low)
+
+    return check
+
+
 async def _run(submission_id: str) -> dict[str, Any]:
     settings = get_settings()
     engine = create_engine(settings.database_url)
+    storage = S3ObjectStorage(settings)
     try:
         return await run_checks(
             session_factory(engine),
-            S3ObjectStorage(settings),
+            storage,
             uuid.UUID(submission_id),
             settings.upload_max_bytes,
+            photo_check_from_settings(storage),
         )
     finally:
         await engine.dispose()
