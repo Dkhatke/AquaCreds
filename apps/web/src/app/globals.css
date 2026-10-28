@@ -41,6 +41,7 @@
   --color-fail: var(--fail-fg);
 }
 
+:root,
 .surface-light {
   --fg: #0b2024;
   --fg-muted: #4a5d58;
@@ -68,6 +69,12 @@
 }
 
 @layer base {
+  /* Each surface sets its own text colour (custom properties alone don't change inherited color).
+     In the base layer so utilities such as `text-off-white` still win. */
+  .surface-light,
+  .surface-dark {
+    color: var(--fg);
+  }
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
