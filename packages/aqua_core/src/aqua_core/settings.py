@@ -250,6 +250,11 @@ class Settings(BaseSettings):
     def _split_lists(cls, value: object) -> object:
         return _split_csv(value)
 
+    @field_validator("demo_org_id", "demo_org_slug", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
     @field_validator("geo_stac_providers")
     @classmethod
     def _known_stac_providers(cls, value: list[str]) -> list[str]:

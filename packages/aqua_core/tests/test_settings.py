@@ -176,6 +176,8 @@ def test_demo_mode_off_by_default_and_needs_an_org_in_production(
 
     with pytest.raises(RuntimeError, match="DEMO_ORG_ID or DEMO_ORG_SLUG"):
         _prod(demo_mode_enabled=True).assert_production_safe()
+    with pytest.raises(RuntimeError, match="DEMO_ORG_ID or DEMO_ORG_SLUG"):  # compose passes ""
+        _prod(demo_mode_enabled=True, demo_org_id="", demo_org_slug=" ").assert_production_safe()
     with pytest.raises(RuntimeError, match="RATE_LIMIT_ENABLED"):
         _prod(
             demo_mode_enabled=True, demo_org_slug="demo-s1", rate_limit_enabled=False
