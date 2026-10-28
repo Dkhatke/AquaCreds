@@ -111,6 +111,7 @@ def _cog(row: Classification, layer: tiles.TileLayer) -> tuple[str, str]:
 
 
 async def _tile_user(
+    request: Request,
     session: AsyncSession,
     settings: Settings,
     *,
@@ -123,7 +124,7 @@ async def _tile_user(
     """The user a tile request acts for: from the signed token, else from the bearer token.
     Either way the user must be active and must still see the project (checked by the caller)."""
     if token is None:
-        return await get_current_user(session, settings, credentials)
+        return await get_current_user(request, session, settings, credentials)
     try:
         user_id, _ = tiles.verify_tile_token(
             settings,
@@ -163,6 +164,7 @@ async def _serve_tile(
     credentials: HTTPAuthorizationCredentials | None,
 ) -> Response:
     user = await _tile_user(
+        request,
         session,
         settings,
         token=token,

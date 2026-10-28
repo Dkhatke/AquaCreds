@@ -1,7 +1,9 @@
 import { describe, expectTypeOf, it } from "vitest";
 import { type components, createAquaClient, type paths } from "../src";
 
-const client = createAquaClient({ baseUrl: "http://api.test" });
+// Type-level checks only: a stub fetch guarantees nothing ever reaches the network.
+const offlineFetch: typeof fetch = async () => new Response(null, { status: 503 });
+const client = createAquaClient({ baseUrl: "http://api.test", fetch: offlineFetch });
 
 describe("generated types", () => {
   it("helpers return the schema's response types", () => {

@@ -86,6 +86,9 @@ DEMO_READABLE_ENDPOINTS = frozenset(
         "aqua_api.routers.forward_fund.project_forward_fund",
         "aqua_api.routers.notifications.list_notifications",
         "aqua_api.routers.notifications.unread_count",
+        # Map tiles: tilejson issues signed tile URLs bound to the (visible) project.
+        "aqua_api.routers.tiles.project_tilejson",
+        "aqua_api.routers.tiles.classification_legend",
     }
 )
 
