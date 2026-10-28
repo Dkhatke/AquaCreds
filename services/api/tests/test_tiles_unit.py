@@ -137,13 +137,9 @@ def test_tile_token_binds_project_classification_layer_and_expiry() -> None:
         tiles.verify_tile_token(_settings(jwt_secret="x" * 48), token, **ok, now=1_000_000)
     exp, _, mac = token.split(".")
     with pytest.raises(tiles.TileTokenError, match="invalid"):
-        tiles.verify_tile_token(
-            settings, f"{exp}.{uuid.uuid4().hex}.{mac}", **ok, now=1_000_000
-        )
+        tiles.verify_tile_token(settings, f"{exp}.{uuid.uuid4().hex}.{mac}", **ok, now=1_000_000)
     with pytest.raises(tiles.TileTokenError, match="invalid"):
-        tiles.verify_tile_token(
-            settings, f"{int(exp) + 900}.{uid.hex}.{mac}", **ok, now=1_000_000
-        )
+        tiles.verify_tile_token(settings, f"{int(exp) + 900}.{uid.hex}.{mac}", **ok, now=1_000_000)
     for garbage in ("", "a.b", "1.2.3", f"x.{uid.hex}.{mac}"):
         with pytest.raises(tiles.TileTokenError):
             tiles.verify_tile_token(settings, garbage, **ok, now=1_000_000)
@@ -236,7 +232,8 @@ def test_etag_changes_with_inputs() -> None:
     assert a.etag == _spec(TileLayer.CLASSIFICATION, 14, 1, 2).etag
     assert a.etag != _spec(TileLayer.CONFIDENCE, 14, 1, 2).etag
     assert a.etag != _spec(TileLayer.CLASSIFICATION, 14, 1, 3).etag
-    assert a.etag.startswith('"') and a.etag.endswith('"')
+    assert a.etag.startswith('"')
+    assert a.etag.endswith('"')
 
 
 # ---------------------------------------------------------------- cache / config
