@@ -13,7 +13,9 @@ from PIL import Image
 
 from aqua_api import cli
 from aqua_api.demo import (
+    DEMO_SITES,
     DEMO_TAG,
+    SIDE_DEG,
     SYNTHETIC_PROVIDER,
     DemoSeedError,
     boundary,
@@ -23,6 +25,7 @@ from aqua_api.demo import (
     synthetic_photo,
     trees,
 )
+from aqua_api.services.projects import INDIA_COASTAL_BBOX
 from aqua_core.settings import Settings
 
 COUNTS = {
@@ -61,10 +64,30 @@ def test_synthetic_generators_are_deterministic() -> None:
     assert boundary(1) != boundary(2)
     assert plots(3) == plots(3)
     assert trees(3, "D01", "dense", True) == trees(3, "D01", "dense", True)
-    for _, lon, lat in plots(3).values():  # every plot inside its boundary
-        ring = boundary(3)["coordinates"][0]
-        assert ring[0][0] < lon < ring[2][0]
-        assert ring[0][1] < lat < ring[2][1]
+    for seed in range(len(DEMO_SITES)):
+        ring = boundary(seed)["coordinates"][0]
+        for _, lon, lat in plots(seed).values():  # every plot inside its boundary
+            assert ring[0][0] < lon < ring[2][0]
+            assert ring[0][1] < lat < ring[2][1]
+
+
+def test_demo_boundary_is_the_gmw_checked_mangrove_square() -> None:
+    # Default seed 42 → the square that GMW v4 2020 maps as 99.66 % mangrove (see DEMO_SITES).
+    assert boundary(42) == {
+        "type": "Polygon",
+        "coordinates": [
+            [[86.837, 20.702], [86.856, 20.702], [86.856, 20.721], [86.837, 20.721], [86.837, 20.702]]
+        ],
+    }
+    assert boundary(42 + len(DEMO_SITES)) == boundary(42)  # sites repeat after len(DEMO_SITES)
+    bx0, by0, bx1, by1 = INDIA_COASTAL_BBOX
+    boxes = [(lon, lat, lon + SIDE_DEG, lat + SIDE_DEG) for lon, lat in DEMO_SITES]
+    for x0, y0, x1, y1 in boxes:  # inside the India coast check and in Bhitarkanika
+        assert bx0 < x0 < x1 < bx1 and by0 < y0 < y1 < by1
+        assert 86.75 <= x0 and x1 <= 86.98 and 20.60 <= y0 and y1 <= 20.78
+    for i, a in enumerate(boxes):  # different sites never overlap (cross-org overlap rule)
+        for b in boxes[i + 1 :]:
+            assert a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1]
 
 
 async def test_seed_is_labelled_and_idempotent(
@@ -91,6 +114,8 @@ async def test_seed_is_labelled_and_idempotent(
     assert "(synthetic" in rows[0][0]
     assert DEMO_TAG in rows[0][1]
     assert rows[0][2] == "monitoring"
+    ((area_ha,),) = await sql("SELECT area_ha FROM projects")
+    assert 416.0 < area_ha < 416.7  # 0.019° square at ~20.7°N, geodesic (PostGIS geography)
     assert await sql("SELECT DISTINCT provider FROM scene_observations") == [(SYNTHETIC_PROVIDER,)]
     assert await sql("SELECT DISTINCT status, trust_score FROM field_submissions") == [
         ("checked", 100)
