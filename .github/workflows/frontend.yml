@@ -17,7 +17,7 @@ env:
 
 jobs:
   js:
-    name: API client drift, typecheck, lint, tests
+    name: API client drift, typecheck, lint, tests, web build + e2e
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -61,3 +61,25 @@ jobs:
           EXPO_PUBLIC_API_URL: https://api.example.invalid
           CI: "1"
         run: pnpm --filter @aquacreds/mobile run export
+
+      # ---- apps/web: production build + browser smoke tests (Playwright + axe) ----
+      - name: Build web app
+        run: pnpm exec turbo run build --filter=@aquacreds/web
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Playwright Chromium
+        run: pnpm --filter @aquacreds/web exec playwright install --with-deps chromium
+      - name: Playwright smoke + accessibility
+        run: pnpm --filter @aquacreds/web run e2e
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: playwright-traces
+          path: apps/web/test-results
+          retention-days: 7

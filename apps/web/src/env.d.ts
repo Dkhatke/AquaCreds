@@ -6,5 +6,9 @@ declare namespace NodeJS {
     readonly FEATURE_DEMO?: string;
     readonly FEATURE_TILES?: string;
     readonly COOKIE_INSECURE?: string;
+    // Tests / CI
+    readonly CI?: string;
+    readonly E2E_PORT?: string;
+    readonly E2E_BASE_URL?: string;
   }
 }
