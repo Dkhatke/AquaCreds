@@ -67,7 +67,7 @@ stages:
       - ml/pipelines/classifier_eval.py
       - data/processed/features.parquet
     outs:
-      - ml/artifacts/ecosystem_classifier_v1
+      - ml/artifacts/ecosystem_classifier_v1_1
     metrics:
-      - ml/model_cards/ecosystem_classifier_v1_metrics.json:
+      - ml/model_cards/ecosystem_classifier_v1_1_metrics.json:
           cache: false

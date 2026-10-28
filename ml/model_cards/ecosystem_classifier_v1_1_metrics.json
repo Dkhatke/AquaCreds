@@ -1,5 +1,5 @@
 {
-  "model_version": "ecosystem_classifier_v1",
+  "model_version": "ecosystem_classifier_v1.1",
   "winner": "lightgbm",
   "selection_rule": "held-out macro-F1, then CV macro-F1 (ties within 0.01), then simplicity",
   "classes": [
