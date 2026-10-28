@@ -439,27 +439,25 @@ def mobilenet_model(n_classes: int, pretrained: bool = True) -> Any:
     return model
 
 
-MPS_CAP_BYTES = int(1.5e9)  # hard cap for the MPS allocator; the whole process must stay < 3 GB
 CKPT = ART / "mobilenetv2_checkpoint.pt"
+# Resource-bounded fine-tune (see the model card): MPS training did not fit a 1.5 GB allocator cap
+# (process footprint 2.95 GB at the OOM; uncapped run 1 reached 5.4 GB), and full CPU fine-tuning
+# ran at 312 s/epoch. So: CPU, 4 threads, the first FROZEN_BLOCKS of MobileNetV2's 19 feature blocks
+# frozen (BatchNorm statistics fixed), the remaining blocks + classifier trained.
+FROZEN_BLOCKS = 14
 
 
 def mobilenet_finetune(
-    df: pd.DataFrame, epochs: int = 12, batch: int = 16
+    df: pd.DataFrame, epochs: int = 10, batch: int = 32
 ) -> tuple[np.ndarray, np.ndarray, Any]:
-    """Fine-tune on MPS under a hard allocator cap (run 1 without a cap reached a 5.4 GB process
-    footprint); a checkpoint after every epoch lets a stopped run resume where it left off."""
+    """Partial fine-tune on CPU; a checkpoint after every epoch lets a stopped run resume."""
     import torch
     from torch.utils.data import DataLoader
     from torchvision import transforms as T
 
     torch.manual_seed(SEED)
-    if torch.backends.mps.is_available():
-        device = "mps"
-        torch.mps.set_per_process_memory_fraction(
-            MPS_CAP_BYTES / torch.mps.recommended_max_memory()
-        )
-    else:
-        device = "cpu"
+    device = "cpu"
+    torch.set_num_threads(4)
     norm = T.Normalize(IMAGENET_MEAN, IMAGENET_STD)
     train_tf = T.Compose(
         [
@@ -481,7 +479,11 @@ def mobilenet_finetune(
         generator=gen,
     )
     model = mobilenet_model(len(CLASS_KEYS)).to(device)
-    opt = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=1e-4)
+    frozen = model.features[:FROZEN_BLOCKS]
+    for param in frozen.parameters():
+        param.requires_grad = False
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    opt = torch.optim.AdamW(trainable, lr=5e-4, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=epochs)
     loss_fn = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
 
@@ -506,6 +508,7 @@ def mobilenet_finetune(
     yv = va["class_idx"].to_numpy()
     for epoch in range(start, epochs):
         model.train()
+        frozen.eval()  # keep ImageNet BatchNorm statistics in the frozen blocks
         t0 = time.time()
         for x, yb in train_dl:
             opt.zero_grad()
@@ -534,8 +537,6 @@ def mobilenet_finetune(
             },
             CKPT,
         )
-        if device == "mps":
-            torch.mps.empty_cache()
     if best_state is None:
         raise RuntimeError("no epoch finished")
     model.load_state_dict(best_state)
