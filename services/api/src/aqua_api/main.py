@@ -32,7 +32,7 @@ from aqua_api.routers import (
     system,
 )
 from aqua_api.routers import tiles as tile_routes
-from aqua_api.tiles import TileCache, gdal_s3_env, s3_cog_locator
+from aqua_api.tiles import TileCache, s3_cog_access, s3_cog_locator
 from aqua_core.db import create_engine, session_factory
 from aqua_core.logging import configure_logging, get_logger
 from aqua_core.settings import Settings, get_settings
@@ -70,7 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Map tiles: COG keys → GDAL /vsis3/ paths (replaced by local files in tests), the in-process
     # tile LRU and the per-process render slots.
     app.state.cog_locator = s3_cog_locator(settings)
-    app.state.cog_gdal_env = gdal_s3_env(settings)
+    app.state.cog_access = s3_cog_access(settings)
     app.state.tile_cache = TileCache(settings.tile_cache_mb * 1024 * 1024)
     app.state.tile_semaphore = asyncio.Semaphore(settings.tile_max_concurrency)
     app.state.rate_limiter = RateLimiter(settings, RedisRateLimitBackend(settings.redis_url))

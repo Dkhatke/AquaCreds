@@ -42,7 +42,7 @@ def _spec(layer: TileLayer, z: int, x: int, y: int) -> tiles.TileSpec:
 def _render(path: Path, layer: TileLayer, lon: float = 86.855, lat: float = 20.705) -> bytes | None:
     x, y = tile_for(lon, lat, Z)
     return tiles.render_tile(
-        _spec(layer, Z, x, y), str(path), tiles.footprint_mercator(POLYGON), {}
+        _spec(layer, Z, x, y), str(path), tiles.footprint_mercator(POLYGON), tiles.CogAccess()
     )
 
 
@@ -176,7 +176,7 @@ def test_class_tile_palette_polygon_mask_and_nodata(cogs: tuple[Path, Path]) -> 
         _spec(TileLayer.CLASSIFICATION, Z, wx, wy),
         str(cogs[0]),
         tiles.footprint_mercator(POLYGON),
-        {},
+        tiles.CogAccess(),
     )
     assert water is not None
     wimg = rgba(water)
@@ -202,16 +202,25 @@ def test_empty_tiles_render_as_none(cogs: tuple[Path, Path]) -> None:
     far = box(80.0, 15.0, 80.01, 15.01)  # polygon nowhere near this tile
     x, y = tile_for(86.855, 20.705, Z)
     spec = _spec(TileLayer.CLASSIFICATION, Z, x, y)
-    assert tiles.render_tile(spec, str(cogs[0]), tiles.footprint_mercator(far), {}) is None
+    assert (
+        tiles.render_tile(spec, str(cogs[0]), tiles.footprint_mercator(far), tiles.CogAccess())
+        is None
+    )
     # Polygon covers the tile but the COG does not.
     fx, fy = tile_for(80.005, 15.005, Z)
     spec = _spec(TileLayer.CLASSIFICATION, Z, fx, fy)
-    assert tiles.render_tile(spec, str(cogs[0]), tiles.footprint_mercator(far), {}) is None
+    assert (
+        tiles.render_tile(spec, str(cogs[0]), tiles.footprint_mercator(far), tiles.CogAccess())
+        is None
+    )
     # Inside the polygon and the COG, but only no-data there.
     hole = box(86.8625, 20.7125, 86.8635, 20.7135)
     hx, hy = tile_for(86.863, 20.713, Z)
     spec = _spec(TileLayer.CONFIDENCE, Z, hx, hy)
-    assert tiles.render_tile(spec, str(cogs[1]), tiles.footprint_mercator(hole), {}) is None
+    assert (
+        tiles.render_tile(spec, str(cogs[1]), tiles.footprint_mercator(hole), tiles.CogAccess())
+        is None
+    )
 
 
 def test_low_zoom_reads_overviews(cogs: tuple[Path, Path]) -> None:
@@ -221,7 +230,7 @@ def test_low_zoom_reads_overviews(cogs: tuple[Path, Path]) -> None:
         _spec(TileLayer.CLASSIFICATION, z, x, y),
         str(cogs[0]),
         tiles.footprint_mercator(POLYGON),
-        {},
+        tiles.CogAccess(),
     )
     assert png is not None
     assert rgba(png)[..., 3].any()
@@ -268,16 +277,22 @@ def test_gdal_env_keeps_the_aqua_geo_network_hardening() -> None:
         assert int(tiles.GDAL_TILE_ENV[key]) <= int(GDAL_NETWORK_ENV[key])
 
 
-def test_s3_locator_and_env() -> None:
+def test_s3_locator_and_access() -> None:
     settings = _settings(s3_endpoint_url="http://s3:8333", s3_bucket="b")
     assert tiles.s3_cog_locator(settings)("projects/x/a.tif") == "/vsis3/b/projects/x/a.tif"
-    env = tiles.gdal_s3_env(settings)
-    assert env["AWS_S3_ENDPOINT"] == "s3:8333"
-    assert env["AWS_HTTPS"] == "NO"
-    assert env["AWS_VIRTUAL_HOSTING"] == "FALSE"
-    r2 = tiles.gdal_s3_env(_settings(s3_endpoint_url="https://acct.r2.cloudflarestorage.com"))
-    assert (r2["AWS_S3_ENDPOINT"], r2["AWS_HTTPS"]) == ("acct.r2.cloudflarestorage.com", "YES")
-    assert "AWS_S3_ENDPOINT" not in tiles.gdal_s3_env(_settings(s3_endpoint_url=None))
+    access = tiles.s3_cog_access(settings)
+    assert access.env == {"AWS_VIRTUAL_HOSTING": "FALSE", "AWS_HTTPS": "NO"}
+    options = access.session.get_credential_options()
+    assert options["AWS_S3_ENDPOINT"] == "s3:8333"
+    assert options["AWS_ACCESS_KEY_ID"] == "aquadev"
+    assert options["AWS_REGION"] == "auto"
+    r2 = tiles.s3_cog_access(_settings(s3_endpoint_url="https://acct.r2.cloudflarestorage.com"))
+    assert r2.env["AWS_HTTPS"] == "YES"
+    assert r2.session.get_credential_options()["AWS_S3_ENDPOINT"] == (
+        "acct.r2.cloudflarestorage.com"
+    )
+    aws = tiles.s3_cog_access(_settings(s3_endpoint_url=None))
+    assert "AWS_S3_ENDPOINT" not in aws.session.get_credential_options()
 
 
 def test_only_project_classification_keys_are_read() -> None:

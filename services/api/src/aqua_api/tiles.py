@@ -33,7 +33,7 @@ import time
 import uuid
 from collections import OrderedDict
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 from urllib.parse import urlsplit
@@ -276,19 +276,33 @@ def s3_cog_locator(settings: Settings) -> CogLocator:
     return locate
 
 
-def gdal_s3_env(settings: Settings) -> dict[str, str]:
-    """GDAL options for `/vsis3/` against SeaweedFS (dev) or Cloudflare R2 (prod)."""
-    env = {
-        "AWS_ACCESS_KEY_ID": settings.s3_access_key_id,
-        "AWS_SECRET_ACCESS_KEY": settings.s3_secret_access_key.get_secret_value(),
-        "AWS_REGION": settings.s3_region,
-        "AWS_VIRTUAL_HOSTING": "FALSE",  # path-style, like aqua_core.storage
-    }
+@dataclass(frozen=True)
+class CogAccess:
+    """How GDAL reaches the COGs: extra config options plus an optional rasterio session that
+    carries credentials (rasterio refuses AWS credentials as plain config options)."""
+
+    env: Mapping[str, str] = field(default_factory=dict)
+    session: Any = None
+
+
+def s3_cog_access(settings: Settings) -> CogAccess:
+    """GDAL `/vsis3/` access to SeaweedFS (dev) or Cloudflare R2 (prod), path-style like
+    `aqua_core.storage`, with the API's storage credentials."""
+    from rasterio.session import AWSSession
+
+    env = {"AWS_VIRTUAL_HOSTING": "FALSE"}
+    endpoint = None
     if settings.s3_endpoint_url:
         parts = urlsplit(settings.s3_endpoint_url)
-        env["AWS_S3_ENDPOINT"] = parts.netloc + parts.path.rstrip("/")
+        endpoint = parts.netloc + parts.path.rstrip("/")
         env["AWS_HTTPS"] = "YES" if parts.scheme == "https" else "NO"
-    return env
+    session = AWSSession(
+        aws_access_key_id=settings.s3_access_key_id,
+        aws_secret_access_key=settings.s3_secret_access_key.get_secret_value(),
+        region_name=settings.s3_region,
+        endpoint_url=endpoint,
+    )
+    return CogAccess(env, session)
 
 
 def valid_cog_key(key: str, project_id: uuid.UUID) -> bool:
@@ -349,7 +363,7 @@ def render_tile(
     spec: TileSpec,
     path: str,
     footprint_mercator: BaseGeometry,
-    gdal_env: Mapping[str, str],
+    access: CogAccess,
 ) -> bytes | None:
     """PNG bytes of one tile, or None when nothing in it is visible (outside the COG, nodata or
     outside the polygon). Blocking: call it from a worker thread."""
@@ -362,7 +376,11 @@ def render_tile(
     if not inside.any():
         return None
     with (
-        rasterio.Env(GDAL_CACHEMAX=GDAL_CACHEMAX_MB, **{**GDAL_TILE_ENV, **gdal_env}),
+        rasterio.Env(
+            session=access.session,
+            GDAL_CACHEMAX=GDAL_CACHEMAX_MB,
+            **{**GDAL_TILE_ENV, **access.env},
+        ),
         Reader(path) as src,
     ):
         try:

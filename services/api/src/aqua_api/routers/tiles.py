@@ -214,7 +214,7 @@ async def _render(
     try:
         path = state.cog_locator(spec.cog_key)
         return await run_in_threadpool(
-            tiles.render_tile, spec, path, footprint_merc, state.cog_gdal_env
+            tiles.render_tile, spec, path, footprint_merc, state.cog_access
         )
     except HTTPException:
         raise

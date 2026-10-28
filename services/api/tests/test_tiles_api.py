@@ -36,7 +36,7 @@ def local_cogs(client: httpx.AsyncClient, cog_dir: Path) -> None:
     """Read COG keys from a local directory instead of /vsis3/."""
     app = _app(client)
     app.state.cog_locator = lambda key: str(cog_dir / key)
-    app.state.cog_gdal_env = {}
+    app.state.cog_access = tiles.CogAccess()
 
 
 async def _project(make_actor: Any, sql: Any, *, lon: float = 86.85) -> tuple[Any, uuid.UUID]:
