@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+/*
+ * AquaCreds design tokens (docs/design/DESIGN_DIRECTION.md §1).
+ * Brand colours are fixed; semantic colours (`--fg`, `--panel`, `--ok-fg`, …) are set per surface
+ * by `.surface-light` / `.surface-dark`, so the same component reads correctly on both.
+ *
+ * Contrast (WCAG 2.2): mint/amber text is only used on dark surfaces (8.1:1 / 8.5:1 on deep-ocean);
+ * on light surfaces text uses the *-ink variants (≥ 5.2:1 on off-white). `failed` (#C95A52) is a
+ * graphics colour with ≥ 3:1 on all four surfaces; failed text uses #A83B33 (light) / #F08A80 (dark).
+ */
+@theme {
+  --color-deep-ocean: #0b2024;
+  --color-mangrove: #103a38;
+  --color-lagoon-mint: #43c9a4;
+  --color-sea-mist: #e9f0ec;
+  --color-off-white: #f8faf9;
+  --color-review-amber: #e9ad54;
+  --color-failed: #c95a52;
+
+  --color-mint-ink: #14725a;
+  --color-amber-ink: #7f5310;
+  --color-failed-ink: #a83b33;
+  --color-failed-glow: #f08a80;
+
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 0.875rem;
+}
+
+@theme inline {
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-panel-raised: var(--panel-raised);
+  --color-line: var(--line);
+  --color-ok: var(--ok-fg);
+  --color-warn: var(--warn-fg);
+  --color-fail: var(--fail-fg);
+}
+
+:root,
+.surface-light {
+  --fg: #0b2024;
+  --fg-muted: #4a5d58;
+  --bg: #f8faf9;
+  --panel: #ffffff;
+  --panel-raised: #e9f0ec;
+  --line: #d3dfd9;
+  --ok-fg: #14725a;
+  --warn-fg: #7f5310;
+  --fail-fg: #a83b33;
+  color-scheme: light;
+}
+
+.surface-dark {
+  --fg: #e4ede9;
+  --fg-muted: #a9c2bb;
+  --bg: #0b2024;
+  --panel: #103a38;
+  --panel-raised: #164744;
+  --line: #24524e;
+  --ok-fg: #43c9a4;
+  --warn-fg: #e9ad54;
+  --fail-fg: #f08a80;
+  color-scheme: dark;
+}
+
+@layer base {
+  /* Each surface sets its own text colour (custom properties alone don't change inherited color).
+     In the base layer so utilities such as `text-off-white` still win. */
+  .surface-light,
+  .surface-dark {
+    color: var(--fg);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-lagoon-mint);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  .surface-light :focus-visible {
+    outline-color: var(--color-mint-ink);
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+@utility display-xl {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  font-size: clamp(2.75rem, 7.2vw, 6.75rem);
+}
+
+/* Collect → Analyse → Verify → Record: the only animation on the landing page. It explains the
+   order of the steps; with reduced motion the steps are simply all shown. */
+@keyframes flow-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  12%,
+  30% {
+    opacity: 1;
+  }
+}
+
+.flow-step-marker {
+  animation: flow-pulse 8s ease-in-out infinite;
+  animation-delay: calc(var(--step) * 2s);
+}
+
+@keyframes job-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+.job-progress {
+  animation: job-progress 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-step-marker,
+  .job-progress {
+    animation: none;
+    opacity: 1;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* MapLibre: keep its attribution readable on the dark console. */
+.maplibregl-ctrl-attrib {
+  font-size: 11px;
+}
