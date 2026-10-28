@@ -9,7 +9,7 @@ not satellite data and not a real project. Never show it as real.
 make sync                     # local .venv with every workspace package
 make dev                      # dev stack: PostGIS, Valkey, SeaweedFS, migrate, api, worker
 uv run aqua-api seed-demo     # uses .env (DATABASE_URL, S3_*); default seed 42
-uv run aqua-api seed-demo --seed 7   # another, non-overlapping demo project
+uv run aqua-api seed-demo --seed 7   # another demo project on a different, non-overlapping site
 ```
 
 Inside the stack instead: `docker compose exec api aqua-api seed-demo` (the dev image has all
@@ -56,7 +56,7 @@ container when done.
 | Organisation `Demo Mangrove Collective (synthetic, seed N)` | name |
 | 5 users: org admin, field agent, verifier, registry admin, buyer (`demo.<role>.sN@example.org`) | "(synthetic)" names, reserved `example.org` domain |
 | Explore Demo visitor `demo.visitor.sN@example.org`: platform role `user`, `member` of the demo org only, random password that is never printed (nobody can sign in as it) | "Demo Visitor (synthetic, read-only)" |
-| Project `Demo Bhitarkanika Restoration (synthetic, seed N)`: a 0.02° square in Bhitarkanika, Odisha | name + description "DEMO - synthetic data …" |
+| Project `Demo Bhitarkanika Restoration (synthetic, seed N)`: a 0.019° square (~416 ha) on real Bhitarkanika mangroves, Odisha (see [Boundary](#boundary-real-mangroves-synthetic-project)) | name + description "DEMO - synthetic data …" |
 | Tenure documents (forest-department agreement, CRZ clearance, carbon-rights agreement) | generated one-page PDFs reading "SYNTHETIC DEMO DOCUMENT … not a real permit" |
 | Baseline (2025-01 to 2026-03) and monitoring (2026-04 to 2026-12) periods, 5 plots (3 dense, 2 sparse) with tree measurements | seeded random values (`random.Random(seed)`) |
 | Plot-centre photos (monitoring period) | generated images (coloured blocks + "SYNTHETIC DEMO PHOTO" banner), EXIF `Make: AquaCreds demo generator`, description = the demo tag; run through the normal evidence checks |
@@ -71,6 +71,35 @@ Photo capture times are the time of seeding (capture nonces are short-lived), so
 monitoring period, whose window contains the seeding date, gets photos.
 
 Demo staff accounts have no TOTP; the seed refuses to run when `MFA_REQUIRED_FOR_STAFF` is on.
+
+## Boundary: real mangroves, synthetic project
+
+The boundary geometry is real; the project is not. Each seed uses one of six grid-aligned
+0.019° squares (416.3–416.4 ha, geodesic WGS84) in Bhitarkanika mangrove forest
+(`DEMO_SITES` in `services/api/src/aqua_api/demo.py`, chosen by `seed % 6`; the default seed 42
+uses site 0, `--seed 7` site 1). Earlier versions placed 0.02° squares on a grid from
+86.80 E, 20.62 N, which landed on farmland and river: seeds 0–3 and 42 were 0–53 % mangrove by
+GMW (the default seed 42 was 0 %).
+
+| Site | South-west corner (lon, lat) | Mangrove (GMW v4 2020) |
+|---|---|---|
+| 0 (seed 42) | 86.837, 20.702 | 99.66 % |
+| 1 | 86.895, 20.734 | 97.60 % |
+| 2 | 86.833, 20.724 | 96.86 % |
+| 3 | 86.870, 20.734 | 95.24 % |
+| 4 | 86.929, 20.691 | 95.98 % |
+| 5 | 86.960, 20.681 | 98.02 % |
+
+Method: Global Mangrove Watch v4.0 2020 (`data/raw/gmw_v4`, the DVC download, tile
+`GMW_N21E086_v4019_mng.tif`, 0.0001° pixels, 1 = mangrove). A sliding-window search over
+86.75–86.98 E, 20.55–20.80 N kept non-overlapping squares above 95 % mangrove; the share is the
+fraction of the 190 × 190 pixels inside each square that GMW maps as mangrove (the squares are
+grid-aligned, so it is exact). The non-mangrove remainder is narrow creeks and gaps, so every site
+clears the >90 % mangrove submission rule without covering open water. The five plots of seeds
+0–5, 7 and 42 all sample a GMW mangrove pixel. The squares lie inside the India coastal bounding
+box and the 0.5–5,000 ha area limits, and never overlap each other, so different seeds can be
+seeded side by side (seeds with the same `seed % 6` collide on the cross-organisation overlap
+check).
 
 ## Explore Demo (no account, read-only)
 

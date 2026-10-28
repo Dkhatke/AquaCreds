@@ -66,7 +66,20 @@ START = date(2025, 1, 1)
 BASELINE = (date(2025, 1, 1), date(2026, 3, 31), date(2025, 2, 15))  # start, end, measured
 MONITORING = (date(2026, 4, 1), date(2026, 12, 31), date(2026, 9, 15))
 TEN_YEARS_S = 10 * 365 * 24 * 3600
-SIDE_DEG = 0.02  # ~2.1 km square near 20.7°N
+SIDE_DEG = 0.019  # ~2.0 km square near 20.7°N: 416.3-416.4 ha (geodesic, WGS84)
+# South-west corners of real mangrove squares in Bhitarkanika, Odisha (the geometry is real, the
+# project is not). Checked against Global Mangrove Watch v4.0 2020 (`data/raw/gmw_v4`, tile
+# GMW_N21E086_v4019_mng.tif, 0.0001° grid; the squares are grid-aligned, so the share is exact):
+# % of the square's pixels that GMW maps as mangrove. The rest is narrow creek / gaps; every square
+# clears the >90 % mangrove submission rule. The seeds of different sites never overlap.
+DEMO_SITES = (
+    (86.837, 20.702),  # 99.66 % mangrove (default seed 42 lands here)
+    (86.895, 20.734),  # 97.60 %
+    (86.833, 20.724),  # 96.86 %
+    (86.870, 20.734),  # 95.24 %
+    (86.929, 20.691),  # 95.98 %
+    (86.960, 20.681),  # 98.02 %
+)
 PLOT_LAYOUT = (
     ("D01", "dense"),
     ("D02", "dense"),
@@ -136,8 +149,8 @@ def project_name(seed: int) -> str:
 
 
 def boundary_origin(seed: int) -> tuple[float, float]:
-    """South-west corner, inside the Bhitarkanika mangrove area; seeds 0-7 never overlap."""
-    return 86.80 + (seed % 8) * 0.025, 20.62 + (seed // 8 % 4) * 0.025
+    """South-west corner of one of `DEMO_SITES`; seeds with different `seed % 6` never overlap."""
+    return DEMO_SITES[seed % len(DEMO_SITES)]
 
 
 def boundary(seed: int) -> dict[str, Any]:
