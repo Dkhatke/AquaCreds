@@ -29,7 +29,11 @@ export type ChainStatusOut = Schema<"ChainStatusOut">;
 export type DemoSessionOut = Schema<"DemoSessionOut">;
 export type DemoStatusOut = Schema<"DemoStatusOut">;
 export type ListingOut = Schema<"ListingOut">;
+/** TileJSON 3.0 for a classification layer; `tiles` are signed URLs valid until `expires_at`. */
+export type TileJSON = Schema<"TileJSON">;
+export type ClassificationLegend = Schema<"ClassificationLegend">;
 
 export type ProjectListQuery = GetQuery<"/api/v1/projects">;
 export type TimeseriesQuery = GetQuery<"/api/v1/projects/{project_id}/timeseries">;
 export type AlertsQuery = GetQuery<"/api/v1/projects/{project_id}/alerts">;
+export type TileJSONQuery = GetQuery<"/api/v1/projects/{project_id}/tilejson">;

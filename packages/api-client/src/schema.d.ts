@@ -842,6 +842,67 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/projects/{project_id}/classifications/{classification_id}/confidence/{z}/{x}/{y}.png": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Confidence Tile
+     * @description Highest class probability (0-1) as a single-hue ramp, same masking as the class tiles.
+     */
+    get: operations["confidence_tile_api_v1_projects__project_id__classifications__classification_id__confidence__z___x___y__png_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{project_id}/classifications/{classification_id}/legend": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Classification Legend
+     * @description Palette and areas of the class layer, and the confidence ramp.
+     */
+    get: operations["classification_legend_api_v1_projects__project_id__classifications__classification_id__legend_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{project_id}/classifications/{classification_id}/tiles/{z}/{x}/{y}.png": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Classification Tile
+     * @description Ecosystem classes as a 256 px PNG (palette in the legend), transparent outside the project
+     *     polygon and where the classifier made no prediction.
+     */
+    get: operations["classification_tile_api_v1_projects__project_id__classifications__classification_id__tiles__z___x___y__png_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/projects/{project_id}/documents": {
     parameters: {
       query?: never;
@@ -991,6 +1052,27 @@ export interface paths {
     put?: never;
     /** Submit Project */
     post: operations["submit_project_api_v1_projects__project_id__submit_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{project_id}/tilejson": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Project Tilejson
+     * @description TileJSON 3.0 for one layer of a classification (default: the newest season's latest run),
+     *     with tile URLs signed for this user until `expires_at`.
+     */
+    get: operations["project_tilejson_api_v1_projects__project_id__tilejson_get"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1985,6 +2067,31 @@ export interface components {
       /** Probability Url */
       probability_url: string;
     };
+    /** ClassificationLegend */
+    ClassificationLegend: {
+      /** Attribution */
+      attribution: string;
+      /** Classes */
+      classes: components["schemas"]["LegendClass"][];
+      /**
+       * Classification Id
+       * Format: uuid
+       */
+      classification_id: string;
+      confidence: components["schemas"]["ConfidenceLegend"];
+      /** Model Version */
+      model_version: string;
+      nodata: components["schemas"]["LegendNoData"];
+      /** Note */
+      note: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /** Season Start Year */
+      season_start_year: number;
+    };
     /**
      * ClassificationOut
      * @description One ecosystem-classifier result. Areas: classified 10 m pixels x pixel area / UTM areal
@@ -2091,6 +2198,19 @@ export interface components {
     CompositeRequest: {
       /** Season Start Year */
       season_start_year: number;
+    };
+    /** ConfidenceLegend */
+    ConfidenceLegend: {
+      /** Label */
+      label: string;
+      /** Low Confidence Threshold */
+      low_confidence_threshold: number;
+      /** Max */
+      max: number;
+      /** Min */
+      min: number;
+      /** Stops */
+      stops: components["schemas"]["LegendRampStop"][];
     };
     /** DeliveryOut */
     DeliveryOut: {
@@ -2258,6 +2378,35 @@ export interface components {
       explorer_url: string | null;
       /** Tx Hash */
       tx_hash: string;
+    };
+    /** LegendClass */
+    LegendClass: {
+      /** Area Ha */
+      area_ha: number | null;
+      /** Class Name */
+      class_name: string;
+      /** Color */
+      color: string;
+      /** Label */
+      label: string;
+      /** Value */
+      value: number;
+    };
+    /** LegendNoData */
+    LegendNoData: {
+      /** Color */
+      color?: null;
+      /** Label */
+      label: string;
+      /** Value */
+      value: number;
+    };
+    /** LegendRampStop */
+    LegendRampStop: {
+      /** Color */
+      color: string;
+      /** Value */
+      value: number;
     };
     /** ListingOut */
     ListingOut: {
@@ -4058,6 +4207,78 @@ export interface components {
       | "port_or_central_land"
       | "community_panchayat"
       | "private_land";
+    /**
+     * TileJSON
+     * @description TileJSON 3.0.0 (https://github.com/mapbox/tilejson-spec/tree/master/3.0.0) for one raster
+     *     layer of one classification. `tiles` carries signed URLs (valid until `expires_at`): MapLibre
+     *     loads them without an Authorization header. Fetch a fresh TileJSON after expiry.
+     */
+    TileJSON: {
+      /** Attribution */
+      attribution: string;
+      /** Bounds */
+      bounds: number[];
+      /** Center */
+      center: number[];
+      /**
+       * Classification Id
+       * Format: uuid
+       */
+      classification_id: string;
+      /** Description */
+      description: string;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Layer
+       * @enum {string}
+       */
+      layer: "classification" | "confidence";
+      /** Legend Url */
+      legend_url: string;
+      /** Maxzoom */
+      maxzoom: number;
+      /** Minzoom */
+      minzoom: number;
+      /** Model Version */
+      model_version: string;
+      /** Name */
+      name: string;
+      /**
+       * Project Id
+       * Format: uuid
+       */
+      project_id: string;
+      /**
+       * Scheme
+       * @default xyz
+       * @constant
+       */
+      scheme: "xyz";
+      /** Season Start Year */
+      season_start_year: number;
+      /**
+       * Tilejson
+       * @default 3.0.0
+       * @constant
+       */
+      tilejson: "3.0.0";
+      /** Tiles */
+      tiles: string[];
+      /**
+       * Version
+       * @default 1.0.0
+       */
+      version: string;
+    };
+    /**
+     * TileLayer
+     * @enum {string}
+     */
+    TileLayer: "classification" | "confidence";
     /** TimeseriesOut */
     TimeseriesOut: {
       /**
@@ -5982,6 +6203,182 @@ export interface operations {
       };
     };
   };
+  confidence_tile_api_v1_projects__project_id__classifications__classification_id__confidence__z___x___y__png_get: {
+    parameters: {
+      query?: {
+        token?: string | null;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+        classification_id: string;
+        z: number;
+        x: number;
+        y: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description PNG tile (256 x 256, RGBA) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/png": unknown;
+        };
+      };
+      /** @description Valid tile with nothing to draw */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not modified (If-None-Match) */
+      304: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid or expired tile token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unknown project/classification, or tile outside the zoom range */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Tile renderer busy; retry */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  classification_legend_api_v1_projects__project_id__classifications__classification_id__legend_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        project_id: string;
+        classification_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClassificationLegend"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  classification_tile_api_v1_projects__project_id__classifications__classification_id__tiles__z___x___y__png_get: {
+    parameters: {
+      query?: {
+        token?: string | null;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+        classification_id: string;
+        z: number;
+        x: number;
+        y: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description PNG tile (256 x 256, RGBA) */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "image/png": unknown;
+        };
+      };
+      /** @description Valid tile with nothing to draw */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not modified (If-None-Match) */
+      304: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid or expired tile token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unknown project/classification, or tile outside the zoom range */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+      /** @description Tile renderer busy; retry */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   confirm_document_api_v1_projects__project_id__documents_post: {
     parameters: {
       query?: never;
@@ -6331,6 +6728,41 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ProjectOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  project_tilejson_api_v1_projects__project_id__tilejson_get: {
+    parameters: {
+      query?: {
+        layer?: components["schemas"]["TileLayer"];
+        /** @description Classification id */
+        cid?: string | null;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TileJSON"];
         };
       };
       /** @description Validation Error */

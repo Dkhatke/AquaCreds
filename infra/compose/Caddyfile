@@ -59,6 +59,10 @@
 		max_size 10MB
 	}
 
+	# Map tiles (/api/v1/projects/*/classifications/*/{tiles,confidence}/{z}/{x}/{y}.png) are
+	# rendered by the API with an in-process LRU and answer `Cache-Control: private, immutable`
+	# plus an ETag (304 on revalidation). They are per-user (signed URLs), so no shared cache is
+	# configured here on purpose; `encode` leaves image/png alone (already compressed).
 	reverse_proxy api:8000 {
 		header_down -Server
 		# Fail fast with 502/503 instead of hanging if the API container is restarting.
