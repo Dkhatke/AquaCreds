@@ -34,7 +34,7 @@ LATENCY_RUNS = 60
 ARM_SLOWDOWN_RANGE = (2.0, 3.0)
 
 
-def labels_json(thresholds: dict[str, float], metrics_ref: str) -> bytes:
+def labels_json(thresholds: dict[str, Any], metrics_ref: str) -> bytes:
     body = {
         "version": VERSION,
         "classes": [{"key": c.key, "label": c.label, "genus": c.genus} for c in CLASSES],
@@ -196,11 +196,14 @@ def main(argv: list[str] | None = None) -> int:
     result = metrics["candidates"][candidate]
     df = pe.load_dataset()
     model_bytes = build(candidate)
+    # Fixed on the validation split only. pass_at: 95% of val mangrove photos score at or above
+    # it (no penalty for them). low: the val best-F1 operating point used for every reported F1;
+    # below it the photo "does not look like mangrove", between the two it is "uncertain".
+    pass_at = result["threshold_val_recall95"]
     thresholds = {
-        # pass: precision ≥ 0.95 on val; low: 95% of val mangrove photos are above it.
-        "pass_at": result["threshold_val_precision95"],
-        "low": min(result["threshold_val_recall95"], result["threshold_val_precision95"]),
-        "best_f1_val": result["threshold_val_best_f1"],
+        "pass_at": pass_at,
+        "low": min(result["threshold_val_best_f1"], pass_at),
+        "rule": "pass_at = val recall-0.95 threshold; low = val best-F1 threshold",
     }
     labels = labels_json(thresholds, "ml/model_cards/photo_verifier_v1_metrics.json")
     EXPORT.mkdir(parents=True, exist_ok=True)

@@ -47,10 +47,22 @@ PHOTO_VERIFIER_V1 = ModelManifest(
     model_file="model.onnx",
     features_file="labels.json",
     sha256={
-        "model.onnx": "PENDING_EXPORT",
-        "labels.json": "PENDING_EXPORT",
+        "model.onnx": "3609c78f1ff91dbfd83a84dc2c58d6006c13497f99ea303683e4269b17971e69",
+        "labels.json": "1f54be790ddfe83a5d9469ebb15734194385507e9eaf874909fcc944edc19ae1",
+    },
+    # Copied from ml/model_cards/photo_verifier_v1_metrics.json (candidates.probe_bioclip_v1);
+    # test_photo_verifier checks they still match that file.
+    heldout_metrics={
+        "candidate": "probe_bioclip_v1",
+        "test_observer_f1": 0.9875,
+        "test_observer_auroc": 0.9971,
+        "test_state_f1": 0.962,
+        "test_state_auroc": 0.996,
+        "test_state": "Maharashtra (never used for training, tuning or thresholds)",
+        "label_note": "iNaturalist research-grade photos, not field captures from the app",
     },
     model_card="ml/model_cards/photo_verifier_v1.md",
+    max_file_bytes=400 * 1024 * 1024,  # fp32 ViT-B/16 + head: 345207351 bytes
 )
 
 

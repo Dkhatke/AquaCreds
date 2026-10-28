@@ -1429,5 +1429,51 @@
     }
    }
   }
+ },
+ "export": {
+  "candidate": "probe_bioclip_v1",
+  "files": {
+   "model.onnx": {
+    "sha256": "3609c78f1ff91dbfd83a84dc2c58d6006c13497f99ea303683e4269b17971e69",
+    "bytes": 345207351
+   },
+   "labels.json": {
+    "sha256": "1f54be790ddfe83a5d9469ebb15734194385507e9eaf874909fcc944edc19ae1",
+    "bytes": 2018
+   }
+  },
+  "thresholds": {
+   "pass_at": 0.703666,
+   "low": 0.188603,
+   "rule": "pass_at = val recall-0.95 threshold; low = val best-F1 threshold"
+  },
+  "parity": {
+   "images": 200,
+   "max_abs_diff_p_mangrove": 1.6093254089355469e-06,
+   "atol": 0.0001
+  },
+  "latency_cpu_onnxruntime": {
+   "machine": "arm64 macOS-26.5.1-arm64-arm-64bit",
+   "includes": "JPEG decode + resize + ONNX Runtime CPU inference, batch 1",
+   "threads_1": {
+    "median_ms": 51.4,
+    "p95_ms": 58.0
+   },
+   "threads_2": {
+    "median_ms": 43.3,
+    "p95_ms": 44.9
+   },
+   "threads_4": {
+    "median_ms": 43.3,
+    "p95_ms": 45.4
+   },
+   "oracle_arm_4core_ESTIMATE_ms": {
+    "basis": "Mac median at 2 threads x (2.0, 3.0) (not measured on the VM)",
+    "range": [
+     87,
+     130
+    ]
+   }
+  }
  }
 }

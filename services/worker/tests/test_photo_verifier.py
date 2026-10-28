@@ -288,3 +288,40 @@ def test_worker_start_verifies_photo_model_only_when_enabled(
 
     settings_env.setattr(pv, "get_photo_model", broken)
     _verify_photo_verifier(sender=sender)  # logged, not raised
+
+
+# ---------------------------------------------------------------- the real v1 model
+
+REPO = Path(__file__).resolve().parents[3]
+EXPORT = REPO / "ml" / "artifacts" / "photo_verifier" / "export"
+METRICS = REPO / "ml" / "model_cards" / "photo_verifier_v1_metrics.json"
+
+
+def test_pinned_metrics_and_hashes_match_the_model_card_json() -> None:
+    metrics = json.loads(METRICS.read_text())
+    export = metrics["export"]
+    assert export["candidate"] == pv.PHOTO_VERIFIER_V1.heldout_metrics["candidate"]
+    for name, info in export["files"].items():
+        assert pv.PHOTO_VERIFIER_V1.sha256[name] == info["sha256"]
+        assert info["bytes"] <= pv.PHOTO_VERIFIER_V1.max_file_bytes
+    result = metrics["candidates"][export["candidate"]]
+    for split in ("test_observer", "test_state"):
+        for key in ("f1", "auroc"):
+            pinned = pv.PHOTO_VERIFIER_V1.heldout_metrics[f"{split}_{key}"]
+            assert pinned == round(result[split][key]["value"], 4)
+
+
+@pytest.mark.skipif(
+    not (EXPORT / "model.onnx").exists(), reason="model export not present (ml/artifacts is local)"
+)
+def test_real_model_loads_and_scores_real_photos() -> None:
+    model = pv.load_photo_model(EXPORT)
+    assert model.spec.thresholds.low <= model.spec.thresholds.pass_at
+    images = REPO / "data" / "raw" / "photos" / "images"
+    mangrove = next((images / "rhizophora").glob("*.jpg"), None)
+    if mangrove is None:
+        pytest.skip("photo dataset not present")
+    result = pv.photo_plausibility(mangrove.read_bytes(), model)
+    assert 0.0 <= result["mangrove_prob"] <= 1.0
+    assert result["sha256"] == pv.PHOTO_VERIFIER_V1.sha256["model.onnx"]
+    assert len(result["top_genera"]) == 3
