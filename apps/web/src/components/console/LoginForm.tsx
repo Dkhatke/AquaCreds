@@ -79,6 +79,7 @@ export function LoginForm({ next, expired }: { next: string | null; expired: boo
       )}
       {step === "password" ? (
         <form
+          key="password"
           onSubmit={onPassword}
           className="space-y-4"
           aria-describedby={error ? "login-error" : undefined}
