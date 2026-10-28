@@ -2117,7 +2117,6 @@ export interface components {
       banner: string;
       /**
        * Demo
-       * @default true
        * @constant
        */
       demo: true;

@@ -12,7 +12,7 @@ class DemoSessionOut(BaseModel):
 
     access_token: str
     expires_in: int
-    demo: Literal[True] = True
+    demo: Literal[True]
     org_id: uuid.UUID
     project_ids: list[uuid.UUID]
     banner: str

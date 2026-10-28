@@ -1542,7 +1542,6 @@
           },
           "demo": {
             "const": true,
-            "default": true,
             "title": "Demo",
             "type": "boolean"
           },
@@ -1567,6 +1566,7 @@
         "required": [
           "access_token",
           "expires_in",
+          "demo",
           "org_id",
           "project_ids",
           "banner"
