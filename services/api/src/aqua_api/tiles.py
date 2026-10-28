@@ -398,11 +398,15 @@ def render_tile(
 
 
 def footprint_mercator(footprint: BaseGeometry) -> BaseGeometry:
+    """The WGS84 project polygon in Web Mercator metres (for per-tile rasterisation)."""
+    import shapely
     from pyproj import Transformer
-    from shapely.ops import transform
 
-    project = Transformer.from_crs(4326, 3857, always_xy=True).transform
-    return transform(project, footprint)
+    transformer = Transformer.from_crs(4326, 3857, always_xy=True)
+    projected: BaseGeometry = shapely.transform(
+        footprint, lambda x, y: transformer.transform(x, y), interleaved=False
+    )
+    return projected
 
 
 # ---------------------------------------------------------------- in-process cache
