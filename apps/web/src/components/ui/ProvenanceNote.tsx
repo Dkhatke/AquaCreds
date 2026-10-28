@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 export interface Provenance {
-  /** e.g. "Sentinel-2 L2A (Planetary Computer)" or "ecosystem_classifier_v1". */
+  /** e.g. "Sentinel-2 L2A (Planetary Computer)" or "ecosystem_classifier_v1.1". */
   source?: string | undefined;
   modelVersion?: string | undefined;
   /** ISO date or date-time. */

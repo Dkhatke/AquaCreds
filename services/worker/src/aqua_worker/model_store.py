@@ -1,13 +1,13 @@
 """Ecosystem-classifier distribution: model files in object storage, pinned by SHA-256, cached on disk.
 
-Why object storage and not baked into the image: the model files are DVC outputs without a DVC
-remote, so they are not in git; the worker image is built by CI from a git checkout (and
-`.dockerignore` excludes `*.onnx`), so a baked image could not be rebuilt from the repository.
-Pinning every file's SHA-256 here, in git, gives the same guarantee as baking: a worker only ever
-runs the exact bytes that were evaluated in its model card (`ml/model_cards/<version>.md`), and the
-image stays reproducible. (Since v1.1 the DVC outputs are also pushed to a DVC remote,
-docs/DATASETS.md; the v1 outputs never were and are lost, see `ECOSYSTEM_CLASSIFIER_V1`.) R2 (production) and SeaweedFS (development) are already the platform's
-object stores (decision D9), so this costs nothing extra.
+Why object storage and not baked into the image: the model files are DVC outputs, so they are
+not in git; the worker image is built by CI from a git checkout (and `.dockerignore` excludes
+`*.onnx`), so a baked image could not be rebuilt from the repository. Pinning every file's SHA-256
+here, in git, gives the same guarantee as baking: a worker only ever runs the exact bytes that were
+evaluated in its model card (`ml/model_cards/<version>.md`), and the image stays reproducible. R2
+(production) and SeaweedFS (development) are already the platform's object stores (decision D9),
+so this costs nothing extra. Since v1.1 the DVC outputs are also pushed to a DVC remote
+(docs/DATASETS.md §9); the v1 outputs never were and are lost (see `ECOSYSTEM_CLASSIFIER_V1`).
 
 Flow:
 1. Publish (operator, once per model version, from a machine that has the DVC outputs)::
