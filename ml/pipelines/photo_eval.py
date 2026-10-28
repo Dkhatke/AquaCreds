@@ -439,18 +439,27 @@ def mobilenet_model(n_classes: int, pretrained: bool = True) -> Any:
     return model
 
 
+MPS_CAP_BYTES = int(1.5e9)  # hard cap for the MPS allocator; the whole process must stay < 3 GB
+CKPT = ART / "mobilenetv2_checkpoint.pt"
+
+
 def mobilenet_finetune(
-    df: pd.DataFrame, epochs: int = 12, batch: int = 32
+    df: pd.DataFrame, epochs: int = 12, batch: int = 16
 ) -> tuple[np.ndarray, np.ndarray, Any]:
+    """Fine-tune on MPS under a hard allocator cap (run 1 without a cap reached a 5.4 GB process
+    footprint); a checkpoint after every epoch lets a stopped run resume where it left off."""
     import torch
     from torch.utils.data import DataLoader
     from torchvision import transforms as T
 
     torch.manual_seed(SEED)
-    # CPU, not MPS: on MPS the unified-memory allocator pushed the process footprint to 5.4 GB
-    # (run 1), over the 3 GB limit. CPU training keeps it bounded and is deterministic.
-    device = "cpu"
-    torch.set_num_threads(4)
+    if torch.backends.mps.is_available():
+        device = "mps"
+        torch.mps.set_per_process_memory_fraction(
+            MPS_CAP_BYTES / torch.mps.recommended_max_memory()
+        )
+    else:
+        device = "cpu"
     norm = T.Normalize(IMAGENET_MEAN, IMAGENET_STD)
     train_tf = T.Compose(
         [
@@ -464,8 +473,12 @@ def mobilenet_finetune(
     eval_tf = T.Compose([T.Resize((IMG, IMG)), T.ToTensor(), norm])  # = production resize
     tr = df[df["split"] == "train"]
     va = df[df["split"] == "val"]
+    gen = torch.Generator().manual_seed(SEED)
     train_dl = DataLoader(
-        _Images(tr["path"], tr["class_idx"], train_tf), batch_size=batch, shuffle=True
+        _Images(tr["path"], tr["class_idx"], train_tf),
+        batch_size=batch,
+        shuffle=True,
+        generator=gen,
     )
     model = mobilenet_model(len(CLASS_KEYS)).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=5e-4, weight_decay=1e-4)
@@ -473,7 +486,7 @@ def mobilenet_finetune(
     loss_fn = torch.nn.CrossEntropyLoss(label_smoothing=0.1)
 
     def predict(rows: pd.DataFrame) -> np.ndarray:
-        dl = DataLoader(_Images(rows["path"], rows["class_idx"], eval_tf), batch_size=64)
+        dl = DataLoader(_Images(rows["path"], rows["class_idx"], eval_tf), batch_size=32)
         model.eval()
         outs = []
         with torch.no_grad():
@@ -481,9 +494,17 @@ def mobilenet_finetune(
                 outs.append(torch.softmax(model(x.to(device)), -1).cpu().numpy())
         return np.concatenate(outs)
 
-    best_loss, best_state = float("inf"), None
+    best_loss, best_state, start = float("inf"), None, 0
+    if CKPT.exists():
+        ck = torch.load(CKPT, map_location="cpu", weights_only=False)  # our own file
+        model.load_state_dict(ck["model"])
+        opt.load_state_dict(ck["opt"])
+        sched.load_state_dict(ck["sched"])
+        gen.set_state(ck["gen"])
+        best_loss, best_state, start = ck["best_loss"], ck["best_state"], ck["epoch"]
+        print(f"    resuming after epoch {start}", flush=True)
     yv = va["class_idx"].to_numpy()
-    for epoch in range(epochs):
+    for epoch in range(start, epochs):
         model.train()
         t0 = time.time()
         for x, yb in train_dl:
@@ -494,10 +515,27 @@ def mobilenet_finetune(
         sched.step()
         pv = predict(va)
         vloss = float(-np.mean(np.log(np.clip(pv[np.arange(len(yv)), yv], 1e-12, 1))))
-        print(f"    epoch {epoch + 1}: val log-loss {vloss:.4f} ({time.time() - t0:.0f} s)")
+        print(
+            f"    epoch {epoch + 1}: val log-loss {vloss:.4f} ({time.time() - t0:.0f} s)",
+            flush=True,
+        )
         if vloss < best_loss:
             best_loss = vloss
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+        torch.save(
+            {
+                "model": model.state_dict(),
+                "opt": opt.state_dict(),
+                "sched": sched.state_dict(),
+                "gen": gen.get_state(),
+                "best_loss": best_loss,
+                "best_state": best_state,
+                "epoch": epoch + 1,
+            },
+            CKPT,
+        )
+        if device == "mps":
+            torch.mps.empty_cache()
     if best_state is None:
         raise RuntimeError("no epoch finished")
     model.load_state_dict(best_state)
