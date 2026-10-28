@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "AquaCreds Field",
+    "slug": "aquacreds-field",
+    "scheme": "aquacreds",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#F8FAF9",
+    "platforms": ["android", "ios"],
+    "android": {
+      "package": "org.aquacreds.field",
+      "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "org.aquacreds.field",
+      "supportsTablet": false
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AquaCreds uses the camera to take evidence photos of restoration sites and sample plots.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "AquaCreds records where each evidence photo is taken so it can be checked against the project boundary."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

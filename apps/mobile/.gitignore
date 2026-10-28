@@ -1,0 +1,6 @@
+.expo/
+dist/
+android/
+ios/
+*.jks
+*.keystore
