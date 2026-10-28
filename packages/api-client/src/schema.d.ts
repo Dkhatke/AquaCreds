@@ -340,6 +340,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/demo/session": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Create Demo Session
+     * @description A short-lived, read-only token for the demo organisation's visitor account (no account
+     *     creation, no refresh token). 404 when demo mode is off; 429 over the per-IP limit.
+     */
+    post: operations["create_demo_session_api_v1_demo_session_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/demo/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Demo Status
+     * @description Whether Explore Demo is switched on (public, cacheable).
+     */
+    get: operations["demo_status_api_v1_demo_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/forward-fund/requests": {
     parameters: {
       query?: never;
@@ -992,6 +1033,10 @@ export interface paths {
      * List Listings
      * @description Active listings of unexpired vintages, joined with the project's public facts, the anchored
      *     MRV report hash and the project's current stewardship score (with its `score_version`).
+     *
+     *     Each listing is checked on-chain (seller balance >= remaining and marketplace approval,
+     *     cached ~60 s). Listings found unavailable are left out unless `include_unavailable`; when the
+     *     check fails they are returned with `available: null`, `unavailable_reason: "unknown"`.
      */
     get: operations["list_listings_api_v1_public_marketplace_listings_get"];
     put?: never;
@@ -1031,8 +1076,8 @@ export interface paths {
     };
     /**
      * Project Market
-     * @description A public project's active listings, its trades and the price history (one point per trade,
-     *     oldest first).
+     * @description A public project's active listings (each with its on-chain `available` flag), its trades
+     *     and the price history (one point per trade, oldest first).
      */
     get: operations["project_market_api_v1_public_marketplace_projects__project_id__market_get"];
     put?: never;
@@ -2060,6 +2105,39 @@ export interface components {
       /** Tx Hash */
       tx_hash: string;
     };
+    /**
+     * DemoSessionOut
+     * @description A read-only demo session. Use `access_token` as a Bearer token until `expires_in` seconds
+     *     have passed; there is no refresh token (ask for a new session instead).
+     */
+    DemoSessionOut: {
+      /** Access Token */
+      access_token: string;
+      /** Banner */
+      banner: string;
+      /**
+       * Demo
+       * @default true
+       * @constant
+       */
+      demo: true;
+      /** Expires In */
+      expires_in: number;
+      /**
+       * Org Id
+       * Format: uuid
+       */
+      org_id: string;
+      /** Project Ids */
+      project_ids: string[];
+    };
+    /** DemoStatusOut */
+    DemoStatusOut: {
+      /** Banner */
+      banner: string;
+      /** Enabled */
+      enabled: boolean;
+    };
     /** DocumentConfirm */
     DocumentConfirm: {
       /** Filename */
@@ -2188,6 +2266,8 @@ export interface components {
       amount_listed: number;
       /** Amount Sold */
       amount_sold: number;
+      /** Available */
+      available: boolean | null;
       closed: components["schemas"]["ChainRef"] | null;
       listed: components["schemas"]["ChainRef"];
       /** Listed At */
@@ -2206,6 +2286,17 @@ export interface components {
        */
       status: "active" | "sold_out" | "cancelled";
       stewardship: components["schemas"]["StewardshipSummary"] | null;
+      /** Unavailable Reason */
+      unavailable_reason:
+        | (
+            | "sold_out"
+            | "cancelled"
+            | "expired"
+            | "insufficient_balance"
+            | "not_approved"
+            | "unknown"
+          )
+        | null;
       vintage: components["schemas"]["VintageFacts"];
     };
     /** LoginIn */
@@ -4800,6 +4891,60 @@ export interface operations {
       };
     };
   };
+  create_demo_session_api_v1_demo_session_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DemoSessionOut"];
+        };
+      };
+      /** @description Demo mode is off */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No demo data */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  demo_status_api_v1_demo_status_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DemoStatusOut"];
+        };
+      };
+    };
+  };
   list_requests_api_v1_forward_fund_requests_get: {
     parameters: {
       query?: {
@@ -6257,6 +6402,8 @@ export interface operations {
         /** @description Max price per unit, payment-token base units */
         max_price?: number | null;
         sort?: "newest" | "price_asc" | "price_desc";
+        /** @description Also return active listings the seller can no longer fill */
+        include_unavailable?: boolean;
         limit?: number;
         offset?: number;
       };
