@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["es2023", "dom"],
+    "jsx": "react-jsx",
+    "customConditions": ["react-native"],
+    "types": ["node"]
+  },
+  "include": ["app", "src", "test", "vitest.config.mts", "expo-env.d.ts"]
+}
