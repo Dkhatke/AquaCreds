@@ -2,6 +2,7 @@ import base64
 
 import pytest
 from pydantic import ValidationError
+from structlog.testing import capture_logs
 
 from aqua_core.settings import ANVIL_DEV_MNEMONIC, DEV_MFA_ENCRYPTION_KEY, Settings
 
@@ -165,9 +166,7 @@ def test_notification_email_is_off_by_default_and_checked_in_production() -> Non
     ).assert_production_safe()
 
 
-def test_demo_mode_off_by_default_and_needs_an_org_in_production(
-    capsys: pytest.CaptureFixture[str],
-) -> None:
+def test_demo_mode_off_by_default_and_needs_an_org_in_production() -> None:
     dev = Settings(_env_file=None)
     assert dev.demo_mode_enabled is False
     assert dev.demo_session_ttl_min == 60
@@ -182,12 +181,13 @@ def test_demo_mode_off_by_default_and_needs_an_org_in_production(
         _prod(
             demo_mode_enabled=True, demo_org_slug="demo-s1", rate_limit_enabled=False
         ).assert_production_safe()
-    capsys.readouterr()
-    _prod(
-        demo_mode_enabled=True, demo_org_id="00000000-0000-4000-8000-000000000001"
-    ).assert_production_safe()
-    _prod(demo_mode_enabled=True, demo_org_slug="demo-s1").assert_production_safe()
-    assert "demo_mode.enabled_in_production" in capsys.readouterr().out
+    with capture_logs() as logs:
+        _prod(
+            demo_mode_enabled=True, demo_org_id="00000000-0000-4000-8000-000000000001"
+        ).assert_production_safe()
+        _prod(demo_mode_enabled=True, demo_org_slug="demo-s1").assert_production_safe()
+    assert [e["event"] for e in logs] == ["demo_mode.enabled_in_production"] * 2
+    assert logs[0]["log_level"] == "warning"
     with pytest.raises(ValidationError):
         Settings(_env_file=None, rate_limit_demo_session_ip="lots")
     with pytest.raises(ValidationError):
