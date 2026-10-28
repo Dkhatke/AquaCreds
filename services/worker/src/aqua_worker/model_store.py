@@ -55,10 +55,10 @@ class ModelManifest:
     model_file: str
     features_file: str
     sha256: Mapping[str, str]  # file name → SHA-256 (hex)
-    # Scene stack the model was trained on (features_extract.py config).
-    season_months: tuple[int, ...]
-    max_scenes: int
-    max_tile_cloud_pct: float
+    # Scene stack the model was trained on (features_extract.py config); satellite models only.
+    season_months: tuple[int, ...] = ()
+    max_scenes: int = 0
+    max_tile_cloud_pct: float = 0.0
     # Held-out (Gulf of Kutch) metrics from the model card, quoted in MRV reports.
     heldout_metrics: Mapping[str, Any] = field(default_factory=dict)
     model_card: str = ""
