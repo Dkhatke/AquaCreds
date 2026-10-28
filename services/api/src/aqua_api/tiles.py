@@ -403,9 +403,12 @@ def footprint_mercator(footprint: BaseGeometry) -> BaseGeometry:
     from pyproj import Transformer
 
     transformer = Transformer.from_crs(4326, 3857, always_xy=True)
-    projected: BaseGeometry = shapely.transform(
-        footprint, lambda x, y: transformer.transform(x, y), interleaved=False
-    )
+
+    def to_mercator(coords: np.ndarray) -> np.ndarray:
+        x, y = transformer.transform(coords[:, 0], coords[:, 1])
+        return np.column_stack([x, y])
+
+    projected: BaseGeometry = shapely.transform(footprint, to_mercator)
     return projected
 
 
