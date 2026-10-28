@@ -1235,6 +1235,62 @@
         "title": "ClassificationDownloads",
         "type": "object"
       },
+      "ClassificationLegend": {
+        "properties": {
+          "attribution": {
+            "title": "Attribution",
+            "type": "string"
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/LegendClass"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "classification_id": {
+            "format": "uuid",
+            "title": "Classification Id",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/components/schemas/ConfidenceLegend"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "nodata": {
+            "$ref": "#/components/schemas/LegendNoData"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "season_start_year": {
+            "title": "Season Start Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "classification_id",
+          "project_id",
+          "season_start_year",
+          "model_version",
+          "attribution",
+          "classes",
+          "nodata",
+          "confidence",
+          "note"
+        ],
+        "title": "ClassificationLegend",
+        "type": "object"
+      },
       "ClassificationOut": {
         "description": "One ecosystem-classifier result. Areas: classified 10 m pixels x pixel area / UTM areal\nscale, pixel centres inside the boundary. Context for MRV only: credits come from plots.",
         "properties": {
@@ -1494,6 +1550,42 @@
           "season_start_year"
         ],
         "title": "CompositeRequest",
+        "type": "object"
+      },
+      "ConfidenceLegend": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "low_confidence_threshold": {
+            "title": "Low Confidence Threshold",
+            "type": "number"
+          },
+          "max": {
+            "title": "Max",
+            "type": "number"
+          },
+          "min": {
+            "title": "Min",
+            "type": "number"
+          },
+          "stops": {
+            "items": {
+              "$ref": "#/components/schemas/LegendRampStop"
+            },
+            "title": "Stops",
+            "type": "array"
+          }
+        },
+        "required": [
+          "label",
+          "min",
+          "max",
+          "stops",
+          "low_confidence_threshold"
+        ],
+        "title": "ConfidenceLegend",
         "type": "object"
       },
       "DeliveryOut": {
@@ -1897,6 +1989,86 @@
           "explorer_url"
         ],
         "title": "IssuanceOut",
+        "type": "object"
+      },
+      "LegendClass": {
+        "properties": {
+          "area_ha": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area Ha"
+          },
+          "class_name": {
+            "title": "Class Name",
+            "type": "string"
+          },
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value",
+          "class_name",
+          "label",
+          "color",
+          "area_ha"
+        ],
+        "title": "LegendClass",
+        "type": "object"
+      },
+      "LegendNoData": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "null"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "value",
+          "label"
+        ],
+        "title": "LegendNoData",
+        "type": "object"
+      },
+      "LegendRampStop": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "color"
+        ],
+        "title": "LegendRampStop",
         "type": "object"
       },
       "ListingOut": {
@@ -6599,6 +6771,139 @@
         "title": "TenureType",
         "type": "string"
       },
+      "TileJSON": {
+        "description": "TileJSON 3.0.0 (https://github.com/mapbox/tilejson-spec/tree/master/3.0.0) for one raster\nlayer of one classification. `tiles` carries signed URLs (valid until `expires_at`): MapLibre\nloads them without an Authorization header. Fetch a fresh TileJSON after expiry.",
+        "properties": {
+          "attribution": {
+            "title": "Attribution",
+            "type": "string"
+          },
+          "bounds": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Bounds",
+            "type": "array"
+          },
+          "center": {
+            "items": {
+              "type": "number"
+            },
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Center",
+            "type": "array"
+          },
+          "classification_id": {
+            "format": "uuid",
+            "title": "Classification Id",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "layer": {
+            "enum": [
+              "classification",
+              "confidence"
+            ],
+            "title": "Layer",
+            "type": "string"
+          },
+          "legend_url": {
+            "title": "Legend Url",
+            "type": "string"
+          },
+          "maxzoom": {
+            "maximum": 30.0,
+            "minimum": 0.0,
+            "title": "Maxzoom",
+            "type": "integer"
+          },
+          "minzoom": {
+            "maximum": 30.0,
+            "minimum": 0.0,
+            "title": "Minzoom",
+            "type": "integer"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "project_id": {
+            "format": "uuid",
+            "title": "Project Id",
+            "type": "string"
+          },
+          "scheme": {
+            "const": "xyz",
+            "default": "xyz",
+            "title": "Scheme",
+            "type": "string"
+          },
+          "season_start_year": {
+            "title": "Season Start Year",
+            "type": "integer"
+          },
+          "tilejson": {
+            "const": "3.0.0",
+            "default": "3.0.0",
+            "title": "Tilejson",
+            "type": "string"
+          },
+          "tiles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tiles",
+            "type": "array"
+          },
+          "version": {
+            "default": "1.0.0",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "attribution",
+          "tiles",
+          "minzoom",
+          "maxzoom",
+          "bounds",
+          "center",
+          "layer",
+          "project_id",
+          "classification_id",
+          "season_start_year",
+          "model_version",
+          "expires_at",
+          "legend_url"
+        ],
+        "title": "TileJSON",
+        "type": "object"
+      },
+      "TileLayer": {
+        "enum": [
+          "classification",
+          "confidence"
+        ],
+        "title": "TileLayer",
+        "type": "string"
+      },
       "TimeseriesOut": {
         "properties": {
           "index": {
@@ -9963,6 +10268,293 @@
         ]
       }
     },
+    "/api/v1/projects/{project_id}/classifications/{classification_id}/confidence/{z}/{x}/{y}.png": {
+      "get": {
+        "description": "Highest class probability (0-1) as a single-hue ramp, same masking as the class tiles.",
+        "operationId": "confidence_tile_api_v1_projects__project_id__classifications__classification_id__confidence__z___x___y__png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "classification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Classification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "z",
+            "required": true,
+            "schema": {
+              "title": "Z",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "x",
+            "required": true,
+            "schema": {
+              "title": "X",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "y",
+            "required": true,
+            "schema": {
+              "title": "Y",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {}
+            },
+            "description": "PNG tile (256 x 256, RGBA)"
+          },
+          "204": {
+            "description": "Valid tile with nothing to draw"
+          },
+          "304": {
+            "description": "Not modified (If-None-Match)"
+          },
+          "403": {
+            "description": "Invalid or expired tile token"
+          },
+          "404": {
+            "description": "Unknown project/classification, or tile outside the zoom range"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Tile renderer busy; retry"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confidence Tile",
+        "tags": [
+          "map tiles"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/classifications/{classification_id}/legend": {
+      "get": {
+        "description": "Palette and areas of the class layer, and the confidence ramp.",
+        "operationId": "classification_legend_api_v1_projects__project_id__classifications__classification_id__legend_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "classification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Classification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassificationLegend"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Classification Legend",
+        "tags": [
+          "map tiles"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/classifications/{classification_id}/tiles/{z}/{x}/{y}.png": {
+      "get": {
+        "description": "Ecosystem classes as a 256 px PNG (palette in the legend), transparent outside the project\npolygon and where the classifier made no prediction.",
+        "operationId": "classification_tile_api_v1_projects__project_id__classifications__classification_id__tiles__z___x___y__png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "classification_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Classification Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "z",
+            "required": true,
+            "schema": {
+              "title": "Z",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "x",
+            "required": true,
+            "schema": {
+              "title": "X",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "y",
+            "required": true,
+            "schema": {
+              "title": "Y",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {}
+            },
+            "description": "PNG tile (256 x 256, RGBA)"
+          },
+          "204": {
+            "description": "Valid tile with nothing to draw"
+          },
+          "304": {
+            "description": "Not modified (If-None-Match)"
+          },
+          "403": {
+            "description": "Invalid or expired tile token"
+          },
+          "404": {
+            "description": "Unknown project/classification, or tile outside the zoom range"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "503": {
+            "description": "Tile renderer busy; retry"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Classification Tile",
+        "tags": [
+          "map tiles"
+        ]
+      }
+    },
     "/api/v1/projects/{project_id}/documents": {
       "post": {
         "operationId": "confirm_document_api_v1_projects__project_id__documents_post",
@@ -10551,6 +11143,83 @@
         "summary": "Submit Project",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/tilejson": {
+      "get": {
+        "description": "TileJSON 3.0 for one layer of a classification (default: the newest season's latest run),\nwith tile URLs signed for this user until `expires_at`.",
+        "operationId": "project_tilejson_api_v1_projects__project_id__tilejson_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "layer",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/TileLayer",
+              "default": "classification"
+            }
+          },
+          {
+            "description": "Classification id",
+            "in": "query",
+            "name": "cid",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Classification id",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TileJSON"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Project Tilejson",
+        "tags": [
+          "map tiles"
         ]
       }
     },

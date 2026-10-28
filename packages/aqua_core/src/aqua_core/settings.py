@@ -75,6 +75,16 @@ class Settings(BaseSettings):
     upload_url_ttl_s: int = 900
     capture_nonce_ttl_min: int = 15  # a photo must be captured within this window
 
+    # ---------------------------------------------------------------- map tiles
+    # XYZ tiles rendered from the classification COGs (aqua_api.tiles). TileJSON hands out tile
+    # URLs signed with an HMAC token (derived from JWT_SECRET) valid for at least this long
+    # (rounded up to the next 15 minutes so URLs stay stable and browser caches hit).
+    tile_token_ttl_s: int = Field(default=3600, ge=60, le=86_400)
+    # Tiles rendered at once per API process (each holds a GDAL read + a 256x256 render).
+    tile_max_concurrency: int = Field(default=3, ge=1, le=32)
+    # In-process LRU of rendered PNG tiles, per API process (0 disables it).
+    tile_cache_mb: int = Field(default=32, ge=0, le=512)
+
     jwt_secret: SecretStr = SecretStr("dev-only-change-me")
     jwt_access_ttl_min: int = 15
     jwt_refresh_ttl_days: int = 30
