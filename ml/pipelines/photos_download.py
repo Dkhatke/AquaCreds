@@ -268,14 +268,16 @@ def select_rows(
     return chosen
 
 
-def read_manifest(path: Path = MANIFEST) -> list[dict[str, Any]]:
+def read_manifest(path: Path | None = None) -> list[dict[str, Any]]:
+    path = path or MANIFEST  # resolved at call time (tests redirect MANIFEST)
     if not path.exists():
         return []
     with path.open(newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
-def write_manifest(rows: list[dict[str, Any]], path: Path = MANIFEST) -> None:
+def write_manifest(rows: list[dict[str, Any]], path: Path | None = None) -> None:
+    path = path or MANIFEST  # resolved at call time (tests redirect MANIFEST)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     with tmp.open("w", newline="", encoding="utf-8") as f:
