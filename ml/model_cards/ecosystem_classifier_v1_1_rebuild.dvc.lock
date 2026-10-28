@@ -1,0 +1,148 @@
+schema: '2.0'
+stages:
+  download_coasttrain:
+    cmd: uv run python ml/pipelines/download.py coasttrain_v1
+    deps:
+    - path: ml/pipelines/download.py
+      hash: md5
+      md5: 182685520228644b69482cbff2da3c87
+      size: 8481
+    outs:
+    - path: data/raw/coasttrain
+      hash: md5
+      md5: 2c43e4530eb7325beef1630c2596f257.dir
+      size: 7252777
+      nfiles: 1
+  download_gmw_v4_2020:
+    cmd: uv run python ml/pipelines/download.py gmw_v4_2020
+    deps:
+    - path: ml/pipelines/download.py
+      hash: md5
+      md5: 182685520228644b69482cbff2da3c87
+      size: 8481
+    outs:
+    - path: data/raw/gmw_v4
+      hash: md5
+      md5: b6fea63d3ea29477e9671fe7417edd1d.dir
+      size: 180055707
+      nfiles: 1
+  download_gmw_v3_1996:
+    cmd: uv run python ml/pipelines/download.py gmw_v3_1996
+    deps:
+    - path: ml/pipelines/download.py
+      hash: md5
+      md5: 182685520228644b69482cbff2da3c87
+      size: 8481
+    outs:
+    - path: data/raw/gmw_v3
+      hash: md5
+      md5: 218d012c7182d025c77bb0498723f4fd.dir
+      size: 68511266
+      nfiles: 1
+  labels_coasttrain:
+    cmd: uv run python ml/pipelines/labels_coasttrain.py
+    deps:
+    - path: data/raw/coasttrain
+      hash: md5
+      md5: 2c43e4530eb7325beef1630c2596f257.dir
+      size: 7252777
+      nfiles: 1
+    - path: ml/pipelines/labels_coasttrain.py
+      hash: md5
+      md5: f2a3f46c0c8835205544cc879796977c
+      size: 2437
+    outs:
+    - path: data/interim/labels/coasttrain_aoi.parquet
+      hash: md5
+      md5: fd328571863515ae485451c68e6cf202
+      size: 572944
+  labels_build:
+    cmd: uv run python -u ml/pipelines/labels_build.py
+    deps:
+    - path: data/interim/labels/coasttrain_aoi.parquet
+      hash: md5
+      md5: fd328571863515ae485451c68e6cf202
+      size: 572944
+    - path: data/raw/gmw_v4
+      hash: md5
+      md5: b6fea63d3ea29477e9671fe7417edd1d.dir
+      size: 180055707
+      nfiles: 1
+    - path: ml/pipelines/labels_build.py
+      hash: md5
+      md5: a5aac47144eb16494a8cd1e088568482
+      size: 11158
+    - path: ml/pipelines/splits.py
+      hash: md5
+      md5: b3af964bc30893aeb063c54832735ce1
+      size: 2822
+    outs:
+    - path: data/processed/labels.parquet
+      hash: md5
+      md5: 594f8e9a7fd7d5cc52c7f0db7fb308b2
+      size: 309483
+    - path: data/processed/labels_summary.json
+      hash: md5
+      md5: db826752b3ac86f9d8dfbfbf39998418
+      size: 1731
+  features_extract:
+    cmd: uv run python -u ml/pipelines/features_extract.py
+    deps:
+    - path: data/processed/labels.parquet
+      hash: md5
+      md5: 594f8e9a7fd7d5cc52c7f0db7fb308b2
+      size: 309483
+    - path: ml/pipelines/features_extract.py
+      hash: md5
+      md5: 273627745223acfcb675b21b561bdf1c
+      size: 25388
+    - path: packages/aqua_geo/src/aqua_geo/composite.py
+      hash: md5
+      md5: b86fab32108a14c121d4746a7eaa3bb5
+      size: 2310
+    - path: packages/aqua_geo/src/aqua_geo/features.py
+      hash: md5
+      md5: fc1712fb4f0237641fda7d36f43ffa3f
+      size: 3977
+    - path: packages/aqua_geo/src/aqua_geo/indices.py
+      hash: md5
+      md5: 1d7892f6a106e0a92f62f3fe8e050588
+      size: 3605
+    - path: packages/aqua_geo/src/aqua_geo/sentinel2.py
+      hash: md5
+      md5: 114ee496fab9eaa4dce4489768a2fd18
+      size: 11336
+    outs:
+    - path: data/processed/features.parquet
+      hash: md5
+      md5: d5f790fb047a28f7c0b5fe1195bbd252
+      size: 2242002
+    - path: data/processed/features_summary.json
+      hash: md5
+      md5: 1feb8ccbb771acfac5f2146de924cd3a
+      size: 2523
+  train_classifier:
+    cmd: uv run python -u ml/pipelines/train_classifier.py
+    deps:
+    - path: data/processed/features.parquet
+      hash: md5
+      md5: d5f790fb047a28f7c0b5fe1195bbd252
+      size: 2242002
+    - path: ml/pipelines/classifier_eval.py
+      hash: md5
+      md5: b670bacf7a79f60a55b14c3628cbbf37
+      size: 4808
+    - path: ml/pipelines/train_classifier.py
+      hash: md5
+      md5: 2d3b7818805ca25d2525f0e80b09af73
+      size: 19222
+    outs:
+    - path: ml/artifacts/ecosystem_classifier_v1
+      hash: md5
+      md5: 81fba3c4aab2d1c6a2139cad6694c39c.dir
+      size: 3653073
+      nfiles: 3
+    - path: ml/model_cards/ecosystem_classifier_v1_metrics.json
+      hash: md5
+      md5: 9b12c15a3ede6afec832fb2b7a366c3a
+      size: 24497
