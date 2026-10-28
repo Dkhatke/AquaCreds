@@ -1,0 +1,214 @@
+{
+  "generated_at": "2026-10-28T04:13:05+00:00",
+  "script": "scripts/render_web_imagery.py",
+  "aqua_geo_version": "0.1.0",
+  "source": {
+    "collection": "sentinel-2-l2a",
+    "provider": "planetary-computer",
+    "stac_url": "https://planetarycomputer.microsoft.com/api/stac/v1",
+    "scenes": [
+      {
+        "id": "S2A_MSIL2A_20241214T044211_R033_T45QWD_20241214T080149",
+        "datetime": "2024-12-14T04:42:11.024000Z",
+        "eo:cloud_cover": 0.007999,
+        "s2:processing_baseline": "05.11",
+        "boa_offset_subtracted": 1000.0
+      },
+      {
+        "id": "S2A_MSIL2A_20241214T044211_R033_T45QWC_20241214T080149",
+        "datetime": "2024-12-14T04:42:11.024000Z",
+        "eo:cloud_cover": 0.007283,
+        "s2:processing_baseline": "05.11",
+        "boa_offset_subtracted": 1000.0
+      },
+      {
+        "id": "S2A_MSIL2A_20241214T044211_R033_T45QVD_20241214T080149",
+        "datetime": "2024-12-14T04:42:11.024000Z",
+        "eo:cloud_cover": 0.00513,
+        "s2:processing_baseline": "05.11",
+        "boa_offset_subtracted": 1000.0
+      },
+      {
+        "id": "S2A_MSIL2A_20241214T044211_R033_T45QVC_20241214T080149",
+        "datetime": "2024-12-14T04:42:11.024000Z",
+        "eo:cloud_cover": 0.017943,
+        "s2:processing_baseline": "05.11",
+        "boa_offset_subtracted": 1000.0
+      },
+      {
+        "id": "S2A_MSIL2A_20241204T044151_R033_T45QWD_20241204T094651",
+        "datetime": "2024-12-04T04:41:51.024000Z",
+        "eo:cloud_cover": 0.00719,
+        "s2:processing_baseline": "05.11",
+        "boa_offset_subtracted": 1000.0
+      },
+      {
+        "id": "S2A_MSIL2A_20241204T044151_R033_T45QWC_20241204T094651",
+        "datetime": "2024-12-04T04:41:51.024000Z",
+        "eo:cloud_cover": 0.008331,
+        "s2:processing_baseline": "05.11",
+        "boa_offset_subtracted": 1000.0
+      },
+      {
+        "id": "S2A_MSIL2A_20241204T044151_R033_T45QVD_20241204T094651",
+        "datetime": "2024-12-04T04:41:51.024000Z",
+        "eo:cloud_cover": 0.003046,
+        "s2:processing_baseline": "05.11",
+        "boa_offset_subtracted": 1000.0
+      },
+      {
+        "id": "S2A_MSIL2A_20241204T044151_R033_T45QVC_20241204T094651",
+        "datetime": "2024-12-04T04:41:51.024000Z",
+        "eo:cloud_cover": 0.01885,
+        "s2:processing_baseline": "05.11",
+        "boa_offset_subtracted": 1000.0
+      }
+    ]
+  },
+  "area": {
+    "name": "Bhitarkanika, Odisha, India",
+    "bbox_wgs84": [
+      86.7,
+      20.52,
+      87.05,
+      20.82
+    ]
+  },
+  "search_window": [
+    "2024-11-01",
+    "2025-03-31"
+  ],
+  "processing": [
+    "aqua_geo.sentinel2.load at 20 m in EPSG:32645 (bilinear; SCL nearest)",
+    "DN -> surface reflectance: (DN - offset) / 10000",
+    "SCL mask: no data, saturated, cloud shadow, cloud medium/high, cirrus, snow",
+    "composite: first clear look, least-cloudy acquisition day first",
+    "display stretch: per-band percentiles (see products), gamma; WebP",
+    "-wgs84 variants: rioxarray reproject to EPSG:4326 for MapLibre image sources"
+  ],
+  "products": {
+    "bhitarkanika-truecolour": {
+      "bands": [
+        "B04",
+        "B03",
+        "B02"
+      ],
+      "percentiles": [
+        1.0,
+        99.0
+      ],
+      "gamma": 0.8,
+      "joint_stretch": true
+    },
+    "bhitarkanika-falsecolour": {
+      "bands": [
+        "B08",
+        "B04",
+        "B03"
+      ],
+      "percentiles": [
+        2.0,
+        99.0
+      ],
+      "gamma": 1.0,
+      "joint_stretch": false
+    }
+  },
+  "outputs": [
+    {
+      "file": "bhitarkanika-truecolour.webp",
+      "width": 1825,
+      "height": 1662,
+      "bytes": 723430,
+      "webp_quality": 82,
+      "crs": "EPSG:32645",
+      "bands": {
+        "R": "B04",
+        "G": "B03",
+        "B": "B02"
+      },
+      "clear_share": 0.9975
+    },
+    {
+      "file": "bhitarkanika-truecolour-wgs84.webp",
+      "width": 1600,
+      "height": 1371,
+      "bytes": 509758,
+      "webp_quality": 82,
+      "crs": "EPSG:4326",
+      "bands": {
+        "R": "B04",
+        "G": "B03",
+        "B": "B02"
+      },
+      "clear_share": 0.9955,
+      "coordinates": [
+        [
+          86.69938464984054,
+          20.820300370633863
+        ],
+        [
+          87.05017824121883,
+          20.820300370633863
+        ],
+        [
+          87.05017824121883,
+          20.519620149452464
+        ],
+        [
+          86.69938464984054,
+          20.519620149452464
+        ]
+      ]
+    },
+    {
+      "file": "bhitarkanika-falsecolour.webp",
+      "width": 1825,
+      "height": 1662,
+      "bytes": 794644,
+      "webp_quality": 82,
+      "crs": "EPSG:32645",
+      "bands": {
+        "R": "B08",
+        "G": "B04",
+        "B": "B03"
+      },
+      "clear_share": 0.9975
+    },
+    {
+      "file": "bhitarkanika-falsecolour-wgs84.webp",
+      "width": 1600,
+      "height": 1371,
+      "bytes": 563760,
+      "webp_quality": 82,
+      "crs": "EPSG:4326",
+      "bands": {
+        "R": "B08",
+        "G": "B04",
+        "B": "B03"
+      },
+      "clear_share": 0.9955,
+      "coordinates": [
+        [
+          86.69938464984054,
+          20.820300370633863
+        ],
+        [
+          87.05017824121883,
+          20.820300370633863
+        ],
+        [
+          87.05017824121883,
+          20.519620149452464
+        ],
+        [
+          86.69938464984054,
+          20.519620149452464
+        ]
+      ]
+    }
+  ],
+  "licence": "Copernicus Sentinel data: free, full and open (EU Regulation 1159/2013)",
+  "attribution": "Contains modified Copernicus Sentinel data 2024",
+  "use": "Context imagery for the website only; not an analysis product, not MRV evidence."
+}
