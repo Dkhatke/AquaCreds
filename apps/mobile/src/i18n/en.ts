@@ -61,6 +61,8 @@ export const en = {
     "This phone's clock is {seconds} s off the server. Turn on automatic date and time or the photo will be rejected.",
   "capture.gps": "GPS",
   "capture.gpsWaiting": "Waiting for GPS fix…",
+  "capture.gpsMocked":
+    "This phone reports a mock (simulated) location. Turn off location-spoofing apps to take evidence photos.",
   "capture.accuracy": "±{metres} m",
   "capture.accuracyPoor": "GPS accuracy is poor (±{metres} m). Wait in the open for a better fix.",
   "capture.outside": "You are {metres} m outside the project boundary.",

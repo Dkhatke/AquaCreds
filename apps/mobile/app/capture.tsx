@@ -101,6 +101,7 @@ export default function Capture() {
           accuracyM: loc.coords.accuracy,
           altitudeM: loc.coords.altitude,
           timestamp: loc.timestamp,
+          mocked: loc.mocked === true,
         }),
     ).then((s) => (cancelled ? s.remove() : subs.push(s)));
     void Location.watchHeadingAsync((h) =>
@@ -241,6 +242,7 @@ export default function Capture() {
           <AppText>{t("capture.gpsWaiting")}</AppText>
         )}
       </View>
+      {quality === "mocked" ? <Banner tone="failed" message={t("capture.gpsMocked")} /> : null}
       {quality === "poor" || quality === "unusable" ? (
         <Banner
           tone="review"

@@ -68,12 +68,16 @@ export interface GpsFix {
   altitudeM: number | null;
   /** Fix time (ms since epoch). */
   timestamp: number;
+  /** The OS says the position comes from a mock provider / spoofing tool. */
+  mocked: boolean;
 }
 
-export type GpsQuality = "none" | "stale" | "unusable" | "poor" | "fair" | "good";
+export type GpsQuality = "none" | "mocked" | "stale" | "unusable" | "poor" | "fair" | "good";
 
 export function gpsQuality(fix: GpsFix | null, deviceNowMs: number): GpsQuality {
   if (!fix) return "none";
+  // Evidence from a spoofed position is worthless; the API has no field to flag it, so block it.
+  if (fix.mocked) return "mocked";
   if (deviceNowMs - fix.timestamp > GPS_MAX_AGE_MS) return "stale";
   if (fix.accuracyM === null || fix.accuracyM > GPS_ACCURACY_MAX_M) return "unusable";
   if (fix.accuracyM > GPS_FAIR_M) return "poor";

@@ -53,6 +53,7 @@ describe("GPS quality", () => {
     accuracyM,
     altitudeM: null,
     timestamp: NOW - ageMs,
+    mocked: false,
   });
 
   it("grades fixes and blocks unusable ones", () => {
@@ -63,6 +64,8 @@ describe("GPS quality", () => {
     expect(gpsQuality(fix(31), NOW)).toBe("poor");
     expect(gpsQuality(fix(30), NOW)).toBe("fair");
     expect(gpsQuality(fix(10), NOW)).toBe("good");
+    expect(gpsQuality({ ...fix(3), mocked: true }, NOW)).toBe("mocked");
+    expect(canShoot("mocked")).toBe(false);
     expect(canShoot("poor")).toBe(true);
     expect(canShoot("stale")).toBe(false);
     expect(canShoot("unusable")).toBe(false);
@@ -79,7 +82,14 @@ describe("heading and EXIF", () => {
 
   it("writes signed GPS with explicit refs", () => {
     expect(
-      additionalExifFor({ lat: -8.5, lon: 86.9, accuracyM: 3, altitudeM: 2, timestamp: NOW }),
+      additionalExifFor({
+        lat: -8.5,
+        lon: 86.9,
+        accuracyM: 3,
+        altitudeM: 2,
+        timestamp: NOW,
+        mocked: false,
+      }),
     ).toEqual({
       GPSLatitude: -8.5,
       GPSLongitude: 86.9,

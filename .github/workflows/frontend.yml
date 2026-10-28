@@ -55,3 +55,9 @@ jobs:
         run: pnpm exec biome ci .
       - name: Typecheck, lint, test
         run: pnpm exec turbo run typecheck lint test
+      # Catches Metro resolution/bundling errors that tsc cannot (no native build, no emulator).
+      - name: Bundle the mobile app (expo export, Android)
+        env:
+          EXPO_PUBLIC_API_URL: https://api.example.invalid
+          CI: "1"
+        run: pnpm --filter @aquacreds/mobile run export
