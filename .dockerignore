@@ -18,3 +18,10 @@ requirements/
 *.tif
 *.onnx
 *.pkl
+
+# JS workspace build outputs (apps/web image)
+**/node_modules/
+**/.next/
+**/.turbo/
+apps/web/test-results/
+apps/web/public/vendor/

@@ -1,7 +1,10 @@
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
   output: "standalone",
+  // Trace from the monorepo root so the standalone server includes workspace packages.
+  outputFileTracingRoot: fileURLToPath(new URL("../..", import.meta.url)),
   reactStrictMode: true,
   poweredByHeader: false,
   // The workspace package ships TypeScript sources.
