@@ -595,3 +595,11 @@ async def test_payment_token_unconfigured_and_rpc_failure() -> None:
     )
     token = await market.payment_token(fixed, no_client)
     assert token == PaymentToken(address=None, decimals=2)
+
+
+def test_validity_cache_prunes_expired_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(market, "_CACHE_PRUNE_AT", 2)
+    for i in range(3):
+        market._BALANCE_CACHE[(1, "c", "m", f"s{i}", 1)] = (float(i), 5)
+    market._prune(now=1.5)  # entries expiring at 0 and 1 are gone
+    assert list(market._BALANCE_CACHE) == [(1, "c", "m", "s2", 1)]

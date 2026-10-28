@@ -283,6 +283,20 @@ _BALANCE_CACHE: dict[tuple[int, str, str, str, int], tuple[float, int]] = {}
 _APPROVAL_CACHE: dict[tuple[int, str, str, str], tuple[float, bool]] = {}
 
 
+_CACHE_PRUNE_AT = 10_000  # entries; expired ones are dropped once a cache grows past this
+
+
+def _drop_expired(cache: dict[Any, tuple[float, Any]], now: float) -> None:
+    if len(cache) > _CACHE_PRUNE_AT:
+        for key in [k for k, (expires, _) in cache.items() if expires <= now]:
+            del cache[key]
+
+
+def _prune(now: float) -> None:
+    _drop_expired(_BALANCE_CACHE, now)
+    _drop_expired(_APPROVAL_CACHE, now)
+
+
 def clear_validity_cache() -> None:
     _BALANCE_CACHE.clear()
     _APPROVAL_CACHE.clear()
@@ -385,6 +399,7 @@ async def validity(
             if client is not None:
                 await client.close()
         expires = now + ttl
+        _prune(now)
         for pair, balance in zip(pairs, balances, strict=True):
             balance_of[pair] = balance
             _BALANCE_CACHE[bkey(*pair)] = (expires, balance)
