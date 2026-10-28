@@ -5,7 +5,8 @@ import { CSRF_HEADER } from "./csrf";
 
 /** Fetch through the same-origin BFF; adds the CSRF header to state-changing requests. */
 export function bffFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const request = new Request(input, init);
+  const url = typeof input === "string" ? new URL(input, window.location.href) : input;
+  const request = new Request(url, init);
   if (request.method !== "GET" && request.method !== "HEAD") request.headers.set(CSRF_HEADER, "1");
   return fetch(request, { credentials: "same-origin" });
 }

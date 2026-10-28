@@ -114,7 +114,7 @@ export function LoginForm({ next, expired }: { next: string | null; expired: boo
           </Button>
         </form>
       ) : (
-        <form onSubmit={onCode} className="space-y-4">
+        <form key="mfa" onSubmit={onCode} className="space-y-4">
           <p className="text-sm text-fg-muted">
             This account uses two-factor authentication. Enter the 6-digit code from your
             authenticator app, or one of your recovery codes.
