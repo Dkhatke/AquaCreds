@@ -138,7 +138,7 @@ export function MonitoringView({
         </section>
       </div>
 
-      <div className="relative z-10 space-y-3 p-3 lg:absolute lg:bottom-3 lg:right-3 lg:top-3 lg:w-[26rem] lg:overflow-y-auto lg:p-0">
+      <div className="relative z-10 space-y-3 p-3 lg:absolute lg:bottom-8 lg:right-3 lg:top-3 lg:w-[26rem] lg:overflow-y-auto lg:p-0">
         <ClassificationPanel query={classifications} />
         <TimeseriesPanel projectId={projectId} />
         <AlertsTimeline projectId={projectId} />

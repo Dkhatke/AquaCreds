@@ -5,7 +5,9 @@
   "description": "AquaCreds web: public site + console (Next.js App Router). See README.md.",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-maplibre-worker.mjs",
     "dev": "next dev --port 3000",
+    "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc -p tsconfig.json",

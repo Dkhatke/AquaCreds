@@ -8,7 +8,9 @@ import { Stakeholders } from "@/components/landing/Stakeholders";
 import { Technology } from "@/components/landing/Technology";
 import { getPublicCounts } from "@/lib/public-api";
 
-export const revalidate = 300;
+// Rendered per request so the live registry block appears as soon as the API is reachable; the
+// public-API fetches themselves are cached for 5 minutes (lib/public-api.ts).
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const counts = await getPublicCounts();

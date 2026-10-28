@@ -24,14 +24,14 @@ export function StewardshipPanel({ projectId }: { projectId: string }) {
         <ErrorState error={q.error} onRetry={() => void q.refetch()} />
       ) : (
         <div className="space-y-4">
-          <div className="flex items-end gap-3">
+          <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
             {q.data.score === null ? (
               <EmptyState className="flex-1" title="Not enough data for a score yet">
                 {q.data.notes[0] ?? "Each component needs its own minimum history (see below)."}
               </EmptyState>
             ) : (
               <>
-                <p className="tabular font-display text-5xl font-semibold leading-none">
+                <p className="tabular whitespace-nowrap font-display text-5xl font-semibold leading-none">
                   {formatNumber(q.data.score, 1)}
                   <span className="ml-1 text-base font-normal text-fg-muted">/ 100</span>
                 </p>

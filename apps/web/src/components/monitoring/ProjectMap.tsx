@@ -60,6 +60,11 @@ export function boundsOf(geom: Geometry): [[number, number], [number, number]] |
     : null;
 }
 
+/** Keep the boundary clear of the floating panels on wide screens. */
+function viewPadding(width: number) {
+  return width >= 1024 ? { top: 60, bottom: 60, left: 400, right: 460 } : 40;
+}
+
 function firstSymbolLayer(map: MlMap): string | undefined {
   return map.getStyle().layers?.find((l) => l.type === "symbol")?.id;
 }
@@ -81,6 +86,8 @@ export function ProjectMap({ boundary, overlay, showOverlay, classes, showClasse
       try {
         const maplibre = await import("maplibre-gl");
         if (cancelled || !container.current) return;
+        // Served from public/vendor (scripts/copy-maplibre-worker.mjs); see that script for why.
+        maplibre.setWorkerUrl(`${window.location.origin}/vendor/maplibre-gl-worker.mjs`);
         const bounds = boundsOf(boundary);
         map = new maplibre.Map({
           container: container.current,
@@ -135,7 +142,12 @@ export function ProjectMap({ boundary, overlay, showOverlay, classes, showClasse
       });
     }
     const b = boundsOf(boundary);
-    if (b) map.fitBounds(b, { padding: 80, maxZoom: 15, duration: 0 });
+    if (b)
+      map.fitBounds(b, {
+        padding: viewPadding(map.getContainer().clientWidth),
+        maxZoom: 15,
+        duration: 0,
+      });
   }, [ready, boundary]);
 
   // Sentinel-2 context image.
@@ -200,14 +212,15 @@ export function ProjectMap({ boundary, overlay, showOverlay, classes, showClasse
 
   return (
     <div className="absolute inset-0">
-      <section ref={container} className="absolute inset-0" aria-label={label} />
+      {/* h-full, not absolute: maplibre-gl.css sets .maplibregl-map { position: relative }. */}
+      <section ref={container} className="h-full w-full" aria-label={label} />
       {overlay && showOverlay && (
-        <p className="pointer-events-none absolute bottom-8 right-2 z-10 rounded bg-deep-ocean/80 px-2 py-0.5 text-[11px] text-fg-muted">
+        <p className="pointer-events-none absolute bottom-36 left-2 z-10 rounded bg-deep-ocean/80 px-2 py-0.5 text-[11px] text-fg-muted">
           {overlay.attribution}
         </p>
       )}
       {error && (
-        <div className="absolute inset-x-4 top-20 z-10 max-w-md">
+        <div className="absolute bottom-16 left-4 z-10 max-w-md">
           <ErrorState title="The map could not be displayed" error={error} />
         </div>
       )}
