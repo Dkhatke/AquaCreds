@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+from api_testlib import app_client
 from chain_testlib import Deployment, deploy_suite
 from conftest import FakeStorage
 from PIL import Image
@@ -72,7 +73,7 @@ async def test_seed_is_labelled_and_idempotent(
     settings = _settings(database_url)
     first = await seed_demo(settings, seed=5, storage=storage, password="demo-password-123")
     counts = await _counts(sql)
-    assert counts["users"] == 5
+    assert counts["users"] == 6  # 5 demo logins + the read-only Explore Demo visitor
     assert counts["projects"] == counts["orgs"] == 1
     assert counts["periods"] == 2
     assert counts["measurements"] == 2 * counts["plots"] == 10
@@ -118,6 +119,34 @@ async def test_seed_is_labelled_and_idempotent(
         "/auth/login", json={"email": "demo.admin.s5@example.org", "password": "demo-password-123"}
     )
     assert r.status_code == 200, r.text
+    assert any(f"DEMO_ORG_ID={first.org_id}" in line for line in lines)
+
+    # Explore Demo on the seeded data: a read-only visitor session sees the reports and gets
+    # presigned downloads of their files, but can neither upload nor review.
+    async with app_client(
+        database_url, storage, demo_mode_enabled=True, demo_org_id=first.org_id
+    ) as demo:
+        session = (await demo.post("/demo/session")).json()
+        assert session["project_ids"] == [first.project_id]
+        h = {"Authorization": f"Bearer {session['access_token']}"}
+        periods = (await demo.get(f"/projects/{first.project_id}/periods", headers=h)).json()
+        assert len(periods) == 2
+        report_id = first.report_ids["monitoring"]
+        report = await demo.get(f"/reports/{report_id}", headers=h)
+        assert report.status_code == 200, report.text
+        assert "signature=fake" in report.json()["downloads"]["pdf_url"]
+        review = await demo.post(
+            f"/reports/{report_id}/review", headers=h, json={"decision": "approve"}
+        )
+        assert review.status_code == 403
+        upload = await demo.post(
+            f"/periods/{periods[0]['id']}/photos/upload-url", headers=h, json={}
+        )
+        assert upload.status_code == 403
+        login = await demo.post(
+            "/auth/login", json={"email": "demo.visitor.s5@example.org", "password": "x" * 12}
+        )
+        assert login.status_code == 401  # the visitor has no usable password
 
 
 def test_synthetic_photo_has_exif() -> None:
