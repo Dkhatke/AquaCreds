@@ -4,12 +4,15 @@ import base64
 import binascii
 import ipaddress
 import re
+import uuid
 from datetime import date
 from functools import lru_cache
 from typing import Annotated, Literal
 
 from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+
+from aqua_core.logging import get_logger
 
 # Foundry/Hardhat's well-known development mnemonic: its keys are public, so production refuses it.
 ANVIL_DEV_MNEMONIC = "test test test test test test test test test test test junk"
@@ -35,6 +38,10 @@ def _is_fernet_key(key: str) -> bool:
     except (binascii.Error, ValueError):
         return False
 
+
+# Every organisation `aqua-api seed-demo` creates carries this in its name ("Demo Mangrove Collective
+# (synthetic, seed N)"). Demo mode only ever serves an organisation whose name contains it.
+DEMO_SYNTHETIC_LABEL = "(synthetic"
 
 # Must match aqua_geo.sentinel2.PROVIDERS (aqua_core does not import aqua_geo; a test checks it).
 GEO_STAC_PROVIDER_NAMES = ("planetary-computer", "earth-search", "earth-search-c1")
@@ -213,6 +220,25 @@ class Settings(BaseSettings):
     smtp_password: SecretStr = SecretStr("")
     smtp_timeout_s: float = Field(default=20.0, gt=0, le=120)
 
+    # ---------------------------------------------------------------- "Explore Demo" (SIH)
+    # OFF by default. When on, POST /api/v1/demo/session hands out short-lived, read-only JWTs
+    # (audience `aquacreds-demo`, claims demo=true, scope=read, no refresh token) for the
+    # read-only visitor of ONE seed-demo organisation, named by DEMO_ORG_ID or DEMO_ORG_SLUG. The
+    # organisation's name must carry DEMO_SYNTHETIC_LABEL, or no session is issued.
+    # See docs/DEMO.md ("Explore Demo") for the security model.
+    demo_mode_enabled: bool = False
+    demo_org_id: uuid.UUID | None = None
+    demo_org_slug: str | None = None
+    demo_session_ttl_min: int = Field(default=60, ge=1, le=24 * 60)
+    # Per-IP limit on POST /demo/session. Judges at one venue may share an address, so it is
+    # deliberately looser than the login limit; every session is audit-logged.
+    rate_limit_demo_session_ip: str = "20/hour"
+
+    # ---------------------------------------------------------------- marketplace validity
+    # Active listings are checked on-chain (seller balanceOf >= remaining, isApprovedForAll);
+    # results are cached in-process for this many seconds (0 = no cache).
+    marketplace_validity_cache_s: float = Field(default=60.0, ge=0, le=3600)
+
     @field_validator(
         "cors_origins",
         "trusted_proxy_ips",
@@ -223,6 +249,11 @@ class Settings(BaseSettings):
     @classmethod
     def _split_lists(cls, value: object) -> object:
         return _split_csv(value)
+
+    @field_validator("demo_org_id", "demo_org_slug", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("geo_stac_providers")
     @classmethod
@@ -255,6 +286,7 @@ class Settings(BaseSettings):
         "rate_limit_refresh_ip",
         "rate_limit_mfa_ip",
         "rate_limit_mfa_account",
+        "rate_limit_demo_session_ip",
     )
     @classmethod
     def _valid_rate(cls, value: str) -> str:
@@ -341,8 +373,24 @@ class Settings(BaseSettings):
                 problems.append("SMTP_SECURITY=none sends credentials in clear text")
             if "@localhost" in self.notification_email_from:
                 problems.append("NOTIFICATION_EMAIL_FROM must be a real sender address")
+        if self.demo_mode_enabled:
+            if self.demo_org_id is None and not (self.demo_org_slug or "").strip():
+                problems.append(
+                    "DEMO_MODE_ENABLED needs DEMO_ORG_ID or DEMO_ORG_SLUG naming the seed-demo "
+                    f"organisation (its name must contain {DEMO_SYNTHETIC_LABEL!r})"
+                )
+            if not self.rate_limit_enabled:
+                problems.append("DEMO_MODE_ENABLED needs RATE_LIMIT_ENABLED on")
         if problems:
             raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
+        if self.demo_mode_enabled:
+            get_logger("aqua_core.settings").warning(
+                "demo_mode.enabled_in_production",
+                demo_org_id=str(self.demo_org_id) if self.demo_org_id else None,
+                demo_org_slug=self.demo_org_slug,
+                message="Read-only Explore Demo sessions are public; turn DEMO_MODE_ENABLED off "
+                "after the demo",
+            )
 
 
 @lru_cache

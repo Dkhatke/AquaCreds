@@ -1529,6 +1529,69 @@
         "title": "DeliveryOut",
         "type": "object"
       },
+      "DemoSessionOut": {
+        "description": "A read-only demo session. Use `access_token` as a Bearer token until `expires_in` seconds\nhave passed; there is no refresh token (ask for a new session instead).",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "banner": {
+            "title": "Banner",
+            "type": "string"
+          },
+          "demo": {
+            "const": true,
+            "title": "Demo",
+            "type": "boolean"
+          },
+          "expires_in": {
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "org_id": {
+            "format": "uuid",
+            "title": "Org Id",
+            "type": "string"
+          },
+          "project_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Project Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "demo",
+          "org_id",
+          "project_ids",
+          "banner"
+        ],
+        "title": "DemoSessionOut",
+        "type": "object"
+      },
+      "DemoStatusOut": {
+        "properties": {
+          "banner": {
+            "title": "Banner",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled",
+          "banner"
+        ],
+        "title": "DemoStatusOut",
+        "type": "object"
+      },
       "DocumentConfirm": {
         "properties": {
           "filename": {
@@ -1846,6 +1909,17 @@
             "title": "Amount Sold",
             "type": "integer"
           },
+          "available": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available"
+          },
           "closed": {
             "anyOf": [
               {
@@ -1917,6 +1991,25 @@
               }
             ]
           },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "sold_out",
+                  "cancelled",
+                  "expired",
+                  "insufficient_balance",
+                  "not_approved",
+                  "unknown"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          },
           "vintage": {
             "$ref": "#/components/schemas/VintageFacts"
           }
@@ -1935,7 +2028,9 @@
           "payment_token",
           "listed",
           "listed_at",
-          "closed"
+          "closed",
+          "available",
+          "unavailable_reason"
         ],
         "title": "ListingOut",
         "type": "object"
@@ -8041,6 +8136,56 @@
         ]
       }
     },
+    "/api/v1/demo/session": {
+      "post": {
+        "description": "A short-lived, read-only token for the demo organisation's visitor account (no account\ncreation, no refresh token). 404 when demo mode is off; 429 over the per-IP limit.",
+        "operationId": "create_demo_session_api_v1_demo_session_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoSessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Demo mode is off"
+          },
+          "503": {
+            "description": "No demo data"
+          }
+        },
+        "summary": "Create Demo Session",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
+    "/api/v1/demo/status": {
+      "get": {
+        "description": "Whether Explore Demo is switched on (public, cacheable).",
+        "operationId": "demo_status_api_v1_demo_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoStatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Demo Status",
+        "tags": [
+          "demo"
+        ]
+      }
+    },
     "/api/v1/forward-fund/requests": {
       "get": {
         "operationId": "list_requests_api_v1_forward_fund_requests_get",
@@ -10531,7 +10676,7 @@
     },
     "/api/v1/public/marketplace/listings": {
       "get": {
-        "description": "Active listings of unexpired vintages, joined with the project's public facts, the anchored\nMRV report hash and the project's current stewardship score (with its `score_version`).",
+        "description": "Active listings of unexpired vintages, joined with the project's public facts, the anchored\nMRV report hash and the project's current stewardship score (with its `score_version`).\n\nEach listing is checked on-chain (seller balance >= remaining and marketplace approval,\ncached ~60 s). Listings found unavailable are left out unless `include_unavailable`; when the\ncheck fails they are returned with `available: null`, `unavailable_reason: \"unknown\"`.",
         "operationId": "list_listings_api_v1_public_marketplace_listings_get",
         "parameters": [
           {
@@ -10619,6 +10764,18 @@
               ],
               "title": "Sort",
               "type": "string"
+            }
+          },
+          {
+            "description": "Also return active listings the seller can no longer fill",
+            "in": "query",
+            "name": "include_unavailable",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Also return active listings the seller can no longer fill",
+              "title": "Include Unavailable",
+              "type": "boolean"
             }
           },
           {
@@ -10718,7 +10875,7 @@
     },
     "/api/v1/public/marketplace/projects/{project_id}/market": {
       "get": {
-        "description": "A public project's active listings, its trades and the price history (one point per trade,\noldest first).",
+        "description": "A public project's active listings (each with its on-chain `available` flag), its trades\nand the price history (one point per trade, oldest first).",
         "operationId": "project_market_api_v1_public_marketplace_projects__project_id__market_get",
         "parameters": [
           {

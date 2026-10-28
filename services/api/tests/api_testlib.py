@@ -2,8 +2,41 @@
 
 import json
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, date, datetime
 from typing import Any
+
+import httpx
+
+from aqua_api.main import create_app
+from aqua_api.ratelimit import MemoryRateLimitBackend
+from aqua_core.settings import Settings
+
+
+@asynccontextmanager
+async def app_client(
+    database_url: str, storage: Any, **overrides: Any
+) -> AsyncIterator[httpx.AsyncClient]:
+    """An extra app on the test database with other settings (the `client` fixture truncates)."""
+    options: dict[str, Any] = {
+        "app_env": "test",
+        "database_url": database_url,
+        "jwt_secret": "t" * 48,
+        "rate_limit_enabled": False,
+        **overrides,
+    }
+    app = create_app(Settings(_env_file=None, **options))
+    app.state.rate_limiter.backend = MemoryRateLimitBackend()
+    app.state.storage = storage
+    app.state.enqueue = lambda *a, **k: None
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test/api/v1"
+        ) as c:
+            yield c
+    finally:
+        await app.state.engine.dispose()
 
 
 def square(lon: float, lat: float, size_deg: float = 0.02) -> dict[str, Any]:

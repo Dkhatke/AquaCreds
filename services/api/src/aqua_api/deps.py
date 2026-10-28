@@ -9,7 +9,8 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from aqua_api.security import decode_access_token
+from aqua_api.demo_mode import authenticate_demo
+from aqua_api.security import decode_access_token, looks_like_demo_token
 from aqua_core import notifications
 from aqua_core.models import OrgRole, PlatformRole, User
 from aqua_core.settings import Settings
@@ -48,12 +49,16 @@ _UNAUTHORIZED = HTTPException(
 
 
 async def get_current_user(
+    request: Request,
     session: SessionDep,
     settings: SettingsDep,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> User:
     if credentials is None:
         raise _UNAUTHORIZED
+    if looks_like_demo_token(credentials.credentials):
+        # Explore Demo: read-only, allow-listed endpoints, demo org's visitor only.
+        return await authenticate_demo(request, credentials.credentials, session, settings)
     try:
         payload = decode_access_token(credentials.credentials, settings)
         user_id = uuid.UUID(payload["sub"])

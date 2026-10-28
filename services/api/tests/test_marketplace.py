@@ -257,6 +257,109 @@ async def test_active_listings_with_joins(world: dict[str, Any], client: httpx.A
     assert draft["stewardship"] is None
 
 
+class FakeHoldings:
+    """Stands in for the on-chain reads (balanceOfBatch + isApprovedForAll); counts RPC rounds."""
+
+    def __init__(self, balances: dict[int, int], approved: bool = True) -> None:
+        self.balances, self.approved, self.calls = balances, approved, 0
+        self.fail = False
+
+    async def __call__(
+        self, client: Any, market_address: str, pairs: list[tuple[str, int]], sellers: list[str]
+    ) -> tuple[list[int], list[bool]]:
+        self.calls += 1
+        if self.fail:
+            raise ConnectionError("rpc down")
+        assert market_address == MARKET.lower()
+        assert {s for s, _ in pairs} <= {SELLER.lower()}
+        return [self.balances.get(t, 0) for _, t in pairs], [self.approved for _ in sellers]
+
+
+async def test_listing_validity_unknown_when_rpc_fails(
+    world: dict[str, Any], client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = FakeHoldings({})
+    fake.fail = True
+    monkeypatch.setattr(market, "_read_holdings", fake)
+    body = (await client.get("/public/marketplace/listings")).json()
+    assert body["total"] == 2  # unknown is not "unavailable": still listed, clearly flagged
+    for item in body["items"]:
+        assert (item["available"], item["unavailable_reason"]) == (None, "unknown")
+    expected = {2: "sold_out", 3: "cancelled", 4: "expired"}
+    for lid, reason in expected.items():
+        detail = (await client.get(f"/public/marketplace/listings/{lid}")).json()
+        assert (detail["available"], detail["unavailable_reason"]) == (False, reason)
+    # failures are not cached
+    fake.fail = False
+    fake.balances = {3: 6, 5: 5}
+    one = (await client.get("/public/marketplace/listings/1")).json()
+    assert (one["available"], one["unavailable_reason"]) == (True, None)
+
+
+async def test_listing_validity_from_chain_and_cache(
+    world: dict[str, Any], client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Listing 1 has 6 remaining (seller holds 6: fine); listing 5 has 5 (seller holds 2).
+    fake = FakeHoldings({3: 6, 5: 2})
+    monkeypatch.setattr(market, "_read_holdings", fake)
+    body = (await client.get("/public/marketplace/listings")).json()
+    assert [(x["listing_id"], x["available"]) for x in body["items"]] == [(1, True)]
+    assert body["total"] == 1
+    assert fake.calls == 1
+    full = (
+        await client.get("/public/marketplace/listings", params={"include_unavailable": True})
+    ).json()
+    assert {x["listing_id"]: x["unavailable_reason"] for x in full["items"]} == {
+        1: None,
+        5: "insufficient_balance",
+    }
+    market_view = (
+        await client.get(f"/public/marketplace/projects/{world['ids']['public']}/market")
+    ).json()
+    assert [x["available"] for x in market_view["active_listings"]] == [True]
+    assert fake.calls == 1  # all served from the ~60 s cache
+
+    # Approval revoked: everything from that seller is unavailable (after the cache expires).
+    market.clear_validity_cache()
+    fake.approved = False
+    full = (
+        await client.get("/public/marketplace/listings", params={"include_unavailable": True})
+    ).json()
+    assert {x["unavailable_reason"] for x in full["items"]} == {"not_approved"}
+    assert (await client.get("/public/marketplace/listings")).json()["total"] == 0
+    assert fake.calls == 2
+
+
+async def test_listing_validity_cache_ttl(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = Settings(
+        _env_file=None,
+        chain_marketplace_address=MARKET,
+        chain_credit_address=CREDIT,
+        marketplace_validity_cache_s=60,
+    )
+    fake = FakeHoldings({3: 10})
+    now = [1000.0]
+    listing = market.Listing(
+        listed=type(
+            "Ev", (), {"args": {"listingId": 1, "seller": SELLER, "tokenId": 3, "amount": 10}}
+        )()  # type: ignore[arg-type]
+    )
+    ctx = market.Context({}, {}, {}, {})
+    monkeypatch.setattr(market, "_read_holdings", fake)
+    for t, calls in ((1000.0, 1), (1059.0, 1), (1061.0, 2)):
+        now[0] = t
+        out = await market.validity(
+            settings, lambda: FakeClient(), [listing], ctx, clock=lambda: now[0]
+        )
+        assert out[1] == market.AVAILABLE
+        assert fake.calls == calls
+
+
+class FakeClient:
+    async def close(self) -> None:
+        return None
+
+
 async def test_listing_filters_and_sorting(
     world: dict[str, Any], client: httpx.AsyncClient
 ) -> None:
@@ -492,3 +595,11 @@ async def test_payment_token_unconfigured_and_rpc_failure() -> None:
     )
     token = await market.payment_token(fixed, no_client)
     assert token == PaymentToken(address=None, decimals=2)
+
+
+def test_validity_cache_prunes_expired_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(market, "_CACHE_PRUNE_AT", 2)
+    for i in range(3):
+        market._BALANCE_CACHE[(1, "c", "m", f"s{i}", 1)] = (float(i), 5)
+    market._prune(now=1.5)  # entries expiring at 0 and 1 are gone
+    assert list(market._BALANCE_CACHE) == [(1, "c", "m", "s2", 1)]

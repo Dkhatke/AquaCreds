@@ -55,6 +55,7 @@ container when done.
 |---|---|
 | Organisation `Demo Mangrove Collective (synthetic, seed N)` | name |
 | 5 users: org admin, field agent, verifier, registry admin, buyer (`demo.<role>.sN@example.org`) | "(synthetic)" names, reserved `example.org` domain |
+| Explore Demo visitor `demo.visitor.sN@example.org`: platform role `user`, `member` of the demo org only, random password that is never printed (nobody can sign in as it) | "Demo Visitor (synthetic, read-only)" |
 | Project `Demo Bhitarkanika Restoration (synthetic, seed N)`: a 0.02° square in Bhitarkanika, Odisha | name + description "DEMO - synthetic data …" |
 | Tenure documents (forest-department agreement, CRZ clearance, carbon-rights agreement) | generated one-page PDFs reading "SYNTHETIC DEMO DOCUMENT … not a real permit" |
 | Baseline (2025-01 to 2026-03) and monitoring (2026-04 to 2026-12) periods, 5 plots (3 dense, 2 sparse) with tree measurements | seeded random values (`random.Random(seed)`) |
@@ -70,6 +71,95 @@ Photo capture times are the time of seeding (capture nonces are short-lived), so
 monitoring period, whose window contains the seeding date, gets photos.
 
 Demo staff accounts have no TOTP; the seed refuses to run when `MFA_REQUIRED_FOR_STAFF` is on.
+
+## Explore Demo (no account, read-only)
+
+The website's **Explore Demo** button opens the console on the seed-demo organisation without
+creating an account. It is **off by default** and must be switched on deliberately.
+
+### Enable it (SIH judging)
+
+1. Seed the demo (see above); note the printed `DEMO_ORG_ID=…` line. Re-running `seed-demo` on an
+   older demo database adds the visitor account it needs.
+2. Set, for the API:
+   ```bash
+   DEMO_MODE_ENABLED=true
+   DEMO_ORG_ID=<the printed organisation id>   # or DEMO_ORG_SLUG=<its slug>
+   DEMO_SESSION_TTL_MIN=60                      # session length (default 60)
+   RATE_LIMIT_DEMO_SESSION_IP=20/hour           # per-IP limit on new sessions (default)
+   ```
+   Production (`APP_ENV=production`) refuses to start with demo mode on unless `DEMO_ORG_ID` or
+   `DEMO_ORG_SLUG` is set and rate limiting is on, and logs a `demo_mode.enabled_in_production`
+   warning at every start.
+3. Restart the API and check `GET /api/v1/demo/status` → `{"enabled": true, "banner": …}`.
+4. **Turn it off after judging** (`DEMO_MODE_ENABLED=false`, restart): new sessions answer 404 and
+   every issued demo token stops working at once.
+
+Note: `seed-demo` itself refuses `APP_ENV=production` (its staff demo accounts have no TOTP), so a
+production deployment cannot be seeded in place; demo mode there needs an organisation seeded by
+another route (open item, see the PR).
+
+### API
+
+| Endpoint | Answer |
+|---|---|
+| `GET /api/v1/demo/status` (public, `Cache-Control: public, max-age=60`) | `{enabled, banner}` |
+| `POST /api/v1/demo/session` (no body, no auth) | `{access_token, expires_in, demo: true, org_id, project_ids, banner: "Demonstration data — synthetic, testnet"}`; 404 when demo mode is off; 503 `demo_unavailable` when the org or visitor is missing or the org is not labelled synthetic; 429 over the per-IP limit |
+
+Use `access_token` as a Bearer token. There is no refresh token: when it expires, ask for a new
+session. The web app shows `banner` on every page of a demo session and labels any chain
+transaction it shows as a demonstration (testnet) transaction.
+
+### Security model
+
+- **Only synthetic data.** Sessions are issued only for the configured organisation, and only
+  when its name contains `(synthetic` (every seed-demo organisation does). Rename it and existing
+  tokens are refused on their next request and no new sessions are issued.
+- **A distinct token.** JWT with audience `aquacreds-demo` (ordinary tokens use `aquacreds-api`,
+  so the normal decoder can never accept a demo token) and claims `demo: true`, `scope: read`,
+  `org`. Short-lived (`DEMO_SESSION_TTL_MIN`), no refresh token, and only honoured while
+  `DEMO_MODE_ENABLED` is on.
+- **A least-privileged principal.** The token's subject is the demo org's visitor account (plain
+  `user`, `member` of the demo org only, re-checked on every request: an extra membership, a role
+  change or deactivation ends the session). Every existing access check therefore treats it like
+  any outsider: other organisations' projects, reports and transactions answer **404**.
+- **Read-only, enforced centrally** (`aqua_api.demo_mode`):
+  1. `DemoReadOnlyMiddleware` answers **403 `demo_read_only`** to any request other than
+     GET/HEAD/OPTIONS that carries a token claiming to be a demo token, before routing. That
+     covers every route, public ones included, so a demo session cannot write, upload (uploads
+     are presigned-PUT requests made by POST), review, relay or sign a chain transaction (every
+     relayed action is a POST), log out or change settings.
+  2. `get_current_user` lets a demo token reach only the GET endpoints on the allow-list
+     `DEMO_READABLE_ENDPOINTS` (org-scoped reads: projects, periods, plots, submissions, analysis,
+     classifications, MRV reports, stewardship, project chain records, the project's forward-fund
+     view, own notifications, `/auth/me`). Everything else, staff and admin endpoints included
+     (`/audit`, `/chain/status`, member lists, MFA, the cross-org forward-fund book), answers
+     **403 `demo_forbidden`**. New endpoints are denied until someone reviews them and adds them.
+  3. Presigned **downloads** of the demo org's artifacts (MRV report JSON/PDF/CSV,
+     classification rasters) come from allow-listed GETs, so they work.
+- **Tested automatically.** `services/api/tests/test_demo_mode.py` walks every route of the app:
+  every non-GET route must refuse a demo token with `demo_read_only`, every authenticated GET
+  route that is not allow-listed must answer `demo_forbidden`, and every allow-list entry must be
+  an existing GET route. A new route is covered without anyone editing the test.
+- **Rate-limited and audited.** `POST /demo/session` is limited per client IP
+  (`RATE_LIMIT_DEMO_SESSION_IP`, Valkey, proxy-aware like the auth limits). Each session writes a
+  `demo.session_created` entry to the hash-chained audit log (actor = visitor, entity = the demo
+  org) with the token id and a keyed HMAC of the IP; the raw IP is never stored.
+
+### Reset the demo data
+
+The demo org is ordinary rows in the database, so a session can never change it (it is read-only),
+but to start from a clean dataset:
+
+```bash
+# dev stack: delete the data volumes, start again (the stack runs the migrations), seed again
+make nuke && make dev
+uv run aqua-api seed-demo [--with-chain]
+```
+
+Then update `DEMO_ORG_ID` (a fresh seed creates a new organisation id) and restart the API. A
+plain re-run of `seed-demo` on the existing database only completes missing steps; it does not
+undo anything.
 
 ## End-to-end test
 

@@ -12,6 +12,7 @@ function of indexed facts, so they carry a strong ETag (304 on `If-None-Match`, 
 """
 
 import uuid
+from collections.abc import Callable
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response, status
@@ -39,14 +40,18 @@ router = APIRouter(prefix="/public", tags=["public marketplace"])
 CERT_MAX_AGE_S = 3600
 
 
-async def _token(request: Request, settings: Settings) -> PaymentToken:
+def _client_factory(request: Request, settings: Settings) -> Callable[[], ChainClient]:
     def client() -> ChainClient:
         factory = getattr(request.app.state, "chain_client_factory", None)
         made: ChainClient = factory() if factory else ChainClient.from_settings(settings)
         return made
 
+    return client
+
+
+async def _token(request: Request, settings: Settings) -> PaymentToken:
     try:
-        return await market.payment_token(settings, client)
+        return await market.payment_token(settings, _client_factory(request, settings))
     except market.MarketplaceUnavailableError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
 
@@ -63,11 +68,18 @@ async def _state(
     return token, listings, ctx
 
 
+async def _validity(
+    request: Request, settings: Settings, listings: list[market.Listing], ctx: market.Context
+) -> dict[int, market.Validity]:
+    return await market.validity(settings, _client_factory(request, settings), listings, ctx)
+
+
 async def _outs(
     session: SessionDep,
     listings: list[market.Listing],
     ctx: market.Context,
     token: PaymentToken,
+    valid: dict[int, market.Validity],
 ) -> list[ListingOut]:
     projects = []
     for listing in listings:
@@ -75,7 +87,10 @@ async def _outs(
         if ref is not None and ref.id is not None and ref.id in ctx.projects:
             projects.append(ctx.projects[ref.id][0])
     scores = await market.stewardship(session, projects)
-    outs = [market.listing_out(x, ctx, token, scores) for x in listings]
+    outs = [
+        market.listing_out(x, ctx, token, scores, valid.get(x.listing_id, market.UNKNOWN))
+        for x in listings
+    ]
     return [o for o in outs if o is not None]
 
 
@@ -96,11 +111,19 @@ async def list_listings(
         int | None, Query(ge=0, description="Max price per unit, payment-token base units")
     ] = None,
     sort: ListingSort = "newest",
+    include_unavailable: Annotated[
+        bool,
+        Query(description="Also return active listings the seller can no longer fill"),
+    ] = False,
     limit: Limit = 20,
     offset: Offset = 0,
 ) -> Response:
     """Active listings of unexpired vintages, joined with the project's public facts, the anchored
-    MRV report hash and the project's current stewardship score (with its `score_version`)."""
+    MRV report hash and the project's current stewardship score (with its `score_version`).
+
+    Each listing is checked on-chain (seller balance >= remaining and marketplace approval,
+    cached ~60 s). Listings found unavailable are left out unless `include_unavailable`; when the
+    check fails they are returned with `available: null`, `unavailable_reason: "unknown"`."""
     token, listings, ctx = await _state(request, session, settings)
     found = []
     for listing in listings.values():
@@ -118,11 +141,14 @@ async def list_listings(
         if max_price is not None and listing.price_per_unit > max_price:
             continue
         found.append(listing)
+    valid = await _validity(request, settings, found, ctx)
+    if not include_unavailable:
+        found = [x for x in found if valid[x.listing_id].available is not False]
     if sort == "newest":
         found.sort(key=lambda x: (x.listed.block_number, x.listing_id), reverse=True)
     else:
         found.sort(key=lambda x: (x.price_per_unit, x.listing_id), reverse=sort == "price_desc")
-    page = await _outs(session, found[offset : offset + limit], ctx, token)
+    page = await _outs(session, found[offset : offset + limit], ctx, token, valid)
     return cached(
         request, Page[ListingOut](items=page, total=len(found), limit=limit, offset=offset)
     )
@@ -135,7 +161,10 @@ async def get_listing(
     """One listing in any state (active, sold_out or cancelled)."""
     token, listings, ctx = await _state(request, session, settings)
     listing = listings.get(listing_id)
-    outs = await _outs(session, [listing], ctx, token) if listing is not None else []
+    outs = []
+    if listing is not None:
+        valid = await _validity(request, settings, [listing], ctx)
+        outs = await _outs(session, [listing], ctx, token, valid)
     if not outs:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Listing not found")
     return cached(request, outs[0])
@@ -167,8 +196,8 @@ async def list_trades(
 async def project_market(
     project_id: uuid.UUID, request: Request, session: SessionDep, settings: SettingsDep
 ) -> Response:
-    """A public project's active listings, its trades and the price history (one point per trade,
-    oldest first)."""
+    """A public project's active listings (each with its on-chain `available` flag), its trades
+    and the price history (one point per trade, oldest first)."""
     row = (
         await session.execute(reg.public_projects_query().where(Project.id == project_id))
     ).first()
@@ -177,8 +206,8 @@ async def project_market(
     project: Project = row[0]
     key = reg.project_key(project.id)
     token, listings, ctx = await _state(request, session, settings)
-    mine = market.project_listings(listings, ctx, key)
-    active = await _outs(session, [x for x in mine if _buyable(x, ctx)], ctx, token)
+    mine = [x for x in market.project_listings(listings, ctx, key) if _buyable(x, ctx)]
+    active = await _outs(session, mine, ctx, token, await _validity(request, settings, mine, ctx))
     active.sort(key=lambda o: (o.price_per_unit.units, o.listing_id))
     trades = [
         t for t in market.trades(listings, ctx, token) if t.project and t.project.project_key == key

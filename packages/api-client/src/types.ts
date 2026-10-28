@@ -25,6 +25,10 @@ export type SubmissionOut = Schema<"SubmissionOut">;
 export type TimeseriesOut = Schema<"TimeseriesOut">;
 export type AlertOut = Schema<"AlertOut">;
 export type ChainStatusOut = Schema<"ChainStatusOut">;
+/** Explore Demo: a read-only demo session (Bearer `access_token`, no refresh token). */
+export type DemoSessionOut = Schema<"DemoSessionOut">;
+export type DemoStatusOut = Schema<"DemoStatusOut">;
+export type ListingOut = Schema<"ListingOut">;
 
 export type ProjectListQuery = GetQuery<"/api/v1/projects">;
 export type TimeseriesQuery = GetQuery<"/api/v1/projects/{project_id}/timeseries">;

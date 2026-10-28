@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from aqua_api import __version__
+from aqua_api.demo_mode import DemoReadOnlyMiddleware
 from aqua_api.middleware import SecurityHeadersMiddleware
 from aqua_api.queue import enqueue
 from aqua_api.ratelimit import RateLimiter, RedisRateLimitBackend
@@ -16,6 +17,7 @@ from aqua_api.routers import (
     auth,
     chain,
     classifications,
+    demo,
     field,
     forward_fund,
     health,
@@ -64,6 +66,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.enqueue = enqueue  # replaced by a recorder in tests
     app.state.rate_limiter = RateLimiter(settings, RedisRateLimitBackend(settings.redis_url))
 
+    if settings.demo_mode_enabled:
+        log.warning(
+            "demo_mode.enabled",
+            demo_org_id=str(settings.demo_org_id) if settings.demo_org_id else None,
+            demo_org_slug=settings.demo_org_slug,
+        )
+    # Innermost: refuses writes carrying a demo token before routing (CORS headers still apply).
+    app.add_middleware(DemoReadOnlyMiddleware)
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -101,6 +111,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         system,
         public,
         marketplace,
+        demo,
     ):
         app.include_router(module.router, prefix="/api/v1")
     return app

@@ -184,3 +184,53 @@ async def test_list_buy_retire_end_to_end(
             assert wallet.lower()[2:] not in body
     assert buyer.address.lower()[2:] not in text.lower()
     assert str(uuid.UUID(pid)) == pid
+
+    # ---- listing validity, read live from the chain (balanceOfBatch + isApprovedForAll)
+    assert (listing["available"], listing["unavailable_reason"]) == (True, None)
+
+    async def listing_one(include_unavailable: bool = True) -> dict[str, Any] | None:
+        market.clear_validity_cache()  # the API caches validity for ~60 s
+        page = (
+            await client.get(
+                "/public/marketplace/listings",
+                params={"include_unavailable": include_unavailable},
+            )
+        ).json()
+        return next((x for x in page["items"] if x["listing_id"] == 1), None)
+
+    w3 = w3_for(anvil_url)
+    credit = contract("AquaCredit", deployment.credit)
+    try:
+        # Seller holds 26 (30 issued - 4 sold) for 6 remaining; moving 22 away leaves 4 < 6.
+        assert int(await credit.functions.balanceOf(seller.address, token_id).call()) == 26
+        await call_as(
+            w3,
+            seller,
+            credit.functions.safeTransferFrom(seller.address, buyer.address, token_id, 22, b""),
+        )
+        moved = await listing_one()
+        assert moved is not None
+        assert (moved["available"], moved["unavailable_reason"]) == (
+            False,
+            "insufficient_balance",
+        )
+        assert await listing_one(include_unavailable=False) is None
+        detail = (await client.get("/public/marketplace/listings/1")).json()
+        assert detail["unavailable_reason"] == "insufficient_balance"
+
+        # Credits come back: available again. Then the seller revokes the approval.
+        await call_as(
+            w3,
+            buyer,
+            credit.functions.safeTransferFrom(buyer.address, seller.address, token_id, 22, b""),
+        )
+        back = await listing_one()
+        assert back is not None
+        assert back["available"] is True
+        await call_as(w3, seller, credit.functions.setApprovalForAll(deployment.marketplace, False))
+        revoked = await listing_one()
+        assert revoked is not None
+        assert (revoked["available"], revoked["unavailable_reason"]) == (False, "not_approved")
+        assert await listing_one(include_unavailable=False) is None
+    finally:
+        await w3.provider.disconnect()  # type: ignore[attr-defined]

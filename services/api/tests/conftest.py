@@ -116,6 +116,16 @@ def anvil_url() -> Iterator[str]:
         yield f"http://{container.get_container_host_ip()}:{container.get_exposed_port(8545)}"
 
 
+@pytest.fixture(autouse=True)
+def _fresh_listing_validity_cache() -> Iterator[None]:
+    """The marketplace's on-chain validity cache is per process: never share it between tests."""
+    from aqua_api.services import marketplace
+
+    marketplace.clear_validity_cache()
+    yield
+    marketplace.clear_validity_cache()
+
+
 @pytest.fixture
 def settings_overrides() -> dict[str, Any]:
     """Extra Settings for the app under test; override in a test module (e.g. chain settings)."""

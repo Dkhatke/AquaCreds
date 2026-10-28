@@ -2,6 +2,7 @@ import base64
 
 import pytest
 from pydantic import ValidationError
+from structlog.testing import capture_logs
 
 from aqua_core.settings import ANVIL_DEV_MNEMONIC, DEV_MFA_ENCRYPTION_KEY, Settings
 
@@ -163,3 +164,31 @@ def test_notification_email_is_off_by_default_and_checked_in_production() -> Non
         smtp_host="smtp-relay.example",
         notification_email_from="AquaCreds <alerts@aquacreds.example>",
     ).assert_production_safe()
+
+
+def test_demo_mode_off_by_default_and_needs_an_org_in_production() -> None:
+    dev = Settings(_env_file=None)
+    assert dev.demo_mode_enabled is False
+    assert dev.demo_session_ttl_min == 60
+    assert dev.marketplace_validity_cache_s == 60
+    _prod().assert_production_safe()  # demo off: nothing to configure
+
+    with pytest.raises(RuntimeError, match="DEMO_ORG_ID or DEMO_ORG_SLUG"):
+        _prod(demo_mode_enabled=True).assert_production_safe()
+    with pytest.raises(RuntimeError, match="DEMO_ORG_ID or DEMO_ORG_SLUG"):  # compose passes ""
+        _prod(demo_mode_enabled=True, demo_org_id="", demo_org_slug=" ").assert_production_safe()
+    with pytest.raises(RuntimeError, match="RATE_LIMIT_ENABLED"):
+        _prod(
+            demo_mode_enabled=True, demo_org_slug="demo-s1", rate_limit_enabled=False
+        ).assert_production_safe()
+    with capture_logs() as logs:
+        _prod(
+            demo_mode_enabled=True, demo_org_id="00000000-0000-4000-8000-000000000001"
+        ).assert_production_safe()
+        _prod(demo_mode_enabled=True, demo_org_slug="demo-s1").assert_production_safe()
+    assert [e["event"] for e in logs] == ["demo_mode.enabled_in_production"] * 2
+    assert logs[0]["log_level"] == "warning"
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, rate_limit_demo_session_ip="lots")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, demo_session_ttl_min=0)
