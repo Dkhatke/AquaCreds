@@ -61,6 +61,9 @@ CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 TEST_SPLITS = ("test_observer", "test_state")
+# iNat21 (the student's distillation data) and TreeOfLife-10M (BioCLIP) contain iNaturalist photos
+# up to 2020, so pre-2021 test images may have been seen in pretraining. Report this subset too.
+POST_PRETRAINING = "2021-01-01"
 
 
 # ---------------------------------------------------------------- metrics (numpy only)
@@ -444,7 +447,10 @@ def mobilenet_finetune(
     from torchvision import transforms as T
 
     torch.manual_seed(SEED)
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    # CPU, not MPS: on MPS the unified-memory allocator pushed the process footprint to 5.4 GB
+    # (run 1), over the 3 GB limit. CPU training keeps it bounded and is deterministic.
+    device = "cpu"
+    torch.set_num_threads(4)
     norm = T.Normalize(IMAGENET_MEAN, IMAGENET_STD)
     train_tf = T.Compose(
         [
@@ -512,8 +518,10 @@ def score_candidate(df: pd.DataFrame, pm: np.ndarray, gs: np.ndarray) -> dict[st
         "threshold_val_recall95": round(thr95, 6),
         "threshold_val_precision95": round(threshold_for_precision(y[va], pm[va], 0.95), 6),
     }
-    for split in ("val", *TEST_SPLITS):
-        m = (df["split"] == split).to_numpy()
+    recent = (df["observed_on"].fillna("").astype(str) >= POST_PRETRAINING).to_numpy()
+    subsets = {s: (df["split"] == s).to_numpy() for s in ("val", *TEST_SPLITS)}
+    subsets |= {f"{s}_observed_2021plus": subsets[s] & recent for s in TEST_SPLITS}
+    for split, m in subsets.items():
         out[split] = evaluate_split(
             y[m],
             pm[m],
@@ -576,6 +584,14 @@ def summarise(df: pd.DataFrame, preds: dict[str, tuple[np.ndarray, np.ndarray]])
         }
         for s in ("train", "val", *TEST_SPLITS)
     }
+    recent = df["observed_on"].fillna("").astype(str) >= POST_PRETRAINING
+    for s in TEST_SPLITS:
+        m = (df["split"] == s) & recent
+        counts[f"{s}_observed_2021plus"] = {
+            "images": int(m.sum()),
+            "mangrove": int((m & (df["y"] == 1)).sum()),
+            "observers": int(df.loc[m, "observer_id"].nunique()),
+        }
     out = {
         "generated": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "bootstrap": f"{N_BOOT} observer-cluster resamples, 95% percentile CI",
@@ -591,7 +607,7 @@ def summarise(df: pd.DataFrame, preds: dict[str, tuple[np.ndarray, np.ndarray]])
 
 def print_table(out: dict[str, Any]) -> None:
     keys = ("precision", "recall", "f1", "auroc", "genus_top1", "genus_top3")
-    for split in TEST_SPLITS:
+    for split in (*TEST_SPLITS, *(f"{s}_observed_2021plus" for s in TEST_SPLITS)):
         print(f"\n{split}")
         for name, r in out["candidates"].items():
             cells = []

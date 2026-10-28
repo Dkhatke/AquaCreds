@@ -113,6 +113,7 @@ def torch_mobilenet_module() -> Any:
 
     model = pe.mobilenet_model(len(pe.CLASS_KEYS), pretrained=False)
     model.load_state_dict(torch.load(pe.ART / "mobilenetv2_finetune.pt", weights_only=True))
+
     class _M(torch.nn.Module):
         def __init__(self) -> None:
             super().__init__()
