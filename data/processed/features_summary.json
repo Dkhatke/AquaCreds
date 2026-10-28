@@ -119,8 +119,8 @@
   },
   "unusable_by_label": {},
   "runtime_s": {
-    "this_invocation_wall": 34429.9,
-    "sum_of_cell_seconds": 271358.3
+    "this_invocation_wall": 16467.0,
+    "sum_of_cell_seconds": 65726.4
   },
-  "peak_rss_mb_this_invocation": 260.7
+  "peak_rss_mb_this_invocation": 349.2
 }

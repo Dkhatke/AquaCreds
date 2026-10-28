@@ -264,13 +264,11 @@ async def latest_classification(
 
 def classification_context(row: Classification) -> dict[str, Any]:
     """The classification figures quoted in a report, with the model's held-out metrics."""
-    from aqua_worker.model_store import ECOSYSTEM_CLASSIFIER_V1
+    from aqua_worker.model_store import manifest_for
 
-    metrics = (
-        dict(ECOSYSTEM_CLASSIFIER_V1.heldout_metrics)
-        if row.model_version == ECOSYSTEM_CLASSIFIER_V1.version
-        else None
-    )
+    # The held-out metrics of the model that made this classification (v1 rows keep v1's).
+    manifest = manifest_for(row.model_version)
+    metrics = dict(manifest.heldout_metrics) if manifest is not None else None
     year = row.season_start_year
     return {
         "label": CLASSIFICATION_LABEL,

@@ -1,20 +1,23 @@
 """Ecosystem-classifier distribution: model files in object storage, pinned by SHA-256, cached on disk.
 
-Why object storage and not baked into the image: the model files are DVC outputs without a DVC
-remote, so they are not in git; the worker image is built by CI from a git checkout (and
-`.dockerignore` excludes `*.onnx`), so a baked image could not be rebuilt from the repository.
-Pinning every file's SHA-256 here, in git, gives the same guarantee as baking: a worker only ever
-runs the exact bytes that were evaluated in `ml/model_cards/ecosystem_classifier_v1.md`, and the
-image stays reproducible. R2 (production) and SeaweedFS (development) are already the platform's
-object stores (decision D9), so this costs nothing extra.
+Why object storage and not baked into the image: the model files are DVC outputs, so they are
+not in git; the worker image is built by CI from a git checkout (and `.dockerignore` excludes
+`*.onnx`), so a baked image could not be rebuilt from the repository. Pinning every file's SHA-256
+here, in git, gives the same guarantee as baking: a worker only ever runs the exact bytes that were
+evaluated in its model card (`ml/model_cards/<version>.md`), and the image stays reproducible. R2
+(production) and SeaweedFS (development) are already the platform's object stores (decision D9),
+so this costs nothing extra. Since v1.1 the DVC outputs are also pushed to a DVC remote
+(docs/DATASETS.md §9); the v1 outputs never were and are lost (see `ECOSYSTEM_CLASSIFIER_V1`).
 
 Flow:
 1. Publish (operator, once per model version, from a machine that has the DVC outputs)::
 
-       uv run python -m aqua_worker.model_store publish ml/artifacts/ecosystem_classifier_v1
+       uv run dvc pull train_classifier
+       uv run python -m aqua_worker.model_store publish ml/artifacts/ecosystem_classifier_v1_1
 
-   verifies the local files against the pinned hashes, then uploads them to
-   `models/ecosystem_classifier/v1/`. A file that does not match is refused.
+   verifies the local files against the pinned hashes of the production model
+   (`CURRENT_ECOSYSTEM_CLASSIFIER`), then uploads them to its prefix
+   (`models/ecosystem_classifier/v1.1/`). A file that does not match is refused.
 2. Worker start (`worker_ready`, workers consuming the `ml` queue): `fetch` downloads missing
    files into `ML_MODEL_CACHE_DIR`, verifies them, and logs the result.
 3. Every classification: `get_model` re-verifies the cached files (1.4 MB, milliseconds), loads one
@@ -65,6 +68,9 @@ class ModelManifest:
         return tuple(self.sha256)
 
 
+# v1 is kept for provenance only: classifications stored with model_version
+# "ecosystem_classifier_v1" refer to these pins and metrics. Its files are UNAVAILABLE (the DVC
+# outputs were never pushed to a remote and are lost), so no worker can load it; v1.1 replaces it.
 ECOSYSTEM_CLASSIFIER_V1 = ModelManifest(
     version="ecosystem_classifier_v1",
     prefix="models/ecosystem_classifier/v1/",
@@ -94,6 +100,51 @@ ECOSYSTEM_CLASSIFIER_V1 = ModelManifest(
     model_card="ml/model_cards/ecosystem_classifier_v1.md",
 )
 
+# v1.1: the same training configuration retrained on re-extracted (byte-identical) features after
+# the v1 files were lost; every metric equals v1's to 4 decimals, but the bytes are new, hence a
+# new version. Classifications by v1 and v1.1 are never compared with each other (area-loss
+# alerts and stewardship comparisons match on model_version).
+ECOSYSTEM_CLASSIFIER_V1_1 = ModelManifest(
+    version="ecosystem_classifier_v1.1",
+    prefix="models/ecosystem_classifier/v1.1/",
+    model_file="model.onnx",
+    features_file="features.json",
+    sha256={
+        "model.onnx": "bcdd2297fe0caec6d6c66f775a8d01d9387dc7d9e12c81c03ebef80cbb4f7542",
+        "features.json": "9c16c74d383c4a0bd5275ba8bb68259df91925588828ae478ba82e5a42c42311",
+    },
+    season_months=(11, 12, 1, 2, 3),
+    max_scenes=12,
+    max_tile_cloud_pct=80.0,
+    # Copied from ml/model_cards/ecosystem_classifier_v1_1_metrics.json (models.lightgbm.heldout,
+    # rounded to 4 decimals); test_model_store checks they still match that file.
+    heldout_metrics={
+        "region": "Gulf of Kutch (68.0-70.8 E, 22-24 N), never used for training or tuning",
+        "points": 1133,
+        "macro_f1": 0.6378,
+        "accuracy": 0.7546,
+        "mangrove_precision": 0.9825,
+        "mangrove_recall": 0.9106,
+        "mangrove_f1": 0.9451,
+        "brier": 0.3144,
+        "ece": 0.0807,
+        "label_note": "agreement with map-derived labels, not a manually checked gold set",
+    },
+    model_card="ml/model_cards/ecosystem_classifier_v1_1.md",
+)
+
+# The model new classifications use. Change it only together with a new manifest above.
+CURRENT_ECOSYSTEM_CLASSIFIER = ECOSYSTEM_CLASSIFIER_V1_1
+
+MANIFESTS: Mapping[str, ModelManifest] = {
+    m.version: m for m in (ECOSYSTEM_CLASSIFIER_V1, ECOSYSTEM_CLASSIFIER_V1_1)
+}
+
+
+def manifest_for(version: str) -> ModelManifest | None:
+    """The manifest a stored `model_version` refers to, or None for an unknown version."""
+    return MANIFESTS.get(version)
+
 
 class ModelUnavailableError(RuntimeError):
     """The model files are missing from object storage or do not match their pinned hashes."""
@@ -112,7 +163,9 @@ def model_dir(cache_dir: str | Path, manifest: ModelManifest) -> Path:
 
 
 def fetch(
-    storage: ObjectStorage, cache_dir: str | Path, manifest: ModelManifest = ECOSYSTEM_CLASSIFIER_V1
+    storage: ObjectStorage,
+    cache_dir: str | Path,
+    manifest: ModelManifest = CURRENT_ECOSYSTEM_CLASSIFIER,
 ) -> Path:
     """Make sure every model file is in the disk cache with its pinned SHA-256; returns the dir.
 
@@ -172,7 +225,10 @@ class LoadedModel:
 
 
 def load_model(
-    directory: str | Path, manifest: ModelManifest = ECOSYSTEM_CLASSIFIER_V1, *, threads: int = 2
+    directory: str | Path,
+    manifest: ModelManifest = CURRENT_ECOSYSTEM_CLASSIFIER,
+    *,
+    threads: int = 2,
 ) -> LoadedModel:
     """Verify the files in `directory` against the manifest and open an inference session."""
     import onnxruntime as ort
@@ -229,7 +285,7 @@ _lock = threading.Lock()
 def get_model(
     storage: ObjectStorage,
     cache_dir: str | Path,
-    manifest: ModelManifest = ECOSYSTEM_CLASSIFIER_V1,
+    manifest: ModelManifest = CURRENT_ECOSYSTEM_CLASSIFIER,
 ) -> LoadedModel:
     """The process-wide model: fetched (verified) into the disk cache, loaded once."""
     with _lock:
@@ -243,7 +299,7 @@ def get_model(
 def publish(
     storage: ObjectStorage,
     source_dir: str | Path,
-    manifest: ModelManifest = ECOSYSTEM_CLASSIFIER_V1,
+    manifest: ModelManifest = CURRENT_ECOSYSTEM_CLASSIFIER,
 ) -> dict[str, str]:
     """Upload the model files from a local artifact directory, refusing any file whose SHA-256
     differs from the pinned one. Returns {object key: sha256}."""
@@ -276,12 +332,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m aqua_worker.model_store")
     sub = parser.add_subparsers(dest="command", required=True)
     pub = sub.add_parser("publish", help="verify local model files and upload them")
-    pub.add_argument("source_dir", help="e.g. ml/artifacts/ecosystem_classifier_v1")
+    pub.add_argument("source_dir", help="e.g. ml/artifacts/ecosystem_classifier_v1_1")
     sub.add_parser("verify", help="download into the cache, verify and load the model")
     args = parser.parse_args(argv)
     settings = get_settings()
     storage = S3ObjectStorage(settings)
-    manifest = ECOSYSTEM_CLASSIFIER_V1
+    manifest = CURRENT_ECOSYSTEM_CLASSIFIER
     if args.command == "publish":
         for key, digest in publish(storage, args.source_dir, manifest).items():
             print(f"uploaded {key} sha256={digest}")

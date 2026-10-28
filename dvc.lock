@@ -94,8 +94,8 @@ stages:
       size: 309483
     - path: ml/pipelines/features_extract.py
       hash: md5
-      md5: 606e135a5caf1c242d38160073535743
-      size: 22658
+      md5: 273627745223acfcb675b21b561bdf1c
+      size: 25388
     - path: packages/aqua_geo/src/aqua_geo/composite.py
       hash: md5
       md5: b86fab32108a14c121d4746a7eaa3bb5
@@ -119,8 +119,8 @@ stages:
       size: 2242002
     - path: data/processed/features_summary.json
       hash: md5
-      md5: 3ea73109b87668b3bfd8d02b251d3fe7
-      size: 2524
+      md5: 1feb8ccbb771acfac5f2146de924cd3a
+      size: 2523
   train_classifier:
     cmd: uv run python -u ml/pipelines/train_classifier.py
     deps:
@@ -134,15 +134,15 @@ stages:
       size: 4808
     - path: ml/pipelines/train_classifier.py
       hash: md5
-      md5: 2d3b7818805ca25d2525f0e80b09af73
-      size: 19222
+      md5: aeefc37515b6b726ae2ec461c86dc956
+      size: 20563
     outs:
-    - path: ml/artifacts/ecosystem_classifier_v1
+    - path: ml/artifacts/ecosystem_classifier_v1_1
       hash: md5
-      md5: 7e299cc16c29feefb075a61a2beb1053.dir
-      size: 3653073
+      md5: c6c786d5411ef57499537b5d7e72b340.dir
+      size: 3653075
       nfiles: 3
-    - path: ml/model_cards/ecosystem_classifier_v1_metrics.json
+    - path: ml/model_cards/ecosystem_classifier_v1_1_metrics.json
       hash: md5
-      md5: b1ce55687f9846ac97a8fe6f6be9f03c
-      size: 24494
+      md5: 810e0f320b95abe5541c68fa0b62361f
+      size: 24499

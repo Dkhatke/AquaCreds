@@ -129,10 +129,10 @@ def _verify_classifier(sender: Any = None, **_: object) -> None:
     if sender is None or not consumes_ml_queue(sender):
         return
     from aqua_core.storage import S3ObjectStorage
-    from aqua_worker.model_store import ECOSYSTEM_CLASSIFIER_V1, fetch, load_model
+    from aqua_worker.model_store import CURRENT_ECOSYSTEM_CLASSIFIER, fetch, load_model
 
     settings = get_settings()
-    manifest = ECOSYSTEM_CLASSIFIER_V1
+    manifest = CURRENT_ECOSYSTEM_CLASSIFIER
     try:
         model = load_model(fetch(S3ObjectStorage(settings), settings.ml_model_cache_dir, manifest))
     except Exception as exc:

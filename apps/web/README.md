@@ -52,8 +52,9 @@ shown wherever the imagery appears.
 ## Model metrics
 
 The API does not expose classifier validation metrics yet, so held-out metrics are copied from
-`ml/model_cards/ecosystem_classifier_v1_metrics.json` by `pnpm sync:model-card`; a unit test fails if
-the copy drifts. They are shown only for a classification whose `model_version` matches the card.
+`ml/model_cards/<version>_metrics.json` (v1 and v1.1, the production model) by `pnpm sync:model-card`;
+a unit test fails if a copy drifts. They are shown only for a classification whose `model_version`
+matches a card.
 
 ## Maps
 

@@ -3,7 +3,7 @@
 Pure functions: no network, no object storage, no ONNX runtime (the model is passed in as a
 `Predictor`, so this package stays free of inference dependencies and tests can use any model).
 
-Feature vector (must match training exactly, see `ml/model_cards/ecosystem_classifier_v1.md`):
+Feature vector (must match training exactly, see `ml/model_cards/ecosystem_classifier_v1_1.md`):
 1. `aqua_geo.features.pixel_features` on the masked reflectance stack of the dry season, the same
    function the training extraction called: band medians, per-scene indices then their medians,
    temporal p10/p50/p90 of NDVI/MVI/NDWI, all NaN where a pixel has fewer than `min_clear` clear

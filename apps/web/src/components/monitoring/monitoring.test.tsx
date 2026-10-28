@@ -11,7 +11,7 @@ const base: Schema<"ClassificationOut"> = {
   run_id: null,
   season_start_year: 2024,
   created_at: "2025-04-02T10:00:00Z",
-  model_version: "ecosystem_classifier_v1",
+  model_version: "ecosystem_classifier_v1.1",
   model_sha256: "a".repeat(64),
   features_sha256: "b".repeat(64),
   classes_cog_sha256: "c".repeat(64),
@@ -46,6 +46,12 @@ describe("classification", () => {
     expect(screen.getByText(/Gulf of Kutch/)).toBeInTheDocument();
     expect(screen.getByText(/Context only: credits come from field plots/)).toBeInTheDocument();
     expect(screen.getByText("30.50 ha")).toBeInTheDocument();
+  });
+
+  it("still shows v1 metrics for a classification recorded as v1", () => {
+    render(<ClassificationSummary c={{ ...base, model_version: "ecosystem_classifier_v1" }} />);
+    expect(screen.getByText("Mangrove F1")).toBeInTheDocument();
+    expect(screen.queryByText("No model card for this version")).not.toBeInTheDocument();
   });
 
   it("shows no metrics for an unknown model version", () => {

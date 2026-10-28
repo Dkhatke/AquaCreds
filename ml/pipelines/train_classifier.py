@@ -1,11 +1,19 @@
 """Train and compare ecosystem classifiers (Random Forest baseline vs LightGBM vs XGBoost).
 
-Usage:  uv run python -u ml/pipelines/train_classifier.py [--trials 30] [--jobs 4]
+Usage:  uv run python -u ml/pipelines/train_classifier.py [--version v1.1] [--trials 30] [--jobs 4]
 
 Inputs : data/processed/features.parquet  (features_extract.py)
-Outputs: ml/artifacts/ecosystem_classifier_v1/  winning model + features.json (DVC out)
-         ml/model_cards/ecosystem_classifier_v1_metrics.json   every model's scores (DVC metrics)
-         mlruns/mlflow.db                                      MLflow tracking (git-ignored)
+Outputs (for --version v1.1, the default; "." becomes "_" in paths):
+         ml/artifacts/ecosystem_classifier_v1_1/  winning model + features.json (DVC out)
+         ml/model_cards/ecosystem_classifier_v1_1_metrics.json   every model's scores (DVC metrics)
+         mlruns/mlflow.db                                        MLflow tracking (git-ignored)
+The model version recorded in features.json and the metrics is `ecosystem_classifier_<version>`
+(e.g. `ecosystem_classifier_v1.1`); the worker's ModelManifest pins the same string. Changing
+VERSION changes the DVC outs, so update dvc.yaml in the same commit.
+
+History: v1 (ecosystem_classifier_v1) was trained with this script but its artifacts were never
+pushed to a DVC remote and are lost; v1.1 is the same configuration retrained on re-extracted
+features (DEM sampled from the Copernicus COGs), see ml/model_cards/ecosystem_classifier_v1_1.md.
 
 Validation (no random splits anywhere):
 - Spatial 5-fold CV: `split` = fold_0..fold_4 were assigned per H3 res-5 cell (splits.py), so a
@@ -49,11 +57,10 @@ os.environ.setdefault("MLFLOW_DISABLE_AGENT_HINT", "1")
 
 ROOT = Path(__file__).resolve().parents[2]
 FEATURES = ROOT / "data/processed/features.parquet"
-ART = ROOT / "ml/artifacts/ecosystem_classifier_v1"
-METRICS = ROOT / "ml/model_cards/ecosystem_classifier_v1_metrics.json"
 MLRUNS = ROOT / "mlruns"
 
-MODEL_VERSION = "ecosystem_classifier_v1"
+# The one place the model version is set (override with --version for experiments).
+VERSION = "v1.1"
 SEED = 42
 FOLDS = [f"fold_{i}" for i in range(5)]
 HELDOUT = "heldout_region"
@@ -65,6 +72,20 @@ COMPLEXITY = {"random_forest": 1, "lightgbm": 2, "xgboost": 3}
 # Copernicus DEM has no tiles over open sea, so elevation is missing for a few offshore water
 # points; sea level (0 m) is the physically correct value. Production must apply the same fill.
 FILL_VALUES = {"elevation": 0.0}
+
+
+# --------------------------------------------------------------------------- version
+
+
+def model_version(version: str) -> str:
+    """`v1.1` → `ecosystem_classifier_v1.1` (stored with every prediction)."""
+    return f"ecosystem_classifier_{version}"
+
+
+def output_paths(version: str) -> tuple[Path, Path]:
+    """Artifact directory and metrics file for a version (`.` → `_` in file names)."""
+    stem = f"ecosystem_classifier_{version.replace('.', '_')}"
+    return ROOT / "ml/artifacts" / stem, ROOT / "ml/model_cards" / f"{stem}_metrics.json"
 
 
 # --------------------------------------------------------------------------- models
@@ -165,7 +186,13 @@ def cross_validate(
 
 
 def tune(
-    name: str, df: pd.DataFrame, y: np.ndarray, classes: list[str], trials: int, jobs: int
+    name: str,
+    df: pd.DataFrame,
+    y: np.ndarray,
+    classes: list[str],
+    trials: int,
+    jobs: int,
+    study_prefix: str,
 ) -> tuple[dict[str, Any], float]:
     def objective(trial: optuna.Trial) -> float:
         params = suggest(name, trial)
@@ -181,7 +208,7 @@ def tune(
     study = optuna.create_study(
         direction="maximize",
         sampler=optuna.samplers.TPESampler(seed=SEED),
-        study_name=f"{MODEL_VERSION}-{name}",
+        study_name=f"{study_prefix}-{name}",
     )
     study.optimize(objective, n_trials=trials, show_progress_bar=False)
     return dict(study.best_params), float(study.best_value)
@@ -300,10 +327,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )
+    parser.add_argument("--version", default=VERSION, help="model version, e.g. v1.1")
     parser.add_argument("--trials", type=int, default=30, help="Optuna trials per model")
     parser.add_argument("--jobs", type=int, default=4, help="CPU threads per model")
     parser.add_argument("--models", nargs="+", default=["random_forest", "lightgbm", "xgboost"])
     args = parser.parse_args()
+    version = model_version(args.version)
+    art, metrics_path = output_paths(args.version)
     t_start = time.time()
     warnings.filterwarnings("ignore", category=UserWarning)  # sklearn feature-name chatter
     optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -325,9 +355,9 @@ def main() -> None:
     # go to a SQLite file there; browse with `uv run mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db`.
     MLRUNS.mkdir(parents=True, exist_ok=True)
     mlflow.set_tracking_uri(f"sqlite:///{MLRUNS / 'mlflow.db'}")
-    if mlflow.get_experiment_by_name(MODEL_VERSION) is None:
-        mlflow.create_experiment(MODEL_VERSION, artifact_location=(MLRUNS / "artifacts").as_uri())
-    mlflow.set_experiment(MODEL_VERSION)
+    if mlflow.get_experiment_by_name(version) is None:
+        mlflow.create_experiment(version, artifact_location=(MLRUNS / "artifacts").as_uri())
+    mlflow.set_experiment(version)
     features_md5 = file_md5(FEATURES)
     sha = git_sha()
 
@@ -336,7 +366,7 @@ def main() -> None:
     for name in args.models:
         t0 = time.time()
         print(f"[{name}] tuning ({args.trials} trials on spatial CV)…", flush=True)
-        params, best_cv = tune(name, dtrain, ytrain, classes, args.trials, args.jobs)
+        params, best_cv = tune(name, dtrain, ytrain, classes, args.trials, args.jobs, version)
         cv = cross_validate(name, params, dtrain, ytrain, classes, args.jobs)
         t_fit = time.time()
         model = fit(name, params, dtrain[FEATURE_COLS], ytrain, args.jobs)
@@ -393,22 +423,22 @@ def main() -> None:
     )
     print(f"winner: {winner.name}")
 
-    ART.mkdir(parents=True, exist_ok=True)
-    for old in ART.iterdir():
+    art.mkdir(parents=True, exist_ok=True)
+    for old in art.iterdir():
         old.unlink()
     model = fitted[winner.name]
     if winner.name == "lightgbm":
         model_file = "model.lgb.txt"
-        model.booster_.save_model(str(ART / model_file))
+        model.booster_.save_model(str(art / model_file))
     else:
         model_file = "model.joblib"
-        joblib.dump(model, ART / model_file, compress=3)
-    onnx_check = export_onnx(winner.name, model, df.loc[test, FEATURE_COLS], ART / "model.onnx")
+        joblib.dump(model, art / model_file, compress=3)
+    onnx_check = export_onnx(winner.name, model, df.loc[test, FEATURE_COLS], art / "model.onnx")
     print(f"ONNX parity on held-out: {onnx_check}")
-    (ART / "features.json").write_text(
+    (art / "features.json").write_text(
         json.dumps(
             {
-                "model_version": MODEL_VERSION,
+                "model_version": version,
                 "algorithm": winner.name,
                 "model_file": model_file,
                 "onnx_file": "model.onnx",
@@ -431,7 +461,7 @@ def main() -> None:
     )
 
     metrics = {
-        "model_version": MODEL_VERSION,
+        "model_version": version,
         "winner": winner.name,
         "selection_rule": "held-out macro-F1, then CV macro-F1 (ties within 0.01), then simplicity",
         "classes": classes,
@@ -458,8 +488,8 @@ def main() -> None:
         "runtime_s": round(time.time() - t_start, 1),
         "peak_rss_mb": round(peak_rss_mb(), 1),
     }
-    METRICS.parent.mkdir(parents=True, exist_ok=True)
-    METRICS.write_text(json.dumps(metrics, indent=2) + "\n")
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    metrics_path.write_text(json.dumps(metrics, indent=2) + "\n")
     print(json.dumps(metrics["summary"], indent=2))
 
 

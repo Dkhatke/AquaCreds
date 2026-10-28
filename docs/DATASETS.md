@@ -271,3 +271,46 @@ to avoid leakage.
   training set can be rebuilt without it.
 - Field photos are personal data: private bucket, EXIF stripped and faces blurred in public copies,
   retention policy, consent captured in the app.
+
+---
+
+## 9. DVC remote (where the data and model artifacts live)
+
+Every DVC output (raw downloads, labels, features, model artifacts) must exist outside any single
+clone: the classifier v1 artifacts were lost once because their only copy sat in a clone under
+`/tmp`, which macOS cleans automatically. Push after every stage that produces a new output.
+
+**Stopgap (now): a local remote per machine.** It lives in `.dvc/config.local`, which is
+machine-specific and git-ignored, so the committed `.dvc/config` stays empty:
+
+```
+mkdir -p ~/Documents/aquacreds-dvc-store
+uv run dvc remote add --local -d localstore ~/Documents/aquacreds-dvc-store
+uv run dvc push                 # after each `dvc repro`
+uv run dvc pull                 # in a fresh clone on the same machine
+```
+
+Keep the store outside `/tmp` and outside any clone. A clone made on the same machine only needs
+the same two `dvc remote add` lines before `dvc pull`. Back it up if the machine is the only copy.
+
+**Target: Cloudflare R2 (decision D9).** When the R2 keys exist, add the bucket as the shared,
+committed default remote and copy the local store into it once:
+
+```
+# committed (.dvc/config): no secrets, only the bucket and endpoint
+uv run dvc remote add -d r2 s3://<bucket>/dvc
+uv run dvc remote modify r2 endpointurl https://<account-id>.r2.cloudflarestorage.com
+uv run dvc remote modify r2 region auto
+# secrets stay local (.dvc/config.local), never committed
+uv run dvc remote modify --local r2 access_key_id <R2 access key id>
+uv run dvc remote modify --local r2 secret_access_key <R2 secret access key>
+# make R2 the default here and stop using the local store
+uv run dvc remote default --local r2        # or: dvc remote remove --local localstore
+uv run dvc push -r r2                        # uploads everything in the local cache
+```
+
+`dvc[s3]` is already in the `ml` dependency group. `dvc push -r r2` uploads from the local cache, so
+run `dvc pull -r localstore` first on a clone whose cache is empty. Afterwards, `dvc status -c -r r2`
+must report nothing missing. The model files the worker serves are a separate copy in object
+storage, pinned by SHA-256 in `services/worker/src/aqua_worker/model_store.py`
+(`python -m aqua_worker.model_store publish <artifact dir>`).

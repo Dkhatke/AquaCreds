@@ -122,7 +122,7 @@ async def test_classify_project_stores_areas_cogs_and_provenance(
         )
     )[0]
     assert row.season_start_year == 2020
-    assert row.model_version == "ecosystem_classifier_v1"
+    assert row.model_version == "ecosystem_classifier_v1.1"
     assert row.features_sha256 == manifest.sha256["features.json"]
     assert row.classes == list(CLASSES)
     assert row.mangrove_ha == out["mangrove_ha"]
@@ -212,8 +212,8 @@ async def test_open_sea_gets_the_training_fill_and_seasons_to_classify(
     )
     assert out["classified_pixels"] == POLYGON_PIXELS
     assert out["dem_items"] == []
-    assert await ml.seasons_to_classify(sessionmaker, 2020, "ecosystem_classifier_v1") == []
-    assert await ml.seasons_to_classify(sessionmaker, 2021, "ecosystem_classifier_v1") == [pid]
+    assert await ml.seasons_to_classify(sessionmaker, 2020, "ecosystem_classifier_v1.1") == []
+    assert await ml.seasons_to_classify(sessionmaker, 2021, "ecosystem_classifier_v1.1") == [pid]
 
 
 # ---------------------------------------------------------------- API
@@ -298,7 +298,7 @@ async def test_mrv_report_quotes_the_latest_classification_as_context(
     assert c["label"].startswith("context only: credits come from field plots")
     assert c["season_start_year"] == 2028
     assert c["mangrove_ha"] == latest["mangrove_ha"]
-    assert c["model_version"] == "ecosystem_classifier_v1"
+    assert c["model_version"] == "ecosystem_classifier_v1.1"
     assert c["model_sha256"] == model_files[1].sha256["model.onnx"]
     assert c["model_heldout_metrics"]["macro_f1"] == 0.6378
     assert c["mangrove_mean_confidence"] == latest["mangrove_mean_confidence"]

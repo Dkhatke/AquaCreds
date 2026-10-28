@@ -1,5 +1,10 @@
 # Model card: `ecosystem_classifier_v1`
 
+> **Superseded by [`ecosystem_classifier_v1.1`](ecosystem_classifier_v1_1.md), the production
+> model.** The v1 files were never pushed to a DVC remote and are lost; this card is kept as
+> history (classifications recorded as v1 refer to it). v1.1 retrained the same configuration on
+> byte-identical features and reproduces every metric below.
+
 Pixel-level coastal ecosystem classifier on Sentinel-2 dry-season features (Phase 1d).
 **Chosen model: LightGBM** (exported to ONNX). All numbers below come from
 `ml/model_cards/ecosystem_classifier_v1_metrics.json`, which `dvc repro train_classifier` writes.
