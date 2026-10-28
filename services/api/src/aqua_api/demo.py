@@ -36,8 +36,10 @@ from sqlalchemy import select
 from aqua_core.models import (
     ChainTxPurpose,
     ChainTxStatus,
+    Membership,
     MRVReport,
     Organization,
+    OrgRole,
     PlatformRole,
     Project,
     SceneObservation,
@@ -115,6 +117,14 @@ Enqueued = list[tuple[str, tuple[Any, ...], str]]
 
 def demo_email(role: str, seed: int) -> str:
     return f"demo.{role}.s{seed}@{EMAIL_DOMAIN}"
+
+
+def visitor_email(seed: int) -> str:
+    """The read-only Explore Demo visitor (see aqua_api.demo_mode); it has no usable password."""
+    return demo_email("visitor", seed)
+
+
+VISITOR_NAME = "Demo Visitor (synthetic, read-only)"
 
 
 def org_name(seed: int) -> str:
@@ -349,6 +359,7 @@ async def seed_demo(
         async with httpx.AsyncClient(transport=transport, base_url="http://demo/api/v1") as client:
             api = {role: _Api(client, token) for role, token in users.items()}
             org_id = await _org(api, sessionmaker, seed, logins, created)
+            await _visitor(sessionmaker, seed, org_id, created)
             project_id = await _project(api, sessionmaker, store, seed, org_id, created)
             await _scenes(sessionmaker, seed, project_id, created)
             reports: dict[str, str] = {}
@@ -437,6 +448,49 @@ async def _org(
         )
         created.append("membership:field")
     return org_id
+
+
+async def _visitor(sessionmaker: Any, seed: int, org_id: str, created: list[str]) -> None:
+    """The Explore Demo visitor: a plain user, `member` of the demo org only, whose password is a
+    random secret that is never stored in clear or printed (nobody can sign in as it; demo
+    sessions are issued by POST /api/v1/demo/session when DEMO_MODE_ENABLED is on)."""
+    from aqua_api.security import hash_password
+    from aqua_core import audit
+
+    async with sessionmaker() as session:
+        email = visitor_email(seed)
+        user = await session.scalar(select(User).where(User.email == email))
+        if user is None:
+            user = User(
+                email=email,
+                full_name=VISITOR_NAME,
+                password_hash=hash_password(secrets.token_urlsafe(32)),
+                platform_role=PlatformRole.USER,
+            )
+            session.add(user)
+            await session.flush()
+            await audit.record(
+                session,
+                actor_id=None,
+                action="demo.user_created",
+                entity_type="user",
+                entity_id=user.id,
+                data={"platform_role": PlatformRole.USER.value, "demo_seed": seed},
+            )
+            created.append("user:visitor")
+        oid = uuid.UUID(org_id)
+        if await session.get(Membership, (user.id, oid)) is None:
+            session.add(Membership(user_id=user.id, org_id=oid, role=OrgRole.MEMBER))
+            await audit.record(
+                session,
+                actor_id=None,
+                action="org.member_added",
+                entity_type="organization",
+                entity_id=oid,
+                data={"user_id": str(user.id), "role": OrgRole.MEMBER.value, "demo_seed": seed},
+            )
+            created.append("membership:visitor")
+        await session.commit()
 
 
 async def _project(
@@ -752,6 +806,8 @@ async def _chain(
 def print_result(result: DemoResult, out: Callable[[str], None] = print) -> None:
     out(f"Demo seeded (seed {result.seed}); everything below is SYNTHETIC demo data.")
     out(f"  organisation: {org_name(result.seed)}  ({result.org_id})")
+    out(f"  Explore Demo: DEMO_MODE_ENABLED=true DEMO_ORG_ID={result.org_id}")
+    out(f"                (read-only visitor {visitor_email(result.seed)}, no password)")
     out(f"  project:      {project_name(result.seed)}  ({result.project_id})")
     out(f"  created this run: {', '.join(result.created) or 'nothing (already complete)'}")
     for kind, rid in result.report_ids.items():

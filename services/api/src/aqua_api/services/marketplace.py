@@ -12,11 +12,15 @@ Sizes: the whole marketplace is folded in memory per request; fine at testnet sc
 events). Move to SQL aggregation before the event count reaches the hundreds of thousands.
 """
 
+import asyncio
+import time
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
+from typing import Any
 
+from eth_utils.address import to_checksum_address
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +32,7 @@ from aqua_api.schemas.marketplace import (
     PricePoint,
     StewardshipSummary,
     TradeOut,
+    UnavailableReason,
     VintageFacts,
 )
 from aqua_api.schemas.public import ProjectRef, PublicProjectSummary, VintageOut
@@ -260,11 +265,150 @@ async def stewardship(
     return out
 
 
+# ---------------------------------------------------------------- on-chain validity
+
+
+@dataclass(frozen=True)
+class Validity:
+    available: bool | None
+    reason: UnavailableReason | None
+
+
+UNKNOWN = Validity(None, "unknown")
+AVAILABLE = Validity(True, None)
+
+# (chain id, credit, marketplace, seller, token id) → (expires at, balance) and
+# (chain id, credit, marketplace, seller) → (expires at, approved). Per process, short-lived.
+_BALANCE_CACHE: dict[tuple[int, str, str, str, int], tuple[float, int]] = {}
+_APPROVAL_CACHE: dict[tuple[int, str, str, str], tuple[float, bool]] = {}
+
+
+def clear_validity_cache() -> None:
+    _BALANCE_CACHE.clear()
+    _APPROVAL_CACHE.clear()
+
+
+def _seller(listing: Listing) -> str | None:
+    seller = listing.listed.args.get("seller")
+    return str(seller).lower() if seller else None
+
+
+async def _read_holdings(
+    client: ChainClient, market: str, pairs: list[tuple[str, int]], sellers: list[str]
+) -> tuple[list[int], list[bool]]:
+    """One `balanceOfBatch` for every (seller, token) pair plus one `isApprovedForAll` per seller,
+    sent concurrently."""
+    await client.check()
+    credit = client.contract("AquaCredit")
+    operator = to_checksum_address(market)
+    calls: list[Any] = []
+    if pairs:
+        calls.append(
+            credit.functions.balanceOfBatch(
+                [to_checksum_address(s) for s, _ in pairs], [t for _, t in pairs]
+            ).call()
+        )
+    calls.extend(
+        credit.functions.isApprovedForAll(to_checksum_address(s), operator).call() for s in sellers
+    )
+    results = await asyncio.gather(*calls)
+    balances = [int(b) for b in results[0]] if pairs else []
+    approvals = [bool(a) for a in results[1 if pairs else 0 :]]
+    return balances, approvals
+
+
+async def validity(
+    settings: Settings,
+    client_factory: Callable[[], ChainClient],
+    listings: Iterable[Listing],
+    ctx: Context,
+    clock: Callable[[], float] = time.monotonic,
+) -> dict[int, Validity]:
+    """Availability per listing id. Closed and expired listings are unavailable by their state;
+    active ones are checked on-chain (seller balance >= remaining, marketplace approved), batched
+    and cached for `MARKETPLACE_VALIDITY_CACHE_S`. Any RPC failure gives `unknown`, never a
+    guess."""
+    out: dict[int, Validity] = {}
+    active: list[Listing] = []
+    for listing in listings:
+        vintage = ctx.vintage_facts(listing.token_id)
+        if listing.status == "cancelled":
+            out[listing.listing_id] = Validity(False, "cancelled")
+        elif listing.status == "sold_out":
+            out[listing.listing_id] = Validity(False, "sold_out")
+        elif vintage is not None and vintage.expired:
+            out[listing.listing_id] = Validity(False, "expired")
+        elif _seller(listing) is None:  # pragma: no cover - the contract always emits a seller
+            out[listing.listing_id] = UNKNOWN
+        else:
+            active.append(listing)
+    if not active:
+        return out
+
+    now = clock()
+    ttl = settings.marketplace_validity_cache_s
+    chain_id = settings.chain_id
+    credit = (settings.chain_credit_address or "").lower()
+    market_addr = (settings.chain_marketplace_address or "").lower()
+
+    def bkey(seller: str, token_id: int) -> tuple[int, str, str, str, int]:
+        return (chain_id, credit, market_addr, seller, token_id)
+
+    def akey(seller: str) -> tuple[int, str, str, str]:
+        return (chain_id, credit, market_addr, seller)
+
+    balance_of: dict[tuple[str, int], int] = {}
+    approved_by: dict[str, bool] = {}
+    for x in active:
+        seller = _seller(x) or ""
+        cached_balance = _BALANCE_CACHE.get(bkey(seller, x.token_id))
+        if cached_balance is not None and cached_balance[0] > now:
+            balance_of[(seller, x.token_id)] = cached_balance[1]
+        cached_approval = _APPROVAL_CACHE.get(akey(seller))
+        if cached_approval is not None and cached_approval[0] > now:
+            approved_by[seller] = cached_approval[1]
+    pairs = sorted({(_seller(x) or "", x.token_id) for x in active} - balance_of.keys())
+    sellers = sorted({_seller(x) or "" for x in active} - approved_by.keys())
+    if pairs or sellers:
+        client = None
+        try:
+            client = client_factory()
+            balances, approvals = await _read_holdings(client, market_addr, pairs, sellers)
+        except Exception as exc:  # any provider failure: availability unknown, not assumed
+            log.warning(
+                "marketplace.validity_unavailable", error=type(exc).__name__, listings=len(active)
+            )
+            for x in active:
+                out[x.listing_id] = UNKNOWN
+            return out
+        finally:
+            if client is not None:
+                await client.close()
+        expires = now + ttl
+        for pair, balance in zip(pairs, balances, strict=True):
+            balance_of[pair] = balance
+            _BALANCE_CACHE[bkey(*pair)] = (expires, balance)
+        for seller, approved in zip(sellers, approvals, strict=True):
+            approved_by[seller] = approved
+            _APPROVAL_CACHE[akey(seller)] = (expires, approved)
+
+    for x in active:
+        seller = _seller(x) or ""
+        if not approved_by[seller]:
+            out[x.listing_id] = Validity(False, "not_approved")
+        elif balance_of[(seller, x.token_id)] < x.remaining:
+            out[x.listing_id] = Validity(False, "insufficient_balance")
+        else:
+            out[x.listing_id] = AVAILABLE
+    return out
+
+
 def listing_out(
     listing: Listing,
     ctx: Context,
     token: PaymentToken,
     scores: dict[uuid.UUID, StewardshipSummary],
+    valid: Validity = UNKNOWN,
 ) -> ListingOut | None:
     vintage = ctx.vintage_facts(listing.token_id)
     project = ctx.project_of(listing.token_id)
@@ -286,6 +430,8 @@ def listing_out(
         listed=reg.chain_ref(listing.listed),
         listed_at=listing.listed.block_time,
         closed=reg.chain_ref(closed) if closed is not None else None,
+        available=valid.available,
+        unavailable_reason=valid.reason,
     )
 
 

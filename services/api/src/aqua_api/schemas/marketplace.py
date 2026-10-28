@@ -18,6 +18,11 @@ from aqua_api.schemas.public import ChainRef, CreditTypeName, ProjectRef, Public
 
 ListingStatus = Literal["active", "sold_out", "cancelled"]
 ListingSort = Literal["newest", "price_asc", "price_desc"]
+# Why a listing cannot be bought right now. `unknown`: the on-chain check failed (RPC error), so
+# availability is not known; never read it as available.
+UnavailableReason = Literal[
+    "sold_out", "cancelled", "expired", "insufficient_balance", "not_approved", "unknown"
+]
 
 
 class PaymentToken(BaseModel):
@@ -65,6 +70,11 @@ class ListingOut(BaseModel):
     listed: ChainRef
     listed_at: datetime | None  # block timestamp
     closed: ChainRef | None  # Cancelled or the Purchased event that sold it out
+    # Active listings are checked on-chain (cached ~60 s): the seller still holds `remaining`
+    # (balanceOf) and the marketplace is still approved (isApprovedForAll). null = not known
+    # (RPC failure, reason `unknown`).
+    available: bool | None
+    unavailable_reason: UnavailableReason | None
 
 
 class TradeOut(BaseModel):
