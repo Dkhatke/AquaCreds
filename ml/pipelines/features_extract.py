@@ -11,7 +11,9 @@ Cache  : data/interim/features_parts/<config-hash>/<h3>.parquet (one file per H3
 
 How (and why not window reads): pixel values are fetched with the Planetary Computer data API
 point endpoint (`/api/data/v1/item/point`), which samples the COG server-side and returns a few
-bytes per (point, scene). Measured on this machine, direct COG block reads ran at 0.3-1 MB/s; the
+bytes per (point, scene). Copernicus DEM elevation is sampled from its signed COGs directly (one
+open per 1° tile, see `dem_elevations`): the data API stopped serving `cop-dem-glo-30` in Oct 2026.
+Measured on this machine, direct COG block reads ran at 0.3-1 MB/s; the
 labels touch ~3,600 distinct 512x512 blocks at 10 m (plus ~1,300 at 20 m), i.e. ~90 GB for 12
 scenes, which is infeasible. The point API needs ~170k small requests (~2-3 h at ~20 req/s).
 
@@ -271,6 +273,79 @@ def search_items(collection: str, geometry: Polygon, throttle: Throttle) -> list
     raise RuntimeError(f"STAC search {collection} failed: {last}")
 
 
+def tiles_for_points(
+    footprints: Sequence[Any], lons: np.ndarray, lats: np.ndarray
+) -> dict[int, list[int]]:
+    """{footprint index: indices of the points it covers}; each point goes to the first
+    footprint covering it, and points covered by none (open sea) are left out."""
+    groups: dict[int, list[int]] = {}
+    for p in range(len(lons)):
+        pt = Point(lons[p], lats[p])
+        k = next((i for i, fp in enumerate(footprints) if fp.covers(pt)), None)
+        if k is not None:
+            groups.setdefault(k, []).append(p)
+    return groups
+
+
+def sample_cog(href: str, lons: Sequence[float], lats: Sequence[float]) -> list[float]:
+    """Band-1 value of the pixel containing each (lon, lat) of a COG in lon/lat (EPSG:4326);
+    NaN where masked or nodata."""
+    import rasterio
+
+    from aqua_geo.network import rasterio_env
+
+    with rasterio_env(), rasterio.open(href) as ds:
+        nodata = ds.nodata
+        return [
+            np.nan
+            if np.ma.is_masked(v[0]) or (nodata is not None and v[0] == nodata)
+            else float(v[0])
+            for v in ds.sample(list(zip(lons, lats, strict=True)), masked=True)
+        ]
+
+
+def dem_elevations(
+    items: Sequence[pystac.Item],
+    lons: np.ndarray,
+    lats: np.ndarray,
+    throttle: Throttle,
+    sampler: Callable[[str, Sequence[float], Sequence[float]], list[float]] = sample_cog,
+) -> list[tuple[float, str | None]]:
+    """Copernicus DEM GLO-30 elevation (m) per point, as (value, error message or None).
+
+    Read directly from the signed COGs, one open per 1°x1° tile, taking the pixel that contains
+    the point (what the data-API point endpoint returns). The v1 extraction used the point
+    endpoint for the DEM too, but by Oct 2026 the Planetary Computer data API refused
+    `cop-dem-glo-30` ("href is not from a registered ingestion source"). A point outside every
+    tile (open sea) is legitimately missing (NaN, no error); a failed read is NaN with the error
+    recorded, so the cell is retried and the failure stays visible.
+    """
+    import planetary_computer
+
+    out: list[tuple[float, str | None]] = [(np.nan, None)] * len(lons)
+    usable = [it for it in items if it.geometry is not None]
+    groups = tiles_for_points([shape(it.geometry) for it in usable], lons, lats)
+    for k, idx in groups.items():
+        item = usable[k]
+        last = ""
+        for attempt in range(SEARCH_ATTEMPTS):
+            throttle.wait()
+            try:
+                href = planetary_computer.sign(item).assets["data"].href  # SAS token per read
+                values = sampler(href, [lons[p] for p in idx], [lats[p] for p in idx])
+            except Exception as exc:  # rasterio/GDAL/HTTP errors share no base class
+                last = f"{DEM_COLLECTION}/{item.id}: {type(exc).__name__}: {exc}"[:300]
+                time.sleep(min(30.0, 2.0 * 2**attempt))
+                continue
+            for p, v in zip(idx, values, strict=True):
+                out[p] = (v, None)
+            break
+        else:
+            for p in idx:
+                out[p] = (np.nan, last)
+    return out
+
+
 def cell_polygon(cell: str) -> Polygon:
     return Polygon([(lng, lat) for lat, lng in h3.cell_to_boundary(cell)])
 
@@ -301,18 +376,6 @@ def extract_cell(
         except RuntimeError as exc:
             return job, None, str(exc)
 
-    def dem_job(p: int) -> tuple[float, str | None]:
-        pt = Point(lons[p], lats[p])
-        for item in dem_items:
-            if item.geometry is not None and shape(item.geometry).covers(pt):
-                try:
-                    vals = api.values(DEM_COLLECTION, item.id, lons[p], lats[p], ["data"])
-                except RuntimeError as exc:
-                    return np.nan, str(exc)
-                if vals is not None:
-                    return vals[0], None
-        return np.nan, None  # no DEM tile (open sea): legitimately missing
-
     obs: dict[tuple[int, str], Sequence[float]] = {}
     errors: list[tuple[int, str]] = []
     for job, values, err in pool.map(s2_job, jobs):
@@ -320,7 +383,7 @@ def extract_cell(
             errors.append((job[0], err))
         elif values is not None:
             obs[job] = values
-    dem = list(pool.map(dem_job, range(len(pts))))
+    dem = dem_elevations(dem_items, lons, lats, api.throttle)
     errors += [(p, e) for p, (_, e) in enumerate(dem) if e]
 
     if obs:

@@ -1,6 +1,9 @@
 import time
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 import numpy as np
+import pystac
 import pytest
 from features_extract import (
     S2_ASSETS,
@@ -8,10 +11,12 @@ from features_extract import (
     Throttle,
     assemble_raw,
     config_hash,
+    dem_elevations,
     point_features,
     select_scenes,
+    tiles_for_points,
 )
-from shapely.geometry import box
+from shapely.geometry import box, mapping
 
 from aqua_geo.features import FEATURE_VARS
 
@@ -100,3 +105,47 @@ def test_throttle_spaces_requests_and_backs_off() -> None:
     t1 = time.monotonic()
     th.wait()
     assert time.monotonic() - t1 >= 0.04
+
+
+def test_tiles_for_points_groups_by_first_covering_footprint() -> None:
+    lons = np.array([86.5, 80.5, 86.2, 70.0])
+    lats = np.array([20.5, 15.5, 20.9, 10.0])
+    assert tiles_for_points([INSIDE, ELSEWHERE, INSIDE], lons, lats) == {0: [0, 2], 1: [1]}
+
+
+def _dem_item(item_id: str, footprint: object) -> pystac.Item:
+    item = pystac.Item(
+        item_id, mapping(footprint), list(footprint.bounds), datetime(2021, 1, 1, tzinfo=UTC), {}
+    )  # type: ignore[attr-defined]
+    item.add_asset("data", pystac.Asset(f"https://example.invalid/{item_id}.tif"))
+    return item
+
+
+def test_dem_elevations_samples_each_tile_once_and_reports_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import planetary_computer
+
+    monkeypatch.setattr(planetary_computer, "sign", lambda item: item)
+    monkeypatch.setattr(time, "sleep", lambda s: None)
+    calls: list[str] = []
+
+    def sampler(href: str, lons: Sequence[float], lats: Sequence[float]) -> list[float]:
+        calls.append(href)
+        if "bad" in href:
+            raise OSError("HTTP 403")
+        return [lon + lat for lon, lat in zip(lons, lats, strict=True)]
+
+    items = [_dem_item("good", INSIDE), _dem_item("bad", ELSEWHERE)]
+    lons = np.array([86.5, 80.5, 86.25, 0.0])
+    lats = np.array([20.5, 15.5, 20.25, 0.0])
+    out = dem_elevations(items, lons, lats, Throttle(1000.0), sampler=sampler)
+    assert out[0] == (107.0, None)
+    assert out[2] == (106.5, None)
+    assert np.isnan(out[1][0])
+    assert "bad" in str(out[1][1])
+    assert "HTTP 403" in str(out[1][1])
+    assert np.isnan(out[3][0])
+    assert out[3][1] is None
+    assert calls.count("https://example.invalid/good.tif") == 1
+    assert calls.count("https://example.invalid/bad.tif") == 5  # retried, then recorded
