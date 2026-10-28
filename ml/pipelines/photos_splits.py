@@ -73,9 +73,7 @@ def split_summary(df: pd.DataFrame) -> dict[str, Any]:
             s: {k: int(v) for k, v in g["label"].value_counts().items()}
             for s, g in df.groupby("split")
         },
-        "observers_per_split": {
-            s: int(g["observer_id"].nunique()) for s, g in df.groupby("split")
-        },
+        "observers_per_split": {s: int(g["observer_id"].nunique()) for s, g in df.groupby("split")},
         "per_split_class": {s: {k: int(v) for k, v in row.items()} for s, row in table.iterrows()},
     }
 

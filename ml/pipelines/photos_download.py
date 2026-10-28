@@ -39,11 +39,13 @@ import hashlib
 import io
 import json
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -57,8 +59,7 @@ DOWNLOAD_LOG = RAW / "download_log.json"
 
 API = "https://api.inaturalist.org/v1/"
 USER_AGENT = (
-    "AquaCreds-photo-verifier/0.1 (blue-carbon MRV research; github.com/Dkhatke/AquaCreds; "
-    "1 req/s)"
+    "AquaCreds-photo-verifier/0.1 (blue-carbon MRV research; github.com/Dkhatke/AquaCreds; 1 req/s)"
 )
 ALLOWED_LICENCES = ("cc0", "cc-by", "cc-by-nc")
 REQUEST_INTERVAL_S = 1.05
@@ -66,11 +67,16 @@ MAX_IMAGE_BYTES = 3 * 1024 * 1024
 DOWNLOAD_BUDGET_BYTES = 900 * 1024 * 1024  # images only; the task-wide cap is 2 GB
 MAX_SIDE_PX = 512
 MAX_PER_OBSERVER = 30
+FETCH_WORKERS = 3
 PER_PAGE = 200
 
 INDIA = 6681
 ASIA = 97395
-REGION_TIERS: tuple[tuple[str, int | None], ...] = (("india", INDIA), ("asia", ASIA), ("world", None))
+REGION_TIERS: tuple[tuple[str, int | None], ...] = (
+    ("india", INDIA),
+    ("asia", ASIA),
+    ("world", None),
+)
 
 MANIFEST_FIELDS = (
     "photo_id",
@@ -204,7 +210,7 @@ def observation_row(
     genus = spec.genus or ""
     if spec.is_positive:
         name = str(taxon.get("name", ""))
-        if not name.split(" ")[0] == spec.genus:
+        if name.split(" ")[0] != spec.genus:
             return None  # e.g. a hybrid or a taxon swap; never guess the genus
     return {
         "photo_id": int(photo["id"]),
@@ -288,12 +294,15 @@ class Client:
     def __init__(self, cache_dir: Path = API_CACHE) -> None:
         self.cache_dir = cache_dir
         self._last = 0.0
+        self._lock = threading.Lock()
 
     def _wait(self) -> None:
-        delay = self._last + REQUEST_INTERVAL_S - time.monotonic()
-        if delay > 0:
-            time.sleep(delay)
-        self._last = time.monotonic()
+        """Space request *starts* ≥ REQUEST_INTERVAL_S apart, across threads."""
+        with self._lock:
+            delay = self._last + REQUEST_INTERVAL_S - time.monotonic()
+            if delay > 0:
+                time.sleep(delay)
+            self._last = time.monotonic()
 
     def get_json(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
         query = urllib.parse.urlencode(sorted(params.items()))
@@ -421,57 +430,78 @@ def _load_log() -> dict[str, int]:
     return {"bytes_downloaded": 0, "bytes_stored": 0, "files": 0, "failed": 0}
 
 
+def _needs_fetch(row: dict[str, Any]) -> bool:
+    path = RAW / row["file"]
+    if not path.exists():
+        return True
+    if row.get("sha256"):
+        return hashlib.sha256(path.read_bytes()).hexdigest() != row["sha256"]
+    return False  # written but the manifest was not checkpointed: re-read it below
+
+
 def cmd_fetch(
     client: Client,
     rows: list[dict[str, Any]],
     get_bytes: Callable[[str], bytes] | None = None,
     checkpoint_every: int = 50,
+    workers: int = FETCH_WORKERS,
 ) -> dict[str, int]:
-    """Resumable: rows whose file exists with the recorded SHA-256 are skipped."""
+    """Resumable: rows whose file exists (with the recorded SHA-256, if any) are not re-fetched.
+
+    Transfers overlap across `workers` threads, but request starts stay ≥ 1 s apart."""
     fetch = get_bytes or client.get_bytes
     log = _load_log()
-    done_since_checkpoint = 0
-    for i, row in enumerate(rows):
+    lock = threading.Lock()
+
+    def one(row: dict[str, Any]) -> None:
         path = RAW / row["file"]
-        if row.get("sha256") and path.exists():
-            if hashlib.sha256(path.read_bytes()).hexdigest() == row["sha256"]:
-                continue
-        if path.exists() and not row.get("sha256"):  # written but manifest not checkpointed
-            data = path.read_bytes()
-        else:
-            if log["bytes_downloaded"] + MAX_IMAGE_BYTES > DOWNLOAD_BUDGET_BYTES:
-                write_manifest(rows)
-                raise RuntimeError(
-                    f"download budget {DOWNLOAD_BUDGET_BYTES} bytes would be exceeded; stopping"
-                )
+        if _needs_fetch(row):
+            with lock:
+                if log["bytes_downloaded"] + MAX_IMAGE_BYTES > DOWNLOAD_BUDGET_BYTES:
+                    raise RuntimeError(
+                        f"download budget {DOWNLOAD_BUDGET_BYTES} bytes would be exceeded"
+                    )
             try:
                 raw = fetch(row["photo_url"])
+                data, _, _ = resize_jpeg(raw)
             except (OSError, ValueError) as exc:
-                log["failed"] += 1
+                with lock:
+                    log["failed"] += 1
                 print(f"  failed photo {row['photo_id']}: {exc}", flush=True)
-                continue
-            log["bytes_downloaded"] += len(raw)
-            data, _, _ = resize_jpeg(raw)
+                return
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
-            log["bytes_stored"] += len(data)
-            log["files"] += 1
+            with lock:
+                log["bytes_downloaded"] += len(raw)
+                log["bytes_stored"] += len(data)
+                log["files"] += 1
+        elif row.get("sha256"):
+            return
+        data = path.read_bytes()
         _, width, height = _image_size(data)
         row.update(
-            width=width,
-            height=height,
-            bytes=len(data),
-            sha256=hashlib.sha256(data).hexdigest(),
+            width=width, height=height, bytes=len(data), sha256=hashlib.sha256(data).hexdigest()
         )
-        done_since_checkpoint += 1
-        if done_since_checkpoint >= checkpoint_every:
-            write_manifest(rows)
-            DOWNLOAD_LOG.write_text(json.dumps(log, indent=1))
-            done_since_checkpoint = 0
-            print(f"  {i + 1}/{len(rows)}  downloaded {log['bytes_downloaded'] / 1e6:.1f} MB")
-    write_manifest(rows)
-    DOWNLOAD_LOG.parent.mkdir(parents=True, exist_ok=True)
-    DOWNLOAD_LOG.write_text(json.dumps(log, indent=1))
+
+    def checkpoint() -> None:
+        write_manifest(rows)
+        DOWNLOAD_LOG.parent.mkdir(parents=True, exist_ok=True)
+        DOWNLOAD_LOG.write_text(json.dumps(log, indent=1))
+
+    todo = [r for r in rows if _needs_fetch(r) or not r.get("sha256")]
+    print(f"{len(todo)} of {len(rows)} rows to fetch", flush=True)
+    try:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for start in range(0, len(todo), checkpoint_every):
+                list(pool.map(one, todo[start : start + checkpoint_every]))
+                checkpoint()
+                print(
+                    f"  {start + checkpoint_every}/{len(todo)}  "
+                    f"downloaded {log['bytes_downloaded'] / 1e6:.1f} MB",
+                    flush=True,
+                )
+    finally:
+        checkpoint()
     return log
 
 
