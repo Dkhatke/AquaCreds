@@ -225,7 +225,8 @@ async def test_list_buy_retire_end_to_end(
             credit.functions.safeTransferFrom(buyer.address, seller.address, token_id, 22, b""),
         )
         back = await listing_one()
-        assert back is not None and back["available"] is True
+        assert back is not None
+        assert back["available"] is True
         await call_as(w3, seller, credit.functions.setApprovalForAll(deployment.marketplace, False))
         revoked = await listing_one()
         assert revoked is not None
