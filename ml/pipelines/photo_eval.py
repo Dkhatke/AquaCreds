@@ -307,33 +307,41 @@ def bioclip_v1_visual() -> Any:
     return visual.eval()
 
 
+class NormalizedVisual:
+    """Wraps an image tower so it takes the production input (RGB 0..1, NCHW) directly."""
+
+    @staticmethod
+    def build(visual: Any, mean: Sequence[float], std: Sequence[float]) -> Any:
+        import torch
+
+        class _Wrapped(torch.nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.visual = visual
+                self.register_buffer("mean", torch.tensor(mean).view(1, 3, 1, 1))
+                self.register_buffer("std", torch.tensor(std).view(1, 3, 1, 1))
+
+            def forward(self, x: Any) -> Any:
+                e = self.visual((x - self.mean) / self.std)
+                return torch.nn.functional.normalize(e, dim=-1)
+
+        return _Wrapped().eval()
+
+
 def embed_bioclip_v1(paths: Sequence[str], batch: int = 32) -> np.ndarray:
+    """Same plain 224 resize as production (no centre crop), CLIP normalisation folded in."""
     import torch
-    from PIL import Image
-    from torchvision import transforms as T
 
     device = "mps" if torch.backends.mps.is_available() else "cpu"
-    visual = bioclip_v1_visual().to(device)
-    tf = T.Compose(
-        [
-            T.Resize(IMG, interpolation=T.InterpolationMode.BICUBIC),
-            T.CenterCrop(IMG),
-            T.ToTensor(),
-            T.Normalize(CLIP_MEAN, CLIP_STD),
-        ]
-    )
+    model = NormalizedVisual.build(bioclip_v1_visual(), CLIP_MEAN, CLIP_STD).to(device)
     out = []
     with torch.no_grad():
         for i in range(0, len(paths), batch):
-            imgs = []
-            for p in paths[i : i + batch]:
-                with Image.open(p) as im:
-                    imgs.append(tf(im.convert("RGB")))
-            e = visual(torch.stack(imgs).to(device))
-            out.append(torch.nn.functional.normalize(e, dim=-1).cpu().numpy())
+            x = torch.from_numpy(np.stack([load_rgb_224(p) for p in paths[i : i + batch]]))
+            out.append(model(x.to(device)).cpu().numpy())
             if i % 640 == 0:
                 print(f"  bioclip_v1 {i}/{len(paths)}", flush=True)
-    del visual
+    del model
     return np.concatenate(out).astype(np.float32)
 
 

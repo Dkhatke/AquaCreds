@@ -141,6 +141,26 @@ def _verify_classifier(sender: Any = None, **_: object) -> None:
     log.info("ml.model.verified", model_version=model.version, sha256=model.model_sha256)
 
 
+@worker_ready.connect
+def _verify_photo_verifier(sender: Any = None, **_: object) -> None:
+    """With PHOTO_VERIFIER_ENABLED, fetch + verify the photo model at start (errors are logged;
+    each evidence check then reports the verifier as unavailable instead of guessing)."""
+    settings = get_settings()
+    if sender is None or not settings.photo_verifier_enabled or not consumes_ml_queue(sender):
+        return
+    from aqua_core.storage import S3ObjectStorage
+    from aqua_worker.photo_verifier import PHOTO_VERIFIER_V1, get_photo_model
+
+    try:
+        model = get_photo_model(S3ObjectStorage(settings), settings.ml_model_cache_dir)
+    except Exception as exc:
+        log.error(
+            "photo_verifier.unavailable", model_version=PHOTO_VERIFIER_V1.version, error=str(exc)
+        )
+        return
+    log.info("photo_verifier.verified", model_version=model.version, sha256=model.model_sha256)
+
+
 @setup_logging.connect
 def _configure_logging(**_: object) -> None:
     settings = get_settings()

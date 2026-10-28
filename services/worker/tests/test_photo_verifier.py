@@ -251,3 +251,40 @@ def test_enabled_runs_the_model(
     assert (green.outcome, blue.outcome) == ("pass", "warn")
     assert green.details is not None
     assert green.details["model_version"] == "test-photo"
+
+
+def test_worker_start_verifies_photo_model_only_when_enabled(
+    settings_env: pytest.MonkeyPatch, model: pv.PhotoModel
+) -> None:
+    from types import SimpleNamespace
+
+    import aqua_core.storage
+    from aqua_worker.celery_app import _verify_photo_verifier
+
+    queue = SimpleNamespace(name="ml")
+    sender = SimpleNamespace(
+        app=SimpleNamespace(amqp=SimpleNamespace(queues=SimpleNamespace(consume_from={"q": queue})))
+    )
+
+    calls: list[str] = []
+
+    def fake_get(storage: object, cache_dir: object) -> pv.PhotoModel:
+        calls.append("get")
+        return model
+
+    settings_env.setattr(aqua_core.storage, "S3ObjectStorage", lambda s: MemoryStorage())
+    settings_env.setattr(pv, "get_photo_model", fake_get)
+    _verify_photo_verifier(sender=sender)  # disabled by default
+    assert calls == []
+    settings_env.setenv("PHOTO_VERIFIER_ENABLED", "true")
+    from aqua_core.settings import get_settings
+
+    get_settings.cache_clear()
+    _verify_photo_verifier(sender=sender)
+    assert calls == ["get"]
+
+    def broken(storage: object, cache_dir: object) -> pv.PhotoModel:
+        raise ModelUnavailableError("missing")
+
+    settings_env.setattr(pv, "get_photo_model", broken)
+    _verify_photo_verifier(sender=sender)  # logged, not raised
