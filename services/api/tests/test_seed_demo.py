@@ -76,15 +76,23 @@ def test_demo_boundary_is_the_gmw_checked_mangrove_square() -> None:
     assert boundary(42) == {
         "type": "Polygon",
         "coordinates": [
-            [[86.837, 20.702], [86.856, 20.702], [86.856, 20.721], [86.837, 20.721], [86.837, 20.702]]
+            [
+                [86.837, 20.702],
+                [86.856, 20.702],
+                [86.856, 20.721],
+                [86.837, 20.721],
+                [86.837, 20.702],
+            ]
         ],
     }
     assert boundary(42 + len(DEMO_SITES)) == boundary(42)  # sites repeat after len(DEMO_SITES)
     bx0, by0, bx1, by1 = INDIA_COASTAL_BBOX
     boxes = [(lon, lat, lon + SIDE_DEG, lat + SIDE_DEG) for lon, lat in DEMO_SITES]
     for x0, y0, x1, y1 in boxes:  # inside the India coast check and in Bhitarkanika
-        assert bx0 < x0 < x1 < bx1 and by0 < y0 < y1 < by1
-        assert 86.75 <= x0 and x1 <= 86.98 and 20.60 <= y0 and y1 <= 20.78
+        assert bx0 < x0 < x1 < bx1
+        assert by0 < y0 < y1 < by1
+        assert 86.75 <= x0 < x1 <= 86.98
+        assert 20.60 <= y0 < y1 <= 20.78
     for i, a in enumerate(boxes):  # different sites never overlap (cross-org overlap rule)
         for b in boxes[i + 1 :]:
             assert a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1]
