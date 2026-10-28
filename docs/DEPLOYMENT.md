@@ -148,18 +148,25 @@ automatically after a reboot.
    [{"AllowedOrigins": ["https://app.example.org"], "AllowedMethods": ["PUT", "GET"],
      "AllowedHeaders": ["content-type"], "MaxAgeSeconds": 3600}]
    ```
-5. **Publish the ecosystem classifier** (once per model version). The model files are DVC outputs
-   that are not in git, so they are not in the worker image. Workers download them from
-   `models/ecosystem_classifier/v1/` in this bucket and use them only if their SHA-256 matches the
-   hashes pinned in `services/worker/src/aqua_worker/model_store.py`. From a machine that has
-   `ml/artifacts/ecosystem_classifier_v1/`, with the app bucket's S3 variables set:
+5. **Publish the ecosystem classifier** (once per model version; production runs
+   `ecosystem_classifier_v1.1`). The model files are DVC outputs that are not in git, so they are
+   not in the worker image. Workers download them from `models/ecosystem_classifier/v1.1/` in this
+   bucket and use them only if their SHA-256 matches the hashes pinned in
+   `services/worker/src/aqua_worker/model_store.py` (`ECOSYSTEM_CLASSIFIER_V1_1`). Get the files
+   from the DVC remote (docs/DATASETS.md), then, with the app bucket's S3 variables set:
    ```bash
-   uv run python -m aqua_worker.model_store publish ml/artifacts/ecosystem_classifier_v1
+   uv run dvc pull train_classifier   # -> ml/artifacts/ecosystem_classifier_v1_1/
+   uv run python -m aqua_worker.model_store publish ml/artifacts/ecosystem_classifier_v1_1
    uv run python -m aqua_worker.model_store verify   # download, hash-check and load it
    ```
+   Expected SHA-256: `model.onnx` `bcdd2297fe0caec6d6c66f775a8d01d9387dc7d9e12c81c03ebef80cbb4f7542`,
+   `features.json` `9c16c74d383c4a0bd5275ba8bb68259df91925588828ae478ba82e5a42c42311`.
    Files whose hashes differ are refused. Each worker that consumes the `ml` queue logs
    `ml.model.verified` (or `ml.model.unavailable`) when it starts. Until the model is published,
-   classifications fail with a clear error and nothing is stored.
+   classifications fail with a clear error and nothing is stored. Do not look for
+   `models/ecosystem_classifier/v1/`: the v1 files were lost before they were ever published
+   (`ml/model_cards/ecosystem_classifier_v1_1.md`), and v1 stays in `model_store.py` only so
+   that any classification recorded as v1 keeps its pins and metrics.
 
 ### 3.7 Secrets file on the VM
 ```bash

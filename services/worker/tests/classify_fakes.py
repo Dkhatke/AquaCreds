@@ -19,7 +19,7 @@ import xarray as xr
 from shapely.geometry.base import BaseGeometry
 
 from aqua_geo.classify import PRODUCTION_FEATURES
-from aqua_worker.model_store import ECOSYSTEM_CLASSIFIER_V1, ModelManifest
+from aqua_worker.model_store import CURRENT_ECOSYSTEM_CLASSIFIER, ModelManifest
 from aqua_worker.scenes import DemRef, LoadedScenes, SceneRef
 
 SIZE = 16
@@ -246,7 +246,7 @@ def linear_onnx(weights: np.ndarray, bias: np.ndarray) -> bytes:
     return data
 
 
-def features_doc(version: str = ECOSYSTEM_CLASSIFIER_V1.version, **kw: Any) -> dict[str, Any]:
+def features_doc(version: str = CURRENT_ECOSYSTEM_CLASSIFIER.version, **kw: Any) -> dict[str, Any]:
     return {
         "model_version": version,
         "feature_columns": list(PRODUCTION_FEATURES),
@@ -260,14 +260,14 @@ def features_doc(version: str = ECOSYSTEM_CLASSIFIER_V1.version, **kw: Any) -> d
 def synthetic_model_files(
     directory: Path, *, doc: dict[str, Any] | None = None, onnx_bytes: bytes | None = None
 ) -> ModelManifest:
-    """Write model.onnx + features.json and return a manifest (v1 settings) pinning them."""
+    """Write model.onnx + features.json and return a manifest (production settings) pinning them."""
     directory.mkdir(parents=True, exist_ok=True)
     model = onnx_bytes if onnx_bytes is not None else linear_onnx(*linear_weights())
     features = json.dumps(doc or features_doc()).encode()
     (directory / "model.onnx").write_bytes(model)
     (directory / "features.json").write_bytes(features)
     return replace(
-        ECOSYSTEM_CLASSIFIER_V1,
+        CURRENT_ECOSYSTEM_CLASSIFIER,
         prefix="models/test-classifier/v1/",
         sha256={
             "model.onnx": hashlib.sha256(model).hexdigest(),

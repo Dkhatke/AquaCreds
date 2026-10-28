@@ -39,7 +39,11 @@ from aqua_worker.alerts import (
 )
 from aqua_worker.celery_app import _verify_classifier, app, beat_schedule, consumes_ml_queue
 from aqua_worker.model_store import (
+    CURRENT_ECOSYSTEM_CLASSIFIER,
     ECOSYSTEM_CLASSIFIER_V1,
+    ECOSYSTEM_CLASSIFIER_V1_1,
+    MANIFESTS,
+    ModelManifest,
     ModelUnavailableError,
     fetch,
     get_model,
@@ -50,8 +54,9 @@ from aqua_worker.scenes import SceneRef
 from aqua_worker.tasks import ml
 
 ROOT = Path(__file__).resolve().parents[3]
-ARTIFACTS = ROOT / "ml/artifacts/ecosystem_classifier_v1"
-METRICS = ROOT / "ml/model_cards/ecosystem_classifier_v1_metrics.json"
+ARTIFACTS = ROOT / "ml/artifacts/ecosystem_classifier_v1_1"
+FEATURES_PARQUET = ROOT / "data/processed/features.parquet"
+CARDS = ROOT / "ml/model_cards"
 GEOMETRY = box(86.85, 20.70, 86.87, 20.72)
 
 
@@ -212,7 +217,7 @@ def test_publish_refuses_unpinned_files_and_uploads_pinned_ones(tmp_path: Path) 
     assert storage.objects[manifest.prefix + "features.json"][1] == "application/json"
     assert uploaded[manifest.prefix + "model.onnx"] == manifest.sha256["model.onnx"]
     with pytest.raises(ModelUnavailableError, match="not publishing"):
-        publish(storage, tmp_path / "src", ECOSYSTEM_CLASSIFIER_V1)
+        publish(storage, tmp_path / "src", CURRENT_ECOSYSTEM_CLASSIFIER)
     with pytest.raises(ModelUnavailableError, match="missing"):
         publish(storage, tmp_path / "none", manifest)
 
@@ -235,7 +240,7 @@ def test_cli_publish_and_verify(
 
     manifest = synthetic_model_files(tmp_path / "src")
     storage = MemoryStorage()
-    monkeypatch.setattr(model_store, "ECOSYSTEM_CLASSIFIER_V1", manifest)
+    monkeypatch.setattr(model_store, "CURRENT_ECOSYSTEM_CLASSIFIER", manifest)
     monkeypatch.setattr(aqua_core.storage, "S3ObjectStorage", lambda settings: storage)
     monkeypatch.setenv("ML_MODEL_CACHE_DIR", str(tmp_path / "cache"))
     from aqua_core.settings import get_settings
@@ -251,10 +256,15 @@ def test_cli_publish_and_verify(
     assert f"sha256={manifest.sha256['model.onnx']}" in out
 
 
-def test_manifest_metrics_match_the_model_card() -> None:
-    doc = json.loads(METRICS.read_text())
+@pytest.mark.parametrize("manifest", [ECOSYSTEM_CLASSIFIER_V1, ECOSYSTEM_CLASSIFIER_V1_1])
+def test_manifest_metrics_match_the_model_card(manifest: ModelManifest) -> None:
+    stem = manifest.version.replace(".", "_")
+    assert manifest.model_card == f"ml/model_cards/{stem}.md"
+    assert (ROOT / manifest.model_card).is_file()
+    doc = json.loads((CARDS / f"{stem}_metrics.json").read_text())
+    assert doc["model_version"] == manifest.version
     held = doc["models"]["lightgbm"]["heldout"]
-    m = ECOSYSTEM_CLASSIFIER_V1.heldout_metrics
+    m = manifest.heldout_metrics
     assert doc["winner"] == "lightgbm"
     assert m["points"] == held["n"]
     assert m["macro_f1"] == round(held["macro_f1"], 4)
@@ -266,9 +276,62 @@ def test_manifest_metrics_match_the_model_card() -> None:
     assert doc["onnx_parity_heldout"]["onnx_bytes"] == 1_412_038
 
 
+def test_production_model_is_v1_1_and_versions_are_distinct() -> None:
+    assert CURRENT_ECOSYSTEM_CLASSIFIER is ECOSYSTEM_CLASSIFIER_V1_1
+    assert CURRENT_ECOSYSTEM_CLASSIFIER.prefix == "models/ecosystem_classifier/v1.1/"
+    assert set(MANIFESTS) == {"ecosystem_classifier_v1", "ecosystem_classifier_v1.1"}
+    assert model_store.manifest_for("ecosystem_classifier_v1") is ECOSYSTEM_CLASSIFIER_V1
+    assert model_store.manifest_for("ecosystem_classifier_v2") is None
+    v1, v11 = ECOSYSTEM_CLASSIFIER_V1, ECOSYSTEM_CLASSIFIER_V1_1
+    assert v1.prefix != v11.prefix
+    assert not set(v1.sha256.values()) & set(v11.sha256.values())
+    # Same training configuration: same scene stack.
+    assert (v1.season_months, v1.max_scenes, v1.max_tile_cloud_pct) == (
+        v11.season_months,
+        v11.max_scenes,
+        v11.max_tile_cloud_pct,
+    )
+
+
+@pytest.mark.parametrize(
+    ("version", "expected"),
+    [
+        ("ecosystem_classifier_v1", ECOSYSTEM_CLASSIFIER_V1.heldout_metrics),
+        ("ecosystem_classifier_v1.1", ECOSYSTEM_CLASSIFIER_V1_1.heldout_metrics),
+        ("ecosystem_classifier_x", None),
+    ],
+)
+def test_report_quotes_the_metrics_of_the_model_that_classified(
+    version: str, expected: Any
+) -> None:
+    from types import SimpleNamespace
+
+    from aqua_worker.tasks.reports import classification_context
+
+    row: Any = SimpleNamespace(
+        model_version=version,
+        season_start_year=2024,
+        mangrove_ha=1.0,
+        class_areas_ha={"mangrove": 1.0},
+        mangrove_mean_confidence=0.9,
+        low_confidence_share=0.0,
+        low_confidence_threshold=0.6,
+        unclassified_pixels=0,
+        polygon_pixels=100,
+        scenes=[],
+        model_sha256="x",
+        pixel_area_m2=100.0,
+        epsg=32645,
+        areal_scale=1.0,
+    )
+    got = classification_context(row)["model_heldout_metrics"]
+    assert got == (dict(expected) if expected is not None else None)
+
+
 @pytest.mark.skipif(not (ARTIFACTS / "model.onnx").exists(), reason="DVC output not present")
-def test_real_v1_artifacts_match_the_pinned_hashes_and_predict() -> None:
+def test_real_v1_1_artifacts_match_the_pinned_hashes_and_predict() -> None:
     model = load_model(ARTIFACTS)
+    assert model.version == "ecosystem_classifier_v1.1"
     assert model.spec.classes == CLASSES
     x = np.random.default_rng(1).normal(0.2, 0.1, (64, 29)).astype("float32")
     labels, probs = model.predict(x)
@@ -277,6 +340,29 @@ def test_real_v1_artifacts_match_the_pinned_hashes_and_predict() -> None:
     np.testing.assert_array_equal(probs, probs2)
     np.testing.assert_allclose(probs.sum(1), 1.0, atol=1e-5)
     np.testing.assert_array_equal(labels, probs.argmax(1))
+
+
+@pytest.mark.skipif(
+    not (ARTIFACTS / "model.lgb.txt").exists() or not FEATURES_PARQUET.exists(),
+    reason="DVC outputs (artifacts + data/processed/features.parquet) not present",
+)
+def test_real_v1_1_onnx_matches_native_lightgbm_on_the_heldout_region() -> None:
+    """The pinned ONNX model against the native LightGBM model on all 1,133 Gulf of Kutch
+    points, prepared like train_classifier.load: same classes, probabilities within float32
+    tree-threshold error (0.014 at export)."""
+    lgb: Any = pytest.importorskip("lightgbm")
+    import pandas as pd
+
+    model = load_model(ARTIFACTS)
+    df = pd.read_parquet(FEATURES_PARQUET)
+    df = df[(df.clear_count >= model.spec.min_clear) & (df.split == "heldout_region")]
+    x = df[list(model.spec.feature_columns)].fillna(dict(model.spec.fill_values))
+    assert len(x) == 1133
+    assert not x.isna().any().any()
+    labels, probs = model.predict(x.to_numpy(dtype="float32"))
+    native = np.asarray(lgb.Booster(model_file=str(ARTIFACTS / "model.lgb.txt")).predict(x))
+    np.testing.assert_array_equal(labels, native.argmax(1))
+    assert float(np.abs(probs - native).max()) < 0.02
 
 
 # ---------------------------------------------------------------- scene selection

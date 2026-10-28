@@ -53,7 +53,12 @@ from aqua_worker.alerts import (
     SeasonArea,
     detect_mangrove_area_loss,
 )
-from aqua_worker.model_store import ECOSYSTEM_CLASSIFIER_V1, LoadedModel, ModelManifest, get_model
+from aqua_worker.model_store import (
+    CURRENT_ECOSYSTEM_CLASSIFIER,
+    LoadedModel,
+    ModelManifest,
+    get_model,
+)
 from aqua_worker.scenes import DemRef, DemSource, SceneRef, SceneSource, StacDemSource
 from aqua_worker.tasks.geo import (
     ACTIVE_STATUSES,
@@ -254,7 +259,7 @@ async def classify_project(
     season_start_year: int,
     *,
     run_id: uuid.UUID | None = None,
-    manifest: ModelManifest = ECOSYSTEM_CLASSIFIER_V1,
+    manifest: ModelManifest = CURRENT_ECOSYSTEM_CLASSIFIER,
     tile: int = 256,
     low_confidence_threshold: float = 0.6,
     loss_rule: AreaLossRule | None = None,
@@ -438,7 +443,9 @@ def last_completed_season(today: date) -> int:
 
 def _model_provider() -> LoadedModel:
     settings = get_settings()
-    return get_model(S3ObjectStorage(settings), settings.ml_model_cache_dir)
+    return get_model(
+        S3ObjectStorage(settings), settings.ml_model_cache_dir, CURRENT_ECOSYSTEM_CLASSIFIER
+    )
 
 
 @shared_task(name="aqua.ml.classify_project", soft_time_limit=2 * 3600, time_limit=2 * 3600 + 300)
@@ -470,7 +477,7 @@ def classify_project_task(
 @shared_task(name="aqua.ml.classify_dry_season", soft_time_limit=600, time_limit=660)
 def classify_dry_season_task(season_start_year: str | int | None = None) -> dict[str, Any]:
     year = int(season_start_year) if season_start_year else last_completed_season(_today())
-    version = ECOSYSTEM_CLASSIFIER_V1.version
+    version = CURRENT_ECOSYSTEM_CLASSIFIER.version
     project_ids = asyncio.run(_with_db(lambda sm: seasons_to_classify(sm, year, version)))
     for pid in project_ids:
         classify_project_task.apply_async(args=[str(pid), year], queue=ML_QUEUE)

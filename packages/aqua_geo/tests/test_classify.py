@@ -27,7 +27,7 @@ from aqua_geo.classify import (
 from aqua_geo.cog import write_class_cog
 
 ROOT = Path(__file__).resolve().parents[3]
-FEATURES_JSON = ROOT / "ml/artifacts/ecosystem_classifier_v1/features.json"
+FEATURES_JSON = ROOT / "ml/artifacts/ecosystem_classifier_v1_1/features.json"
 CLASSES = (
     "built_bare",
     "cropland_aquaculture",
