@@ -66,7 +66,7 @@ USER root
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \
-      fonts-dejavu-core \
+      fonts-dejavu-core libexpat1 \
  && rm -rf /var/lib/apt/lists/*
 USER app
 COPY --from=build-api --chown=app:app /opt/venv /opt/venv
@@ -83,7 +83,7 @@ USER root
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \
-      fonts-dejavu-core \
+      fonts-dejavu-core libexpat1 \
  && rm -rf /var/lib/apt/lists/*
 USER app
 COPY --from=build-worker --chown=app:app /opt/venv /opt/venv
@@ -93,6 +93,12 @@ CMD ["celery", "-A", "aqua_worker.celery_app", "worker", "--loglevel", "INFO", "
 
 # ---------------------------------------------------------------- dev (local only)
 FROM base AS dev
+# Same system libraries as the api/worker images: WeasyPrint (PDFs) and GDAL/rasterio (map tiles).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \
+      fonts-dejavu-core libexpat1 \
+ && rm -rf /var/lib/apt/lists/*
 COPY packages packages
 COPY services services
 RUN --mount=type=cache,target=/root/.cache/uv \
