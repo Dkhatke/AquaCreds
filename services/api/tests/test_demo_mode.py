@@ -14,6 +14,7 @@ import jwt
 import pytest
 from api_testlib import app_client, project_payload, square
 from conftest import FakeStorage
+from fastapi import HTTPException
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute, iter_route_contexts
 from starlette.requests import Request
@@ -397,7 +398,7 @@ def test_allow_list_names_real_get_endpoints() -> None:
     for name in demo_mode.DEMO_READABLE_ENDPOINTS:
         assert name in by_name, f"stale demo allow-list entry {name}"
         route = by_name[name]
-        assert route.methods <= SAFE, name
+        assert (route.methods or set()) <= SAFE, name
         assert _uses_current_user(route.dependant), name
 
 
@@ -408,7 +409,7 @@ async def test_every_non_get_route_refuses_demo_tokens(
     h = _auth((await _session(client))["access_token"])
     checked = 0
     for path, route in _api_routes():
-        for method in sorted(route.methods - SAFE):
+        for method in sorted((route.methods or set()) - SAFE):
             url = _fill(path, route).removeprefix("/api/v1")
             r = await client.request(method, url, headers=h, json={})
             assert r.status_code == 403, (method, path, r.status_code, r.text)
@@ -424,7 +425,7 @@ async def test_every_authenticated_get_outside_the_allow_list_is_forbidden(
     h = _auth((await _session(client))["access_token"])
     checked = 0
     for path, route in _api_routes():
-        if not route.methods & {"GET"} or not _uses_current_user(route.dependant):
+        if "GET" not in (route.methods or set()) or not _uses_current_user(route.dependant):
             continue
         if demo_mode.endpoint_name(route.endpoint) in demo_mode.DEMO_READABLE_ENDPOINTS:
             continue
@@ -445,7 +446,7 @@ async def test_dependency_refuses_writes_even_without_the_middleware(
         _env_file=None, jwt_secret=SECRET, demo_mode_enabled=True, demo_org_id=DEMO_ORG
     )
     request = Request({"type": "http", "method": "POST", "headers": [], "path": "/x"})
-    with pytest.raises(Exception) as caught:
+    with pytest.raises(HTTPException) as caught:
         await demo_mode.authenticate_demo(request, token, None, settings)  # type: ignore[arg-type]
-    assert getattr(caught.value, "status_code", None) == 403
-    assert getattr(caught.value, "detail", {})["code"] == "demo_read_only"
+    assert caught.value.status_code == 403
+    assert caught.value.detail["code"] == "demo_read_only"
