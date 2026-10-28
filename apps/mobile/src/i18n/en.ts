@@ -84,6 +84,7 @@ export const en = {
   "measure.species": "Species",
   "measure.dbh": "DBH (cm)",
   "measure.height": "Height (m, optional)",
+  "measure.condition": "Condition",
   "measure.alive": "Alive",
   "measure.dead": "Dead",
   "measure.addTree": "Add tree",
@@ -105,6 +106,8 @@ export const en = {
   "outbox.checks": "Checks",
   "outbox.retry": "Retry",
   "outbox.remove": "Remove",
+  "outbox.removeConfirm":
+    "Remove this item from the phone? It has not been accepted by the server and cannot be recovered.",
   "outbox.signInToSync": "Sign in again to sync.",
   "outbox.status.queued": "Waiting",
   "outbox.status.sending": "Sending",
