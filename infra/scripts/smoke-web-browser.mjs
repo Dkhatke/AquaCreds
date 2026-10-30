@@ -19,11 +19,16 @@ page.on("console", (m) => {
   if (m.type() === "error" || /content security policy|refused to/i.test(t)) problems.push(`console: ${t}`);
 });
 page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
-page.on("requestfailed", (r) => problems.push(`requestfailed: ${r.url()} ${r.failure()?.errorText}`));
+// Next aborts in-flight RSC prefetches on navigation: not a failure.
+page.on("requestfailed", (r) => {
+  const err = r.failure()?.errorText ?? "";
+  if (err.includes("ERR_ABORTED")) return;
+  problems.push(`requestfailed: ${r.url()} ${err}`);
+});
 await page.addInitScript(() => {
   window.__csp = [];
   document.addEventListener("securitypolicyviolation", (e) =>
-    window.__csp.push(`${e.violatedDirective} blocked ${e.blockedURI}`),
+    window.__csp.push(`${e.violatedDirective} blocked ${e.blockedURI} (${e.sourceFile}:${e.lineNumber} ${e.sample})`),
   );
 });
 
