@@ -70,6 +70,10 @@ DEMO_READABLE_ENDPOINTS = frozenset(
         "aqua_api.routers.field.list_plots",
         "aqua_api.routers.field.list_submissions",
         "aqua_api.routers.field.get_submission",
+        # Map points: a demo visitor is a plain `member`, so only snapped points (403 for raw).
+        "aqua_api.routers.field.evidence_points",
+        "aqua_api.routers.field.list_measurements",
+        "aqua_api.routers.field.list_plot_measurements",
         "aqua_api.routers.analysis.list_runs",
         "aqua_api.routers.analysis.get_run",
         "aqua_api.routers.analysis.timeseries",

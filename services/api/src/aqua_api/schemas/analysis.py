@@ -2,8 +2,10 @@ import uuid
 from datetime import date, datetime
 from typing import Any, Literal, get_args
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from aqua_api.schemas.models import ModelCardSummary, card_summary
+from aqua_core.ml_models import manifest_for
 from aqua_core.models import AlertKind, AlertSeverity, AnalysisKind, AnalysisStatus
 
 OpticalIndex = Literal["ndvi", "evi", "mvi", "ndwi", "mndwi", "ndmi", "cmri"]
@@ -141,6 +143,16 @@ class ClassificationOut(BaseModel):
     classes_cog_sha256: str
     probability_cog_sha256: str
     created_at: datetime
+    # Held-out validation of the model that produced this result (null for a version this API
+    # has no manifest for: then show no metrics rather than another version's).
+    model_card: ModelCardSummary | None = None
+
+    @model_validator(mode="after")
+    def _attach_model_card(self) -> "ClassificationOut":
+        if self.model_card is None:
+            manifest = manifest_for(self.model_version)
+            self.model_card = card_summary(manifest) if manifest is not None else None
+        return self
 
 
 class ClassificationDownloads(BaseModel):

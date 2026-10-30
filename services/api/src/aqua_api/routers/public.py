@@ -39,6 +39,7 @@ from aqua_api.schemas.public import (
     PublicRecordVariant,
     PublicReport,
     PublicReportDetail,
+    PublicStats,
     PublicTimeseries,
     PublicTimeseriesIndex,
     PublicTimeseriesPoint,
@@ -103,6 +104,17 @@ def _links(request: Request) -> pub_reports.LinksFor:
         )
 
     return links
+
+
+# ---------------------------------------------------------------- stats
+
+
+@router.get("/stats", response_model=PublicStats)
+async def public_stats(request: Request, session: SessionDep, settings: SettingsDep) -> Response:
+    """Landing-page aggregates in one call: public project count, total public area, projects
+    by status, credits issued / retired / replaced (from indexed chain events) and indexer
+    freshness. Aggregates only, never per-user or per-submission data. Cacheable (60 s + ETag)."""
+    return cached(request, await reg.stats(session, settings.chain_id))
 
 
 # ---------------------------------------------------------------- projects
