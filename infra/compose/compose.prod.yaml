@@ -8,9 +8,11 @@
 # Each service receives just the variables it needs; nothing here is a usable default.
 #
 # Resource budget (hard memory limits; see docs/DEPLOYMENT.md "Capacity"):
-#   caddy 128M, api 768M, worker-default 1.5G, worker-geo 3G, worker-chain 384M, beat 192M,
-#   db 2.5G, valkey 384M  => 8.84 GB always-on   (+ migrate 512M one-shot, + uptime-kuma 256M optional)
-#   leaving ~3 GB for the kernel, Docker and the page cache, plus a 4 GB swap file as a safety net.
+#   caddy 128M, web 512M, api 768M, worker-default 1.5G, worker-geo 3G, worker-chain 384M, beat 192M,
+#   db 2.5G, valkey 384M  => 9.34 GB always-on   (+ migrate 512M one-shot, + uptime-kuma 256M optional)
+#   leaving ~2.5 GB of a 12 GB VM for the kernel, Docker and the page cache (plenty on the full
+#   24 GB free tier), plus a 4 GB swap file as a safety net. worker-geo (3G) rarely peaks together
+#   with the rest, so real use is well below the sum of the limits.
 # CPU: `cpus` values are per-service ceilings (each <= the VM's 2 OCPUs); they deliberately overlap so
 # idle capacity is not wasted. Under contention `cpu_shares` gives the API, database and proxy priority
 # over batch workers, so a geo job can't starve user-facing requests.
@@ -121,7 +123,8 @@ services:
       - "${HTTPS_PORT:-443}:443"
       - "${HTTPS_PORT:-443}:443/udp"  # HTTP/3
     environment:
-      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN (e.g. aquacreds.duckdns.org)}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN (e.g. api.aquacreds.example.org)}
+      WEB_DOMAIN: ${WEB_DOMAIN:?set WEB_DOMAIN (e.g. aquacreds.example.org)}
       ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL (Let's Encrypt expiry notices)}
       EXPOSE_API_DOCS: ${EXPOSE_API_DOCS:-false}
     volumes:
@@ -131,6 +134,7 @@ services:
     networks: [edge]
     depends_on:
       api: { condition: service_healthy }
+      web: { condition: service_healthy }
     mem_limit: 128m
     cpus: 0.5
     cpu_shares: 1024
@@ -176,6 +180,39 @@ services:
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2).status == 200 else 1)"]
       interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  web:
+    # Next.js standalone server (BFF + site). ONE replica only: the BFF's single-flight token refresh
+    # lives in process memory (apps/web/README.md). Talks to the API over the internal edge network;
+    # holds no secrets (session tokens live in the users' httpOnly cookies).
+    <<: *hardening
+    image: ${WEB_IMAGE:-ghcr.io/dkhatke/aquacreds-web}:${IMAGE_TAG:?set IMAGE_TAG}
+    user: "node"
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=1777,size=64m
+      - /app/apps/web/.next/cache:uid=1000,gid=1000,mode=0755,size=64m
+    environment:
+      NODE_ENV: production
+      AQUA_API_URL: http://api:8000
+      FEATURE_DEMO: ${FEATURE_DEMO:-}
+      FEATURE_TILES: ${FEATURE_TILES:-}
+      COOKIE_INSECURE: ""  # never in production: session cookies are Secure
+      NODE_OPTIONS: --max-old-space-size=384
+    networks: [edge]
+    expose: ["3000"]  # reachable only through Caddy
+    depends_on:
+      api: { condition: service_healthy }
+    mem_limit: 512m
+    cpus: 1.0
+    cpu_shares: 1024
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/"]
+      interval: 30s
       timeout: 5s
       start_period: 20s
       retries: 3
@@ -325,7 +362,7 @@ services:
       retries: 3
 
 networks:
-  edge: {}            # caddy <-> api (and uptime-kuma)
+  edge: {}            # caddy <-> api / web, web -> api (and uptime-kuma)
   data:
     internal: true    # db + valkey: no route to or from the internet
   egress: {}          # outbound internet for app containers (R2, STAC, RPC, Sentry)

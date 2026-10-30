@@ -7,7 +7,8 @@ name: Deploy
 #   DEPLOY_USER         SSH user created by infra/scripts/bootstrap-vm.sh (default name: deploy)
 #   DEPLOY_SSH_KEY      private key (ed25519) whose public half is in that user's authorized_keys
 #   DEPLOY_KNOWN_HOSTS  output of `ssh-keyscan -t ed25519 <host>`, verified against the VM console
-# Optional repository variables: DEPLOY_DIR (default /opt/aquacreds), API_DOMAIN (public readiness check).
+# Optional repository variables: DEPLOY_DIR (default /opt/aquacreds), API_DOMAIN (public readiness check),
+# WEB_DOMAIN (public check that the web app answers).
 # Runbook: docs/DEPLOYMENT.md
 
 on:
@@ -77,6 +78,7 @@ jobs:
       IMAGE_TAG: ${{ needs.preflight.outputs.image_tag }}
       DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/opt/aquacreds' }}
       API_DOMAIN: ${{ vars.API_DOMAIN }}
+      WEB_DOMAIN: ${{ vars.WEB_DOMAIN }}
     steps:
       - uses: actions/checkout@v7
 
@@ -87,10 +89,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # ci.yml builds images only for commits on main; a tag pushed right after a merge may arrive
-      # before that build finishes, so wait (up to 40 min) for both images incl. linux/arm64.
+      # before that build finishes, so wait (up to 40 min) for all three images (api, worker, web) incl. linux/arm64.
       - name: Wait for images in GHCR
         run: |
-          for image in api worker; do
+          for image in api worker web; do
             ref="ghcr.io/dkhatke/aquacreds-${image}:${IMAGE_TAG}"
             for attempt in $(seq 1 80); do
               if manifest="$(docker manifest inspect "$ref" 2>/dev/null)"; then
@@ -156,6 +158,10 @@ jobs:
       - name: Public readiness check
         if: env.API_DOMAIN != ''
         run: curl -fsS --retry 10 --retry-delay 6 --retry-all-errors "https://${API_DOMAIN}/readyz"
+
+      - name: Public web check
+        if: env.WEB_DOMAIN != ''
+        run: curl -fsS --retry 10 --retry-delay 6 --retry-all-errors -o /dev/null "https://${WEB_DOMAIN}/"
 
       - name: Log the VM out of GHCR
         if: always()
