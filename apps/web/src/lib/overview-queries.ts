@@ -109,6 +109,7 @@ export function useSetPreference() {
 export function useRegenerateRecoveryCodes() {
   const qc = useQueryClient();
   return useMutation({
+    meta: { ownAuthError: true },
     mutationFn: (code: string) =>
       unwrap(browserClient().api.POST("/api/v1/auth/mfa/recovery-codes", { body: { code } })),
     onSuccess: () => {

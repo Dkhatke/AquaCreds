@@ -17,7 +17,14 @@ export function Providers({ children }: { children: ReactNode }) {
     };
     return new QueryClient({
       queryCache: new QueryCache({ onError }),
-      mutationCache: new MutationCache({ onError }),
+      // A mutation that checks a credential itself (a wrong TOTP code is a 401 too) sets
+      // `meta.ownAuthError` and shows the error; only other 401s mean the session has ended.
+      mutationCache: new MutationCache({
+        onError: (err, _vars, _ctx, mutation) => {
+          if (mutation.meta?.["ownAuthError"]) return;
+          onError(err);
+        },
+      }),
       defaultOptions: {
         queries: {
           staleTime: 60_000,

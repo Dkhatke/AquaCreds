@@ -18,7 +18,10 @@ export function isLocale(value: string | undefined | null): value is Locale {
   return (LOCALES as readonly string[]).includes(value ?? "");
 }
 
-type Messages = { [key: string]: string | Messages };
+type Messages = { [key: string]: unknown };
+
+const isTree = (v: unknown): v is Messages =>
+  typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** Overlay `over` onto `base`: any key a translation lacks falls back to English. */
 export function mergeMessages(base: Messages, over: Messages): Messages {
@@ -28,10 +31,8 @@ export function mergeMessages(base: Messages, over: Messages): Messages {
     const b = out[k];
     if (typeof v === "string") {
       if (v.trim() !== "") out[k] = v;
-    } else if (typeof b === "object" && b !== null) {
-      out[k] = mergeMessages(b, v);
-    } else {
-      out[k] = mergeMessages({}, v);
+    } else if (isTree(v)) {
+      out[k] = mergeMessages(isTree(b) ? b : {}, v);
     }
   }
   return out;

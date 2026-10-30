@@ -10,5 +10,8 @@ declare namespace NodeJS {
     readonly CI?: string;
     readonly E2E_PORT?: string;
     readonly E2E_BASE_URL?: string;
+    readonly E2E_CONSOLE_PORT?: string;
+    readonly MOCK_API_PORT?: string;
+    readonly SCREENSHOT_DIR?: string;
   }
 }

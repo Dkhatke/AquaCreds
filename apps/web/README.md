@@ -42,6 +42,35 @@ Tokens never reach browser JavaScript or `localStorage`:
 
 Client components use `browserClient()` (the typed client pointed at `/bff`, holding no tokens).
 
+## Internationalisation (English, Hindi, Odia)
+
+`next-intl` 4.14.9 (pinned) **without locale URL prefixes**: the language is the `aq_locale` cookie
+(set by the switcher, one year, `SameSite=Lax`), read in `src/i18n/request.ts`. Why not the built-in
+`[lang]` segment pattern or next-intl routing: every existing URL, the console auth proxy matcher,
+demo links and the OpenAPI-driven `link` paths stay unchanged, and there is no duplicate-URL SEO
+question for an app behind a login. The cost is that pages are rendered per request (they already
+were: `force-dynamic`).
+
+- `messages/en.json` is the source. `hi.json` and `or.json` are laid over it (`mergeMessages`), so any
+  untranslated key renders in **English**, never as a key. Unknown cookie values fall back to English.
+- `hi.json` / `or.json` are **AI-drafted and not reviewed by a native speaker**; each carries
+  `_meta.reviewed: false` (asserted by a unit test) and the UI says so in English plus the language.
+  Flip `reviewed` only after a native-speaker review.
+- Carbon / legal honesty labels use `<HonestyNote>`: the English text under `honesty.*` is always
+  shown (`lang="en"`), and a translation (`honestyLocal.*`, hi/or only) is added beneath it, never in
+  place of it. hi/or must not define `honesty.*` (tested).
+- Server components use `getTranslations`, client components `useTranslations`. Hindi and Odia glyphs
+  come from self-hosted Noto Sans Devanagari / Oriya via `next/font`.
+- Strings still English-only: monitoring panels, marketplace, how-it-works, login/demo, most landing
+  sections, status pill labels, and API-written text (notification titles, report notes).
+
+## End-to-end tests
+
+`pnpm e2e` starts three processes: the app (no API), `e2e/fixtures/mock-api.mjs` and a second app
+instance pointed at it with `FEATURE_DEMO=1`. The mock API is a **test fixture** with obviously
+synthetic records ("Fixture ..."); it exists so the console can be driven without Postgres and must
+never be used for real or promotional screenshots. `SCREENSHOT_DIR=... pnpm e2e` writes screenshots.
+
 ## Imagery
 
 `public/imagery/*.webp` are Sentinel-2 L2A composites of Bhitarkanika rendered by

@@ -74,6 +74,7 @@ export function OverviewMap({ projects, label }: { projects: MapProject[]; label
   useEffect(() => {
     let cancelled = false;
     let map: MlMap | null = null;
+    let resizeObs: ResizeObserver | null = null;
     (async () => {
       try {
         const maplibre = await import("maplibre-gl");
@@ -94,12 +95,16 @@ export function OverviewMap({ projects, label }: { projects: MapProject[]; label
           if (!map?.isStyleLoaded() && e.error) setError(e.error.message);
         });
         mapRef.current = map;
+        // Panels beside the map change height when data arrives; keep the canvas in step.
+        resizeObs = new ResizeObserver(() => map?.resize());
+        resizeObs.observe(container.current);
       } catch (err) {
         setError(err instanceof Error ? err.message : "The map could not start");
       }
     })();
     return () => {
       cancelled = true;
+      resizeObs?.disconnect();
       map?.remove();
       mapRef.current = null;
     };

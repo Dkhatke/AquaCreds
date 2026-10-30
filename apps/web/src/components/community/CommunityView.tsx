@@ -75,7 +75,7 @@ export function CommunityView() {
         <>
           <MembersCard orgId={orgId} isAdmin={isAdmin} />
           <FieldActivity projects={orgProjects} loadingProjects={projects.isPending} />
-          <PlainStewardship orgId={orgId} />
+          <PlainStewardship orgId={orgId} names={new Map(orgProjects.map((p) => [p.id, p.name]))} />
         </>
       )}
       <TipsCard />
@@ -274,7 +274,7 @@ function FieldActivity({
   );
 }
 
-function PlainStewardship({ orgId }: { orgId: string }) {
+function PlainStewardship({ orgId, names }: { orgId: string; names: Map<string, string> }) {
   const t = useTranslations("community.stewardship");
   const q = useOrgStewardship(orgId);
   return (
@@ -287,7 +287,8 @@ function PlainStewardship({ orgId }: { orgId: string }) {
       ) : (
         <div className="mt-4 space-y-5">
           {q.data.projects.map((p) => (
-            <section key={p.project_id} aria-label={p.project_id}>
+            <section key={p.project_id} aria-label={names.get(p.project_id) ?? p.project_id}>
+              <h3 className="text-sm font-semibold">{names.get(p.project_id) ?? p.project_id}</h3>
               <p className="tabular text-sm">
                 <span className="font-display text-2xl font-semibold">
                   {p.score === null ? "—" : formatNumber(p.score, 1)}
