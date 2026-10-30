@@ -156,7 +156,7 @@ echo "API CORS allows $web"
 
 step "smoke user via CLI + login through the BFF"
 smoke_email="smoke-user@example.org"; smoke_pw="$(rnd 12)"
-printf '%s\n' "$smoke_pw" | dc exec -T api aqua-api create-user --email "$smoke_email" --name "Smoke User" --role user >/dev/null 2>&1 \
+printf '%s\n' "$smoke_pw" | dc exec -T api aqua-api create-user --email "$smoke_email" --name "Smoke User" --role user >/dev/null \
   || fail "aqua-api create-user failed"
 jar="$TMP/cookies.txt"
 code="$(curl -sk "${resolve[@]}" -c "$jar" -o /dev/null -w '%{http_code}' -X POST "$web/bff/auth/login" \
