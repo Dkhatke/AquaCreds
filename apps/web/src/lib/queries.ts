@@ -1,7 +1,7 @@
 "use client";
 
 import { unwrap } from "@aquacreds/api-client";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { bffFetch, browserClient } from "./api-browser";
 import { TileJson } from "./pending-contracts";
 
@@ -16,6 +16,15 @@ export const keys = {
   alerts: (id: string) => ["alerts", id] as const,
   stewardship: (id: string) => ["stewardship", id] as const,
   tilejson: (id: string, cid: string) => ["tilejson", id, cid] as const,
+  me: ["me"] as const,
+  periods: (id: string) => ["periods", id] as const,
+  reports: (periodId: string) => ["reports", periodId] as const,
+  report: (id: string) => ["report", id] as const,
+  verify: (id: string) => ["report-verify", id] as const,
+  publicReport: (id: string) => ["public-report", id] as const,
+  plots: (id: string) => ["plots", id] as const,
+  submissions: (periodId: string) => ["submissions", periodId] as const,
+  projectChain: (id: string) => ["project-chain", id] as const,
 };
 
 export function useProjects() {
@@ -81,5 +90,136 @@ export function useTileJson(id: string, cid: string | null, enabled: boolean) {
       if (!parsed.success) throw new Error("Unexpected TileJSON from the API");
       return parsed.data;
     },
+  });
+}
+
+export function useMe() {
+  return useQuery({
+    queryKey: keys.me,
+    queryFn: () => unwrap(browserClient().api.GET("/api/v1/auth/me")),
+  });
+}
+
+export function usePeriods(projectId: string) {
+  return useQuery({
+    queryKey: keys.periods(projectId),
+    queryFn: () =>
+      unwrap(
+        browserClient().api.GET("/api/v1/projects/{project_id}/periods", {
+          params: { path: { project_id: projectId } },
+        }),
+      ),
+    // A report being built flips the period to `analysing`; poll until it is under review.
+    refetchInterval: (q) => (q.state.data?.some((p) => p.status === "analysing") ? 4000 : false),
+  });
+}
+
+/** Report versions of several periods at once (one request each). */
+export function useReportsForPeriods(periodIds: string[]) {
+  return useQueries({
+    queries: periodIds.map((periodId) => ({
+      queryKey: keys.reports(periodId),
+      queryFn: () =>
+        unwrap(
+          browserClient().api.GET("/api/v1/periods/{period_id}/reports", {
+            params: { path: { period_id: periodId } },
+          }),
+        ),
+    })),
+  });
+}
+
+export function useReport(reportId: string) {
+  return useQuery({
+    queryKey: keys.report(reportId),
+    queryFn: () =>
+      unwrap(
+        browserClient().api.GET("/api/v1/reports/{report_id}", {
+          params: { path: { report_id: reportId } },
+        }),
+      ),
+  });
+}
+
+/** DB vs stored vs on-chain hash comparison; only runs when asked (it streams the stored file). */
+export function useVerifyReport(reportId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: keys.verify(reportId),
+    enabled,
+    staleTime: 0,
+    retry: false,
+    queryFn: () =>
+      unwrap(
+        browserClient().api.GET("/api/v1/reports/{report_id}/verify", {
+          params: { path: { report_id: reportId } },
+        }),
+      ),
+  });
+}
+
+/** Methodology profile and software versions (approved reports of public projects only). */
+export function usePublicReport(reportId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: keys.publicReport(reportId),
+    enabled,
+    retry: false,
+    queryFn: () =>
+      unwrap(
+        browserClient().api.GET("/api/v1/public/reports/{report_id}", {
+          params: { path: { report_id: reportId } },
+        }),
+      ),
+  });
+}
+
+export function usePlots(projectId: string) {
+  return useQuery({
+    queryKey: keys.plots(projectId),
+    queryFn: () =>
+      unwrap(
+        browserClient().api.GET("/api/v1/projects/{project_id}/plots", {
+          params: { path: { project_id: projectId } },
+        }),
+      ),
+  });
+}
+
+export function useSubmissionsForPeriods(periodIds: string[]) {
+  return useQueries({
+    queries: periodIds.map((periodId) => ({
+      queryKey: keys.submissions(periodId),
+      queryFn: () =>
+        unwrap(
+          browserClient().api.GET("/api/v1/periods/{period_id}/submissions", {
+            params: { path: { period_id: periodId } },
+          }),
+        ),
+    })),
+  });
+}
+
+export function useProjectChain(projectId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: keys.projectChain(projectId),
+    enabled,
+    queryFn: () =>
+      unwrap(
+        browserClient().api.GET("/api/v1/projects/{project_id}/chain", {
+          params: { path: { project_id: projectId } },
+        }),
+      ),
+  });
+}
+
+export function useChainTx(txId: string | null) {
+  return useQuery({
+    queryKey: ["chain-tx", txId] as const,
+    enabled: txId !== null,
+    queryFn: () =>
+      unwrap(
+        browserClient().api.GET("/api/v1/chain/transactions/{tx_id}", {
+          params: { path: { tx_id: txId ?? "" } },
+        }),
+      ),
   });
 }
