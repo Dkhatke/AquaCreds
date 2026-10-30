@@ -159,10 +159,10 @@ smoke_email="smoke-user@example.org"; smoke_pw="$(rnd 12)"
 printf '%s\n' "$smoke_pw" | docker compose --env-file "$ENV_FILE" exec -T api aqua-api create-user --email "$smoke_email" --name "Smoke User" --role user >/dev/null \
   || fail "aqua-api create-user failed"
 jar="$TMP/cookies.txt"
-code="$(curl -sk "${resolve[@]}" -c "$jar" -o /dev/null -w '%{http_code}' -X POST "$web/bff/auth/login" \
+code="$(curl -sk "${resolve[@]}" -c "$jar" -o "$TMP/login.json" -w '%{http_code}' -X POST "$web/bff/auth/login" \
   -H 'content-type: application/json' -H 'x-aquacreds-csrf: 1' -H "Origin: $web" \
   --data "{\"email\":\"$smoke_email\",\"password\":\"$smoke_pw\"}")"
-[[ "$code" == "200" ]] || fail "BFF login returned $code"
+[[ "$code" == "200" ]] || fail "BFF login returned $code: $(cat "$TMP/login.json")"
 grep -q 'aq_at' "$jar" && grep -E 'HttpOnly' "$jar" | grep -q aq_at || fail "aq_at cookie missing or not HttpOnly"
 echo "BFF login OK (aq_at httpOnly cookie set)"
 code="$(curl -sk "${resolve[@]}" -b "$jar" -o /dev/null -w '%{http_code}' "$web/console")"

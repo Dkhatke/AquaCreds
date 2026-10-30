@@ -89,6 +89,18 @@ describe("/bff/auth/login", () => {
     expect(await res.json()).toEqual({ detail: "Invalid email or password" });
   });
 
+  it("accepts the public https Origin behind the TLS-terminating proxy, refuses others", async () => {
+    const withOrigin = (origin: string) => {
+      const r = req("/bff/auth/login", { body: {} });
+      r.headers.set("origin", origin);
+      r.headers.set("host", "app.example.org");
+      r.headers.set("x-forwarded-proto", "https");
+      return r;
+    };
+    expect((await login(withOrigin("https://evil.example"))).status).toBe(403);
+    expect((await login(withOrigin("https://app.example.org"))).status).not.toBe(403);
+  });
+
   it("refuses requests without the CSRF header", async () => {
     const res = await login(req("/bff/auth/login", { body: {}, csrf: false }));
     expect(res.status).toBe(403);
