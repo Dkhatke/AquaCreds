@@ -56,7 +56,7 @@ stack is sized for 2/12. If you get 4/24, raise `worker-geo` and `db` first.
 | Service | `mem_limit` | `cpus` cap | `cpu_shares` | Idle RSS (smoke test) | Notes |
 |---|---:|---:|---:|---:|---|
 | caddy | 128 MB | 0.5 | 1024 | 16 MB | TLS + proxy |
-| web (Next.js) | 512 MB | 1.0 | 1024 | ~100 MB | single replica, `--max-old-space-size=384`; image ~330 MB |
+| web (Next.js) | 512 MB | 1.0 | 1024 | 77 MB | single replica, `--max-old-space-size=384`; image ~330 MB |
 | api | 768 MB | 1.5 | 1024 | 260 MB | 2 uvicorn workers |
 | worker-default | 1.5 GB | 1.0 | 512 | 160 MB | `default,ml,reports`, concurrency 2 (ONNX photo checks) |
 | worker-geo | 3 GB | 1.5 | 256 | 105 MB | `geo`, concurrency 1, recycled after each task |
