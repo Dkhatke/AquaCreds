@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter, Noto_Sans_Devanagari, Noto_Sans_Oriya, Space_Grotesk } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale } from "next-intl/server";
 import type { ReactNode } from "react";
 import "./globals.css";
 
@@ -11,6 +13,14 @@ const display = Space_Grotesk({
   display: "swap",
 });
 const sans = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+// Hindi and Odia glyphs (Inter has none). Self-hosted by next/font like the others; only fetched
+// by the browser when a page actually contains Devanagari / Odia text (unicode-range subsets).
+const devanagari = Noto_Sans_Devanagari({
+  subsets: ["devanagari"],
+  variable: "--font-devanagari",
+  display: "swap",
+});
+const oriya = Noto_Sans_Oriya({ subsets: ["oriya"], variable: "--font-oriya", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "AquaCreds: blue carbon MRV", template: "%s · AquaCreds" },
@@ -20,10 +30,16 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#0B2024" };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = await getLocale();
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
-      <body className="min-h-dvh antialiased">{children}</body>
+    <html
+      lang={locale}
+      className={`${display.variable} ${sans.variable} ${devanagari.variable} ${oriya.variable}`}
+    >
+      <body className="min-h-dvh antialiased">
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+      </body>
     </html>
   );
 }

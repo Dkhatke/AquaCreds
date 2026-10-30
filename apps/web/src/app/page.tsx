@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { Hero } from "@/components/landing/Hero";
 import { HowItWorks } from "@/components/landing/HowItWorks";
@@ -14,13 +15,14 @@ export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const counts = await getPublicCounts();
+  const t = await getTranslations("siteNav");
   return (
     <>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-lagoon-mint focus:px-3 focus:py-2 focus:text-deep-ocean"
       >
-        Skip to content
+        {t("skip")}
       </a>
       <SiteNav overlay />
       <main id="main">

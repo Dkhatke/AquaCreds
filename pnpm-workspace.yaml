@@ -10,3 +10,10 @@ savePrefix: ""
 strictPeerDependencies: true
 autoInstallPeers: true
 engineStrict: true
+
+# pnpm 12 refuses to run dependency build scripts unless decided explicitly (a CI install fails with
+# ERR_PNPM_IGNORED_BUILDS otherwise). next-intl pulls in these two optional tools for its SWC message
+# extractor/compiler plugin, which we don't use (messages are loaded at runtime), so they stay unbuilt.
+allowBuilds:
+  "@swc/core": false
+  "@parcel/watcher": false

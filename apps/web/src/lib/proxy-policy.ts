@@ -10,6 +10,9 @@ export function proxyable(method: string, segments: string[]): boolean {
   if (segments[0] !== "v1" || segments.length < 2) return false;
   if (segments[1] === "demo") return false; // dedicated handler: it returns a token
   if (segments[1] === "auth") {
+    // Regenerating recovery codes returns codes (no tokens) and needs a fresh TOTP code.
+    if (method === "POST")
+      return segments.length === 4 && segments[2] === "mfa" && segments[3] === "recovery-codes";
     return method === "GET" && segments.length === 3 && AUTH_READS.has(segments[2] ?? "");
   }
   return true;

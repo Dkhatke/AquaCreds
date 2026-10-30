@@ -16,6 +16,10 @@ describe("proxyable", () => {
     expect(proxyable("POST", ["v1", "demo", "session"])).toBe(false);
     expect(proxyable("GET", ["v1", "auth", "me"])).toBe(true);
     expect(proxyable("POST", ["v1", "auth", "me"])).toBe(false);
+    // Recovery-code regeneration returns codes, not tokens, so it is allowed through the proxy.
+    expect(proxyable("POST", ["v1", "auth", "mfa", "recovery-codes"])).toBe(true);
+    expect(proxyable("GET", ["v1", "auth", "mfa", "recovery-codes"])).toBe(false);
+    expect(proxyable("POST", ["v1", "auth", "mfa", "disable"])).toBe(false);
   });
   it("refuses traversal and non-API paths", () => {
     expect(proxyable("GET", ["v1", "..", "readyz"])).toBe(false);
