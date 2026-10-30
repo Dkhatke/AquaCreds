@@ -5,9 +5,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-import pytest
-from api_testlib import BHITARKANIKA, project_payload
-from conftest import FakeStorage
+from api_testlib import BHITARKANIKA
+from conftest import FakeStorage, Field
 from photo_factory import make_jpeg
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -17,38 +16,6 @@ from aqua_worker.tasks.evidence import run_checks
 LON, LAT = BHITARKANIKA  # project square: 86.85-86.87 E, 20.70-20.72 N
 INSIDE = (86.86, 20.71)
 FAR_OUTSIDE = (86.95, 20.80)
-
-
-class Field:
-    """A submitted project with an open period, an admin and a field agent."""
-
-    def __init__(self, admin: Any, agent: Any, project_id: str, period_id: str) -> None:
-        self.admin, self.agent, self.project_id, self.period_id = (
-            admin,
-            agent,
-            project_id,
-            period_id,
-        )
-
-
-@pytest.fixture
-async def field(make_actor: Any, sql: Any) -> Field:
-    admin = await make_actor("NGO Admin")
-    org = (
-        await admin.post("/orgs", json={"name": "Odisha Coastal Trust", "org_type": "ngo"})
-    ).json()
-    agent = await make_actor("Field Agent")
-    await admin.post(
-        f"/orgs/{org['id']}/members", json={"email": agent.email, "role": "field_agent"}
-    )
-    project_id = (await admin.post("/projects", json=project_payload(org["id"]))).json()["id"]
-    await sql("UPDATE projects SET status='submitted' WHERE id=:id", id=project_id)
-    r = await admin.post(
-        f"/projects/{project_id}/periods",
-        json={"kind": "monitoring", "start_date": "2026-01-01", "end_date": "2026-12-31"},
-    )
-    assert r.status_code == 201, r.text
-    return Field(admin, agent, project_id, r.json()["id"])
 
 
 async def _submit(
