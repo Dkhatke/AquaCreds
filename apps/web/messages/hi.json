@@ -1,0 +1,83 @@
+{
+  "_meta": {
+    "status": "ai-drafted",
+    "reviewed": false,
+    "note": "AI-drafted translation. NOT reviewed by a native speaker. Do not treat as final. Untranslated keys fall back to English."
+  },
+  "honestyLocal": {
+    "carbon": "कार्बन के आँकड़े अनुमानित हैं और मान्यता-प्राप्त सत्यापन के लंबित हैं। रजिस्ट्री इकाइयाँ Polygon Amoy टेस्टनेट पर हैं।",
+    "estimated": "अनुमानित, मान्यता-प्राप्त सत्यापन लंबित; टेस्टनेट रजिस्ट्री इकाइयाँ।",
+    "contextOnly": "केवल संदर्भ के लिए: उपग्रह आँकड़ों से क्रेडिट नहीं बनते।",
+    "demo": "डेमो डेटा: यह कोई वास्तविक परियोजना, माप या क्रेडिट नहीं है।"
+  },
+  "siteNav": {
+    "home": "AquaCreds मुखपृष्ठ",
+    "platform": "प्लेटफ़ॉर्म",
+    "technology": "प्रौद्योगिकी",
+    "impact": "प्रभाव",
+    "marketplace": "बाज़ार",
+    "exploreDemo": "डेमो देखें",
+    "menu": "मेन्यू",
+    "skip": "सामग्री पर जाएँ"
+  },
+  "hero": {
+    "eyebrow": "AI-संचालित ब्लू कार्बन MRV",
+    "title": "तटीय पारिस्थितिकी तंत्र से सत्यापन-योग्य कार्बन प्रमाण तक।",
+    "body": "AquaCreds, AI-आधारित पारिस्थितिकी विश्लेषण, उपग्रह जानकारी और ब्लॉकचेन-समर्थित रिकॉर्ड को जोड़कर ब्लू कार्बन निगरानी को अधिक पारदर्शी बनाता है।",
+    "ctaDemo": "डेमो देखें",
+    "ctaTech": "प्रौद्योगिकी जानें"
+  },
+  "footer": {
+    "blurb": "भारत के तटीय पारिस्थितिकी तंत्रों के लिए ब्लू कार्बन MRV, रजिस्ट्री और बाज़ार।",
+    "methodology": "कार्यप्रणाली",
+    "marketplace": "बाज़ार",
+    "demo": "डेमो देखें",
+    "signIn": "साइन इन",
+    "contact": "संपर्क और स्रोत (GitHub)",
+    "dataHeading": "डेटा और श्रेय"
+  },
+  "console": {
+    "nav": {
+      "label": "कंसोल",
+      "overview": "अवलोकन",
+      "monitoring": "उपग्रह निगरानी",
+      "verification": "AI सत्यापन",
+      "registry": "परियोजना रजिस्ट्री",
+      "reports": "MRV रिपोर्ट",
+      "chain": "ब्लॉकचेन रिकॉर्ड",
+      "marketplace": "कार्बन बाज़ार",
+      "community": "समुदाय पोर्टल",
+      "notifications": "सूचनाएँ",
+      "account": "खाता सुरक्षा"
+    },
+    "shell": {
+      "skip": "सामग्री पर जाएँ",
+      "menu": "मेन्यू",
+      "closeNav": "नेविगेशन बंद करें",
+      "demoSession": "डेमो सत्र",
+      "leaveDemo": "डेमो छोड़ें",
+      "signOut": "साइन आउट"
+    }
+  },
+  "notifications": {
+    "bell": "सूचनाएँ",
+    "bellUnread": "सूचनाएँ, {count} अपठित",
+    "title": "सूचनाएँ",
+    "markAllRead": "सभी को पढ़ा हुआ चिह्नित करें"
+  },
+  "overview": {
+    "title": "अवलोकन",
+    "attention": {
+      "title": "आपके ध्यान की ज़रूरत"
+    }
+  },
+  "community": {
+    "title": "समुदाय पोर्टल"
+  },
+  "account": {
+    "title": "खाता सुरक्षा"
+  },
+  "languageLocal": {
+    "reviewNotice": "हिन्दी पाठ AI द्वारा तैयार किया गया अनुवाद है, जिसकी समीक्षा अभी किसी मूल वक्ता ने नहीं की है। जो अभी अनूदित नहीं है वह अंग्रेज़ी में दिखता है।"
+  }
+}

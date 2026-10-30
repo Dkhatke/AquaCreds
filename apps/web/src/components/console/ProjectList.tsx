@@ -15,13 +15,13 @@ import { formatDate, formatNumber, humanize } from "@/lib/format";
 import { useProjects } from "@/lib/queries";
 import { PROJECT_STATUS } from "@/lib/status";
 
-const columns: Column<ProjectOut>[] = [
+const columnsFor = (section: string): Column<ProjectOut>[] => [
   {
     key: "name",
     header: "Project",
     cell: (p) => (
       <Link
-        href={`/console/projects/${p.id}/monitoring`}
+        href={`/console/projects/${p.id}/${section}`}
         className="font-medium text-fg underline-offset-2 hover:underline"
       >
         {p.name}
@@ -43,7 +43,16 @@ const columns: Column<ProjectOut>[] = [
   { key: "start", header: "Start", cell: (p) => formatDate(p.start_date) },
 ];
 
-export function ProjectList({ title, intro }: { title: string; intro: string }) {
+export function ProjectList({
+  title,
+  intro,
+  section = "monitoring",
+}: {
+  title: string;
+  intro: string;
+  /** Which project page the project names link to. */
+  section?: "monitoring" | "reports" | "verification";
+}) {
   const { data, isPending, isError, error, refetch } = useProjects();
   return (
     <div className="mx-auto max-w-6xl p-4 md:p-8">
@@ -67,7 +76,7 @@ export function ProjectList({ title, intro }: { title: string; intro: string }) 
           <DataTable
             caption="Projects"
             hideCaption
-            columns={columns}
+            columns={columnsFor(section)}
             rows={data}
             rowKey={(p) => p.id}
           />

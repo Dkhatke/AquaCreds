@@ -1,51 +1,54 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { Logo } from "@/components/brand/Logo";
+import { HonestyNote } from "@/components/i18n/HonestyNote";
+import { TranslationNotice } from "@/components/i18n/TranslationNotice";
 import { imagery } from "@/lib/imagery";
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const t = await getTranslations("footer");
   return (
     <footer className="surface-dark bg-deep-ocean py-12 text-sm">
       <div className="mx-auto grid max-w-7xl gap-10 px-5 md:grid-cols-[1.3fr_1fr_1fr] md:px-8">
         <div>
           <Logo />
-          <p className="mt-4 max-w-sm text-fg-muted">
-            Blue carbon MRV, registry and marketplace for Indian coastal ecosystems. Carbon figures
-            are estimated, pending accredited verification; registry units are on a testnet.
-          </p>
+          <p className="mt-4 max-w-sm text-fg-muted">{t("blurb")}</p>
+          <HonestyNote kind="estimated" className="mt-2 max-w-sm text-fg-muted" />
+          <TranslationNotice className="mt-3 max-w-sm" />
         </div>
-        <nav aria-label="Footer">
+        <nav aria-label={t("nav")}>
           <h2 className="text-xs font-medium uppercase tracking-wide text-fg-muted">AquaCreds</h2>
           <ul className="mt-3 space-y-2">
             <li>
               <Link href="/how-it-works" className="hover:text-lagoon-mint">
-                Methodology
+                {t("methodology")}
               </Link>
             </li>
             <li>
               <Link href="/marketplace" className="hover:text-lagoon-mint">
-                Marketplace
+                {t("marketplace")}
               </Link>
             </li>
             <li>
               <Link href="/console/demo" className="hover:text-lagoon-mint">
-                Explore the demo
+                {t("demo")}
               </Link>
             </li>
             <li>
               <Link href="/console/login" className="hover:text-lagoon-mint">
-                Sign in
+                {t("signIn")}
               </Link>
             </li>
             <li>
               <a href="https://github.com/Dkhatke/AquaCreds" className="hover:text-lagoon-mint">
-                Contact and source (GitHub)
+                {t("contact")}
               </a>
             </li>
           </ul>
         </nav>
         <div>
           <h2 className="text-xs font-medium uppercase tracking-wide text-fg-muted">
-            Data and attribution
+            {t("dataHeading")}
           </h2>
           <ul className="mt-3 space-y-2 text-fg-muted">
             <li>

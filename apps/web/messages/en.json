@@ -1,0 +1,280 @@
+{
+  "common": {
+    "loading": "Loading",
+    "tryAgain": "Try again",
+    "none": "None",
+    "noData": "No data",
+    "viewAll": "View all",
+    "open": "Open",
+    "save": "Save",
+    "cancel": "Cancel",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "language": {
+    "label": "Language",
+    "reviewNotice": "Hindi and Odia text is an AI-drafted translation that has not yet been reviewed by a native speaker. Anything not yet translated is shown in English."
+  },
+  "honesty": {
+    "carbon": "Carbon figures are estimated, pending accredited verification. Registry units are on the Polygon Amoy testnet.",
+    "estimated": "Estimated, pending accredited verification; testnet registry units.",
+    "contextOnly": "Context only: satellite figures do not generate credits.",
+    "demo": "Demo data: not a real project, measurement or credit."
+  },
+  "siteNav": {
+    "main": "Main",
+    "home": "AquaCreds home",
+    "platform": "Platform",
+    "technology": "Technology",
+    "impact": "Impact",
+    "marketplace": "Marketplace",
+    "exploreDemo": "Explore Demo",
+    "menu": "Menu",
+    "skip": "Skip to content"
+  },
+  "hero": {
+    "eyebrow": "AI-powered blue carbon MRV",
+    "title": "From coastal ecosystems to verifiable carbon evidence.",
+    "body": "AquaCreds combines AI-driven ecosystem analysis, satellite intelligence and blockchain-backed records to make blue carbon monitoring more transparent.",
+    "ctaDemo": "Explore the demo",
+    "ctaTech": "Discover the technology",
+    "alt": "True-colour Sentinel-2 image of the Bhitarkanika mangroves and the Brahmani–Baitarani delta, Odisha, {dates}",
+    "caption": "Bhitarkanika, Odisha · Sentinel-2 L2A, {dates} · {attribution}"
+  },
+  "footer": {
+    "blurb": "Blue carbon MRV, registry and marketplace for Indian coastal ecosystems.",
+    "nav": "Footer",
+    "methodology": "Methodology",
+    "marketplace": "Marketplace",
+    "demo": "Explore the demo",
+    "signIn": "Sign in",
+    "contact": "Contact and source (GitHub)",
+    "dataHeading": "Data and attribution"
+  },
+  "console": {
+    "nav": {
+      "label": "Console",
+      "overview": "Overview",
+      "monitoring": "Satellite monitoring",
+      "verification": "AI verification",
+      "registry": "Project registry",
+      "reports": "MRV reports",
+      "chain": "Blockchain records",
+      "marketplace": "Carbon marketplace",
+      "community": "Community portal",
+      "notifications": "Notifications",
+      "account": "Account security"
+    },
+    "shell": {
+      "skip": "Skip to content",
+      "menu": "Menu",
+      "closeNav": "Close navigation",
+      "demoSession": "Demo session",
+      "leaveDemo": "Leave demo",
+      "signOut": "Sign out",
+      "home": "AquaCreds home"
+    }
+  },
+  "notifications": {
+    "bell": "Notifications",
+    "bellUnread": "Notifications, {count} unread",
+    "title": "Notifications",
+    "intro": "Events that need you: reviews, alerts and decisions on your projects. In-app notifications are always on; email is optional per kind.",
+    "markAllRead": "Mark all as read",
+    "markRead": "Mark as read",
+    "unreadOnly": "Unread only",
+    "empty": "No notifications yet",
+    "emptyUnread": "Nothing unread",
+    "emptyBody": "Notifications about your projects will appear here.",
+    "unread": "Unread",
+    "read": "Read",
+    "page": "Page {page} of {pages}",
+    "previous": "Previous",
+    "next": "Next",
+    "apiLanguage": "Notification titles and bodies are written by the platform in English.",
+    "prefs": {
+      "title": "Email preferences",
+      "meta": "Per notification kind. Source: GET/PUT /api/v1/notifications/preferences",
+      "emailOff": "This deployment does not send email, so these choices have no effect yet.",
+      "email": "Email",
+      "default": "Default",
+      "customised": "Customised",
+      "reset": "Reset to default",
+      "saving": "Saving…",
+      "saved": "Saved"
+    },
+    "kinds": {
+      "report_submitted_for_review": "Report submitted for review",
+      "report_decided": "Report decided",
+      "changes_requested": "Changes requested",
+      "alert_raised": "Alert raised",
+      "submission_rejected": "Field submission rejected",
+      "project_submitted": "Project submitted",
+      "project_registered": "Project registered",
+      "credits_issued": "Credits issued",
+      "forward_fund_offer_status": "Forward-funding offer update",
+      "mfa_recovery_codes_low": "Recovery codes running low"
+    },
+    "open": "Open",
+    "loadError": "Notifications could not be loaded"
+  },
+  "account": {
+    "title": "Account security",
+    "intro": "Two-factor authentication and recovery codes for your sign-in.",
+    "mfa": {
+      "title": "Two-factor authentication",
+      "enabled": "Enabled",
+      "disabled": "Not enabled",
+      "since": "Enabled on {date}",
+      "required": "Required for your account",
+      "notRequired": "Not required for your account",
+      "setupMissing": "Two-factor setup is not available in the web app yet. Enable it from the API (POST /api/v1/auth/mfa/setup, then /mfa/enable)."
+    },
+    "codes": {
+      "title": "Recovery codes",
+      "remaining": "{count, plural, =0 {No unused recovery codes} one {# unused recovery code} other {# unused recovery codes}}",
+      "low": "Only {count} left. Regenerate your recovery codes so you can still sign in if you lose your authenticator.",
+      "none": "You have no unused recovery codes. Regenerate them now.",
+      "regenerate": "Regenerate recovery codes",
+      "totpLabel": "Current 6-digit authenticator code",
+      "totpHelp": "A recovery code cannot be used here. Regenerating invalidates every old code.",
+      "confirm": "Regenerate",
+      "newCodes": "Your new recovery codes",
+      "shownOnce": "Shown once. Each code works once. Store them somewhere safe; they cannot be shown again.",
+      "copy": "Copy codes",
+      "copied": "Copied",
+      "done": "I have saved them",
+      "cancel": "Cancel"
+    }
+  },
+  "overview": {
+    "title": "Overview",
+    "intro": "Your projects at a glance, built only from live API data.",
+    "attention": {
+      "title": "What needs your attention",
+      "meta": "Derived from the projects, reports, submissions and account status below",
+      "empty": "Nothing needs your attention right now.",
+      "pendingReview": "{count, plural, one {# report is waiting for your review} other {# reports are waiting for your review}}",
+      "changesRequested": "Changes requested on {name}",
+      "projectChanges": "Project {name} needs changes before it can proceed",
+      "failedSubmissions": "{count, plural, one {# field submission failed the evidence checks} other {# field submissions failed the evidence checks}}",
+      "lowCodes": "{count, plural, =0 {You have no unused recovery codes} one {You have # recovery code left} other {You have # recovery codes left}}",
+      "mfaRequired": "Two-factor authentication is required for your account but not enabled",
+      "openAlerts": "{count, plural, one {# open alert} other {# open alerts}} on {name}",
+      "review": "Review",
+      "fix": "Fix",
+      "open": "Open"
+    },
+    "projects": {
+      "title": "Projects",
+      "meta": "Source: GET /api/v1/projects · boundary area is geodesic (PostGIS)",
+      "empty": "No projects yet",
+      "emptyBody": "Projects appear here once your organisation registers a boundary, or once you are added to an organisation that has one.",
+      "project": "Project",
+      "status": "Status",
+      "ndvi": "Latest NDVI",
+      "classification": "Latest classification",
+      "alerts": "Open alerts",
+      "report": "Latest report",
+      "noReport": "No report",
+      "noClassification": "Not classified",
+      "area": "Area (ha)",
+      "mangroveHa": "{ha} ha mangrove · {model} · {year} dry season",
+      "ndviAt": "{value} on {date}",
+      "loadingDetail": "Loading…",
+      "detailError": "Unavailable"
+    },
+    "map": {
+      "title": "All project boundaries",
+      "label": "Map of all project boundaries",
+      "empty": "No boundaries to show"
+    },
+    "stewardship": {
+      "title": "Stewardship score",
+      "meta": "Organisation score, 0–100, recomputed on request",
+      "components": "Components",
+      "version": "Score version {version}",
+      "noOrg": "You are not a member of an organisation, so there is no organisation score.",
+      "insufficient": "Not enough data for an organisation score yet",
+      "insufficientComponent": "insufficient data",
+      "forwardFunding": "Forward-funding eligibility: {state}",
+      "eligible": "eligible",
+      "notEligible": "not yet eligible",
+      "insufficientOrg": "Organisation score unavailable"
+    }
+  },
+  "community": {
+    "title": "Community portal",
+    "intro": "Who is in your organisation, what the field team has submitted, and what the stewardship score means in plain language.",
+    "members": {
+      "title": "Organisation members",
+      "meta": "Source: GET /api/v1/orgs/'{'org_id'}'/members (organisation admins only)",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "adminOnly": "Only organisation admins can see the member list.",
+      "empty": "No members",
+      "inviteTitle": "Add a member",
+      "inviteHelp": "Adds an existing registered user by email. The API has no email invitation and no member removal yet.",
+      "emailLabel": "Email of a registered user",
+      "roleLabel": "Role",
+      "add": "Add member",
+      "added": "Added {name}",
+      "roles": {
+        "admin": "Admin",
+        "field_agent": "Field agent",
+        "member": "Member"
+      }
+    },
+    "field": {
+      "title": "Field-team activity",
+      "meta": "Submissions per monitoring period, from GET /api/v1/periods/'{'id'}'/submissions",
+      "period": "Period",
+      "submissions": "Submissions",
+      "checked": "Checked",
+      "rejected": "Rejected",
+      "pending": "Pending",
+      "perAgentGap": "Submissions per agent cannot be shown: the API does not say who submitted a photo. The totals below are per project and period.",
+      "trustTitle": "Trust-score distribution",
+      "trustHelp": "Trust score is 0–100 from the automatic evidence checks. Bands are counts of checked submissions in the periods above.",
+      "band": "{from}–{to}",
+      "noSubmissions": "No field submissions yet",
+      "noPeriods": "No monitoring periods yet"
+    },
+    "stewardship": {
+      "title": "Your stewardship score, in plain language",
+      "intro": "The score is a 0–100 summary of how consistently and how well a project is looked after. It is not a token and cannot be bought or transferred. Every number comes from records in the platform.",
+      "componentHelp": {
+        "default": "A component of the score, computed from the inputs listed with it.",
+        "verification_continuity": "How steadily independent verifiers have approved your monitoring reports. A run of approvals raises it; requests for changes and rejections lower it.",
+        "satellite_survival": "Whether the satellite record shows the mangroves are still there compared with before the project started. A confirmed loss alert that no independent reviewer has cleared lowers it.",
+        "evidence_quality": "How well the latest field photos passed the automatic checks: location, time window, duplicates and photo metadata."
+      },
+      "weight": "weight {weight}",
+      "score": "score {score}",
+      "inputs": "Inputs",
+      "names": {
+        "verification_continuity": "Verification continuity",
+        "satellite_survival": "Satellite-confirmed survival",
+        "evidence_quality": "Evidence quality"
+      }
+    },
+    "tips": {
+      "title": "Getting good evidence",
+      "meta": "Guidance, not statistics",
+      "tip1": "Take the plot-centre photo standing at the plot marker, with the marker visible in the frame.",
+      "tip2": "Wait for GPS accuracy to settle before capturing: a photo taken with a poor fix can fall outside the boundary and fail the location check.",
+      "tip3": "Use the capture-nonce shown in the app for each photo, and capture within its time window.",
+      "tip4": "Do not edit, crop or re-save photos: the checks compare the file hash and EXIF data with what the device recorded.",
+      "tip5": "Photograph each plot in clear light, without a finger or strap over the lens.",
+      "tip6": "Submit photos for the period they belong to; late submissions are checked the same way but may miss the review window."
+    }
+  },
+  "reportStatus": {
+    "draft": "Draft",
+    "under_review": "Under review",
+    "changes_requested": "Changes requested",
+    "approved": "Approved",
+    "rejected": "Rejected"
+  }
+}

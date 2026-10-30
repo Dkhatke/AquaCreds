@@ -1128,6 +1128,16 @@
             ],
             "title": "Mangrove Mean Confidence"
           },
+          "model_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelCardSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "model_sha256": {
             "title": "Model Sha256",
             "type": "string"
@@ -1368,6 +1378,16 @@
             ],
             "title": "Mangrove Mean Confidence"
           },
+          "model_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelCardSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "model_sha256": {
             "title": "Model Sha256",
             "type": "string"
@@ -1588,6 +1608,40 @@
         "title": "ConfidenceLegend",
         "type": "object"
       },
+      "CreditTotals": {
+        "description": "Whole credits summed from indexed AquaCredit events (CreditsIssued, CreditsRetired,\nReversalReplaced) on the configured chain.",
+        "properties": {
+          "issued": {
+            "title": "Issued",
+            "type": "integer"
+          },
+          "outstanding": {
+            "title": "Outstanding",
+            "type": "integer"
+          },
+          "replaced": {
+            "title": "Replaced",
+            "type": "integer"
+          },
+          "retired": {
+            "title": "Retired",
+            "type": "integer"
+          },
+          "vintages": {
+            "title": "Vintages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "vintages",
+          "issued",
+          "retired",
+          "replaced",
+          "outstanding"
+        ],
+        "title": "CreditTotals",
+        "type": "object"
+      },
       "DeliveryOut": {
         "properties": {
           "amount": {
@@ -1780,6 +1834,166 @@
         "title": "EmailPreferenceOut",
         "type": "object"
       },
+      "EvidencePointFeature": {
+        "properties": {
+          "geometry": {
+            "$ref": "#/components/schemas/PointGeometry"
+          },
+          "properties": {
+            "$ref": "#/components/schemas/EvidencePointProperties"
+          },
+          "type": {
+            "const": "Feature",
+            "default": "Feature",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "geometry",
+          "properties"
+        ],
+        "title": "EvidencePointFeature",
+        "type": "object"
+      },
+      "EvidencePointProperties": {
+        "description": "Only what the map needs. `id` and `captured_at` are present for `precision=raw` only;\nsnapped points carry no identifier, so they cannot be joined back to a raw location.",
+        "properties": {
+          "captured_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Captured At"
+          },
+          "gps_accuracy_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gps Accuracy M"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SubmissionKind"
+          },
+          "period_id": {
+            "format": "uuid",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "plot_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plot Code"
+          },
+          "snap": {
+            "enum": [
+              "plot_centre",
+              "grid",
+              "raw"
+            ],
+            "title": "Snap",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SubmissionStatus"
+          },
+          "trust_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trust Score"
+          }
+        },
+        "required": [
+          "snap",
+          "status",
+          "trust_score",
+          "kind",
+          "period_id"
+        ],
+        "title": "EvidencePointProperties",
+        "type": "object"
+      },
+      "EvidencePoints": {
+        "description": "GeoJSON FeatureCollection of a project's field photos for the map.\n\n`precision=snapped` (default, any project viewer): a plot photo sits on its plot centre, any\nother photo on the centre of a `grid_deg` grid cell; never the photo's own GPS fix.\n`precision=raw` (organisation admins and field agents of the project, and staff): the\napp-reported GPS fix.",
+        "properties": {
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/EvidencePointFeature"
+            },
+            "title": "Features",
+            "type": "array"
+          },
+          "grid_deg": {
+            "title": "Grid Deg",
+            "type": "number"
+          },
+          "precision": {
+            "enum": [
+              "snapped",
+              "raw"
+            ],
+            "title": "Precision",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          },
+          "type": {
+            "const": "FeatureCollection",
+            "default": "FeatureCollection",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "precision",
+          "grid_deg",
+          "features",
+          "total",
+          "truncated"
+        ],
+        "title": "EvidencePoints",
+        "type": "object"
+      },
       "EvidenceStats": {
         "description": "Aggregate field-evidence statistics. Individual submissions are never public.",
         "properties": {
@@ -1941,6 +2155,58 @@
           "chain"
         ],
         "title": "HashMatch",
+        "type": "object"
+      },
+      "IndexerStatus": {
+        "description": "How fresh the chain-derived numbers are. All null when nothing has been indexed.",
+        "properties": {
+          "chain_id": {
+            "title": "Chain Id",
+            "type": "integer"
+          },
+          "last_event_block_time": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Event Block Time"
+          },
+          "last_indexed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Indexed At"
+          },
+          "last_indexed_block": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Indexed Block"
+          }
+        },
+        "required": [
+          "chain_id",
+          "last_indexed_block",
+          "last_indexed_at",
+          "last_event_block_time"
+        ],
+        "title": "IndexerStatus",
         "type": "object"
       },
       "IssuanceOut": {
@@ -2271,9 +2537,19 @@
       },
       "MeasurementOut": {
         "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "measured_by": {
+            "format": "uuid",
+            "title": "Measured By",
             "type": "string"
           },
           "measured_on": {
@@ -2308,9 +2584,11 @@
           "id",
           "plot_id",
           "period_id",
+          "measured_by",
           "measured_on",
           "trees",
-          "notes"
+          "notes",
+          "created_at"
         ],
         "title": "MeasurementOut",
         "type": "object"
@@ -2530,6 +2808,112 @@
         "title": "MfaVerifyIn",
         "type": "object"
       },
+      "ModelCardSummary": {
+        "description": "What a client needs to show a model's validation next to its output. Every number is\ncopied from the model card's metrics JSON (`metrics_file`) and checked against it in tests.\n`heldout_metrics` is the clean estimate (a region never used for training or tuning).",
+        "properties": {
+          "algorithm": {
+            "title": "Algorithm",
+            "type": "string"
+          },
+          "current": {
+            "title": "Current",
+            "type": "boolean"
+          },
+          "cv_metrics": {
+            "additionalProperties": true,
+            "title": "Cv Metrics",
+            "type": "object"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "files_available": {
+            "title": "Files Available",
+            "type": "boolean"
+          },
+          "heldout_metrics": {
+            "additionalProperties": true,
+            "title": "Heldout Metrics",
+            "type": "object"
+          },
+          "heldout_per_class": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "title": "Heldout Per Class",
+            "type": "object"
+          },
+          "metrics_file": {
+            "title": "Metrics File",
+            "type": "string"
+          },
+          "model_card": {
+            "title": "Model Card",
+            "type": "string"
+          },
+          "model_card_url": {
+            "title": "Model Card Url",
+            "type": "string"
+          },
+          "sha256": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Sha256",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "family",
+          "version",
+          "current",
+          "files_available",
+          "algorithm",
+          "model_card",
+          "model_card_url",
+          "metrics_file",
+          "heldout_metrics",
+          "heldout_per_class",
+          "cv_metrics",
+          "sha256"
+        ],
+        "title": "ModelCardSummary",
+        "type": "object"
+      },
+      "ModelFamilyOut": {
+        "properties": {
+          "current_version": {
+            "title": "Current Version",
+            "type": "string"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCardSummary"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "family",
+          "current_version",
+          "versions"
+        ],
+        "title": "ModelFamilyOut",
+        "type": "object"
+      },
       "MonthlyIndexValue": {
         "properties": {
           "median_p50": {
@@ -2643,7 +3027,7 @@
         "title": "MultiPolygon",
         "type": "object"
       },
-      "NonceOut": {
+      "NonceBatchItem": {
         "properties": {
           "expires_at": {
             "format": "date-time",
@@ -2658,6 +3042,110 @@
         "required": [
           "nonce",
           "expires_at"
+        ],
+        "title": "NonceBatchItem",
+        "type": "object"
+      },
+      "NonceBatchOut": {
+        "description": "Pre-issued nonces for offline capture: each single-use, bound to the caller and the\nperiod, valid from `issued_at` to `expires_at`. Photos taken with one get a lower-weight\n`capture_nonce` check (`nonce_mode: batch`): they prove only capture after `issued_at`.",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "issued_at": {
+            "format": "date-time",
+            "title": "Issued At",
+            "type": "string"
+          },
+          "mode": {
+            "const": "batch",
+            "default": "batch",
+            "title": "Mode",
+            "type": "string"
+          },
+          "nonces": {
+            "items": {
+              "$ref": "#/components/schemas/NonceBatchItem"
+            },
+            "title": "Nonces",
+            "type": "array"
+          },
+          "period_id": {
+            "format": "uuid",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "server_time": {
+            "format": "date-time",
+            "title": "Server Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "period_id",
+          "issued_at",
+          "expires_at",
+          "server_time",
+          "nonces"
+        ],
+        "title": "NonceBatchOut",
+        "type": "object"
+      },
+      "NonceBatchRequest": {
+        "properties": {
+          "count": {
+            "default": 10,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "title": "NonceBatchRequest",
+        "type": "object"
+      },
+      "NonceMode": {
+        "enum": [
+          "live",
+          "batch"
+        ],
+        "title": "NonceMode",
+        "type": "string"
+      },
+      "NonceOut": {
+        "description": "A single-use capture nonce. `server_time` lets the app estimate its clock offset (the\nworker compares the app's `captured_at` against `issued_at`/`expires_at`).",
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "issued_at": {
+            "format": "date-time",
+            "title": "Issued At",
+            "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/NonceMode",
+            "default": "live"
+          },
+          "nonce": {
+            "title": "Nonce",
+            "type": "string"
+          },
+          "server_time": {
+            "format": "date-time",
+            "title": "Server Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nonce",
+          "expires_at",
+          "issued_at",
+          "server_time"
         ],
         "title": "NonceOut",
         "type": "object"
@@ -3743,6 +4231,35 @@
           "marker_id"
         ],
         "title": "PlotOut",
+        "type": "object"
+      },
+      "PointGeometry": {
+        "properties": {
+          "coordinates": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Coordinates",
+            "type": "array"
+          },
+          "type": {
+            "const": "Point",
+            "default": "Point",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "coordinates"
+        ],
+        "title": "PointGeometry",
         "type": "object"
       },
       "Polygon": {
@@ -4982,6 +5499,75 @@
           "traceability"
         ],
         "title": "PublicReportDetail",
+        "type": "object"
+      },
+      "PublicStats": {
+        "description": "Platform-wide aggregates for the landing page (no personal data, no per-project rows).\n\nProjects count when public (not draft or rejected), the same set `GET /public/projects`\nlists; `registered` and `monitoring` are project lifecycle statuses, `registered_on_chain`\ncounts those with an indexed ProjectRegistered event.",
+        "properties": {
+          "area_ha": {
+            "title": "Area Ha",
+            "type": "number"
+          },
+          "chain": {
+            "$ref": "#/components/schemas/IndexerStatus"
+          },
+          "credits": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CreditTotals"
+            },
+            "propertyNames": {
+              "enum": [
+                "temporary",
+                "long_term"
+              ]
+            },
+            "title": "Credits",
+            "type": "object"
+          },
+          "credits_total": {
+            "$ref": "#/components/schemas/CreditTotals"
+          },
+          "monitoring": {
+            "title": "Monitoring",
+            "type": "integer"
+          },
+          "projects": {
+            "title": "Projects",
+            "type": "integer"
+          },
+          "projects_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Projects By Status",
+            "type": "object"
+          },
+          "registered": {
+            "title": "Registered",
+            "type": "integer"
+          },
+          "registered_on_chain": {
+            "title": "Registered On Chain",
+            "type": "integer"
+          },
+          "retirements": {
+            "title": "Retirements",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "projects",
+          "area_ha",
+          "projects_by_status",
+          "registered",
+          "monitoring",
+          "registered_on_chain",
+          "credits",
+          "credits_total",
+          "retirements",
+          "chain"
+        ],
+        "title": "PublicStats",
         "type": "object"
       },
       "PublicTimeseries": {
@@ -8625,6 +9211,134 @@
         ]
       }
     },
+    "/api/v1/models": {
+      "get": {
+        "description": "Every model family with all its published versions.",
+        "operationId": "list_models_api_v1_models_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelFamilyOut"
+                  },
+                  "title": "Response List Models Api V1 Models Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Models",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/models/{family}": {
+      "get": {
+        "operationId": "get_model_family_api_v1_models__family__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ecosystem-classifier",
+                "photo-verifier"
+              ],
+              "title": "Family",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelFamilyOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Model Family",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/models/{family}/{version}": {
+      "get": {
+        "description": "One version's model card summary (`version` as stored on results, e.g.\n`ecosystem_classifier_v1.1`). 404 for a version this API does not know.",
+        "operationId": "get_model_version_api_v1_models__family___version__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "family",
+            "required": true,
+            "schema": {
+              "enum": [
+                "ecosystem-classifier",
+                "photo-verifier"
+              ],
+              "title": "Family",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelCardSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Model Version",
+        "tags": [
+          "models"
+        ]
+      }
+    },
     "/api/v1/notifications": {
       "get": {
         "description": "Newest first.",
@@ -9149,6 +9863,76 @@
         ]
       }
     },
+    "/api/v1/periods/{period_id}/measurements": {
+      "get": {
+        "description": "Plot measurements recorded in a period (optionally one plot's), oldest first.",
+        "operationId": "list_measurements_api_v1_periods__period_id__measurements_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Period Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "plot_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Plot Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MeasurementOut"
+                  },
+                  "title": "Response List Measurements Api V1 Periods  Period Id  Measurements Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Measurements",
+        "tags": [
+          "field evidence"
+        ]
+      }
+    },
     "/api/v1/periods/{period_id}/nonces": {
       "post": {
         "operationId": "issue_nonce_api_v1_periods__period_id__nonces_post",
@@ -9192,6 +9976,65 @@
           }
         ],
         "summary": "Issue Nonce",
+        "tags": [
+          "field evidence"
+        ]
+      }
+    },
+    "/api/v1/periods/{period_id}/nonces/batch": {
+      "post": {
+        "description": "Pre-issue up to 20 single-use nonces for offline capture (field agents and org admins).\n\nValid for `CAPTURE_NONCE_BATCH_TTL_H` (default 72 h), bound to the caller and this period.\nA photo taken with one gets a lower-weight `capture_nonce` check (`nonce_mode: batch`): it\nproves only that the photo was taken after the batch was issued. An agent may hold at most\n`CAPTURE_NONCE_BATCH_MAX_OUTSTANDING` unused, unexpired batch nonces per period (409).",
+        "operationId": "issue_nonce_batch_api_v1_periods__period_id__nonces_batch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Period Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NonceBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NonceBatchOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Issue Nonce Batch",
         "tags": [
           "field evidence"
         ]
@@ -9256,7 +10099,69 @@
       }
     },
     "/api/v1/periods/{period_id}/plots/{plot_id}/measurements": {
+      "get": {
+        "description": "Read-back of one plot's measurement in the period: `[]` or one item (a plot is measured\nonce per period). Lets the app confirm a record after a lost response.",
+        "operationId": "list_plot_measurements_api_v1_periods__period_id__plots__plot_id__measurements_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "period_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Period Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "plot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Plot Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MeasurementOut"
+                  },
+                  "title": "Response List Plot Measurements Api V1 Periods  Period Id  Plots  Plot Id  Measurements Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Plot Measurements",
+        "tags": [
+          "field evidence"
+        ]
+      },
       "post": {
+        "description": "Record a plot's tree measurements for the period (one per plot and period). With an\n`Idempotency-Key`, a retry within 24 h returns the original 201 response instead of\n`409 already measured`.",
         "operationId": "record_measurement_api_v1_periods__period_id__plots__plot_id__measurements_post",
         "parameters": [
           {
@@ -9277,6 +10182,25 @@
               "format": "uuid",
               "title": "Plot Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "UUID chosen by the client per logical request; a retry within 24 h with the same key and body returns the original response.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UUID chosen by the client per logical request; a retry within 24 h with the same key and body returns the original response.",
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -9441,6 +10365,7 @@
     },
     "/api/v1/periods/{period_id}/submissions": {
       "get": {
+        "description": "Submissions of a period in arrival order, `limit`/`offset` paginated; the total (after\nthe optional `sha256` filter) is in the `X-Total-Count` header.",
         "operationId": "list_submissions_api_v1_periods__period_id__submissions_get",
         "parameters": [
           {
@@ -9451,6 +10376,46 @@
               "format": "uuid",
               "title": "Period Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sha256",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sha256"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
             }
           }
         ],
@@ -9491,6 +10456,7 @@
         ]
       },
       "post": {
+        "description": "Create a photo submission (checks run in the worker). With an `Idempotency-Key`, a retry\nwithin 24 h returns the original 202 response instead of `409 Capture nonce already used`.",
         "operationId": "create_submission_api_v1_periods__period_id__submissions_post",
         "parameters": [
           {
@@ -9501,6 +10467,25 @@
               "format": "uuid",
               "title": "Period Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "UUID chosen by the client per logical request; a retry within 24 h with the same key and body returns the original response.",
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UUID chosen by the client per logical request; a retry within 24 h with the same key and body returns the original response.",
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -10668,6 +11653,86 @@
         "summary": "Request Document Upload",
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{project_id}/evidence-points": {
+      "get": {
+        "description": "Field photos as map points with status and trust score only (GeoJSON).\n\n`snapped` (default; anyone who can see the project): a photo linked to a plot is placed on\nthe plot centre; any other photo on the centre of its `EVIDENCE_GRID_DEG` grid cell (0.005°,\n~0.5 km). The photo's own GPS fix is never returned, and snapped points carry no submission id\nor capture time. `raw` (field team and staff only, else 403): the app-reported fix, id and\ncapture time. At most 5000 points, newest first (`truncated` says if more exist).",
+        "operationId": "evidence_points_api_v1_projects__project_id__evidence_points_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Project Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "precision",
+            "required": false,
+            "schema": {
+              "default": "snapped",
+              "enum": [
+                "snapped",
+                "raw"
+              ],
+              "title": "Precision",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "period_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Period Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidencePoints"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Evidence Points",
+        "tags": [
+          "field evidence"
         ]
       }
     },
@@ -12193,6 +13258,28 @@
           }
         },
         "summary": "Retirement Qr",
+        "tags": [
+          "public registry"
+        ]
+      }
+    },
+    "/api/v1/public/stats": {
+      "get": {
+        "description": "Landing-page aggregates in one call: public project count, total public area, projects\nby status, credits issued / retired / replaced (from indexed chain events) and indexer\nfreshness. Aggregates only, never per-user or per-submission data. Cacheable (60 s + ETag).",
+        "operationId": "public_stats_api_v1_public_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStats"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Public Stats",
         "tags": [
           "public registry"
         ]

@@ -22,7 +22,7 @@ from aqua_core.storage import StoredObject
 POSTGIS_IMAGE = "imresamu/postgis:17-3.6"
 ANVIL_IMAGE = "ghcr.io/foundry-rs/foundry:v1.7.0"
 TABLES = (
-    "notifications, notification_preferences, "
+    "idempotency_records, notifications, notification_preferences, "
     "mrv_reports, chain_events, chain_cursors, chain_transactions, org_wallets, "
     "mfa_recovery_codes, audit_log, alerts, classifications, sar_observations, "
     "scene_observations, analysis_runs, "
@@ -211,3 +211,38 @@ def make_actor(client: httpx.AsyncClient) -> Any:
         return Actor(client, email, login.json()["access_token"], uuid.UUID(r.json()["id"]))
 
     return _make
+
+
+class Field:
+    """A submitted project with an open period, an admin and a field agent."""
+
+    def __init__(self, admin: Any, agent: Any, project_id: str, period_id: str) -> None:
+        self.admin, self.agent, self.project_id, self.period_id = (
+            admin,
+            agent,
+            project_id,
+            period_id,
+        )
+
+
+@pytest.fixture
+async def field(make_actor: Any, sql: Any) -> Field:
+    """Shared by test_field and test_api_gaps."""
+    from api_testlib import project_payload
+
+    admin = await make_actor("NGO Admin")
+    org = (
+        await admin.post("/orgs", json={"name": "Odisha Coastal Trust", "org_type": "ngo"})
+    ).json()
+    agent = await make_actor("Field Agent")
+    await admin.post(
+        f"/orgs/{org['id']}/members", json={"email": agent.email, "role": "field_agent"}
+    )
+    project_id = (await admin.post("/projects", json=project_payload(org["id"]))).json()["id"]
+    await sql("UPDATE projects SET status='submitted' WHERE id=:id", id=project_id)
+    r = await admin.post(
+        f"/projects/{project_id}/periods",
+        json={"kind": "monitoring", "start_date": "2026-01-01", "end_date": "2026-12-31"},
+    )
+    assert r.status_code == 201, r.text
+    return Field(admin, agent, project_id, r.json()["id"])

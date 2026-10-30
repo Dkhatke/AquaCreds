@@ -33,6 +33,7 @@ import numpy as np
 from PIL import Image, ImageOps
 
 from aqua_core.logging import get_logger
+from aqua_core.ml_models import PHOTO_VERIFIER_V1 as PHOTO_VERIFIER_V1
 from aqua_core.storage import ObjectStorage
 from aqua_worker.model_store import ModelManifest, ModelUnavailableError, fetch, sha256_hex
 
@@ -40,30 +41,6 @@ log = get_logger("aqua_worker.photo_verifier")
 
 INPUT_SIZE = 224
 TOP_GENERA = 3
-
-PHOTO_VERIFIER_V1 = ModelManifest(
-    version="photo_verifier_v1",
-    prefix="models/photo_verifier/v1/",
-    model_file="model.onnx",
-    features_file="labels.json",
-    sha256={
-        "model.onnx": "3609c78f1ff91dbfd83a84dc2c58d6006c13497f99ea303683e4269b17971e69",
-        "labels.json": "1f54be790ddfe83a5d9469ebb15734194385507e9eaf874909fcc944edc19ae1",
-    },
-    # Copied from ml/model_cards/photo_verifier_v1_metrics.json (candidates.probe_bioclip_v1);
-    # test_photo_verifier checks they still match that file.
-    heldout_metrics={
-        "candidate": "probe_bioclip_v1",
-        "test_observer_f1": 0.9875,
-        "test_observer_auroc": 0.9971,
-        "test_state_f1": 0.962,
-        "test_state_auroc": 0.996,
-        "test_state": "Maharashtra (never used for training, tuning or thresholds)",
-        "label_note": "iNaturalist research-grade photos, not field captures from the app",
-    },
-    model_card="ml/model_cards/photo_verifier_v1.md",
-    max_file_bytes=400 * 1024 * 1024,  # fp32 ViT-B/16 + head: 345207351 bytes
-)
 
 
 @dataclass(frozen=True)

@@ -450,3 +450,18 @@ async def test_dependency_refuses_writes_even_without_the_middleware(
         await demo_mode.authenticate_demo(request, token, None, settings)  # type: ignore[arg-type]
     assert caught.value.status_code == 403
     assert caught.value.detail["code"] == "demo_read_only"
+
+
+async def test_demo_map_points_are_snapped_only(
+    client: httpx.AsyncClient, make_actor: Any, sql: Any
+) -> None:
+    world = await _seed_world(client, make_actor, sql)
+    h = _auth((await _session(client))["access_token"])
+    url = f"/projects/{world['demo_project']}/evidence-points"
+    r = await client.get(url, headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["precision"] == "snapped"
+    # The visitor is a plain member: raw photo GPS is refused like for any member.
+    assert (await client.get(url, params={"precision": "raw"}, headers=h)).status_code == 403
+    real = f"/projects/{world['real_project']}/evidence-points"
+    assert (await client.get(real, headers=h)).status_code == 404

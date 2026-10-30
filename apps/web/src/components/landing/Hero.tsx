@@ -1,9 +1,12 @@
 import Image from "next/image";
+import { getTranslations } from "next-intl/server";
 import { ButtonLink, buttonClasses } from "@/components/ui";
 import { formatDate } from "@/lib/format";
 import { heroImage, imagery } from "@/lib/imagery";
 
-export function Hero() {
+export async function Hero() {
+  const t = await getTranslations("hero");
+  const dates = imagery.dates.map(formatDate).join(" and ");
   return (
     <section
       aria-labelledby="hero-title"
@@ -11,7 +14,7 @@ export function Hero() {
     >
       <Image
         src={`/imagery/${heroImage.file}`}
-        alt={`True-colour Sentinel-2 image of the Bhitarkanika mangroves and the Brahmani–Baitarani delta, Odisha, ${imagery.dates.map(formatDate).join(" and ")}`}
+        alt={t("alt", { dates })}
         fill
         priority
         sizes="100vw"
@@ -25,28 +28,27 @@ export function Hero() {
 
       <div className="mx-auto flex min-h-[92svh] max-w-7xl flex-col justify-end px-5 pb-16 pt-32 md:px-8 md:pb-24">
         <p className="mb-5 text-sm font-medium uppercase tracking-[0.18em] text-lagoon-mint">
-          AI-powered blue carbon MRV
+          {t("eyebrow")}
         </p>
         <h1 id="hero-title" className="display-xl max-w-[14ch] text-off-white">
-          From coastal ecosystems to verifiable carbon evidence.
+          {t("title")}
         </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-sea-mist/90">
-          AquaCreds combines AI-driven ecosystem analysis, satellite intelligence and
-          blockchain-backed records to make blue carbon monitoring more transparent.
-        </p>
+        <p className="mt-6 max-w-xl text-lg leading-relaxed text-sea-mist/90">{t("body")}</p>
         <div className="mt-9 flex flex-wrap gap-3">
           <ButtonLink href="/console/demo" size="lg">
-            Explore the demo <span aria-hidden="true">↗</span>
+            {t("ctaDemo")} <span aria-hidden="true">↗</span>
           </ButtonLink>
           <a href="#how-it-works" className={buttonClasses("secondary", "lg", "text-off-white")}>
-            Discover the technology
+            {t("ctaTech")}
           </a>
         </div>
       </div>
 
       <p className="absolute bottom-3 right-4 max-w-[90vw] text-right text-[11px] leading-snug text-sea-mist/80 md:right-8">
-        Bhitarkanika, Odisha · Sentinel-2 L2A, {imagery.dates.map(formatDate).join(" + ")} ·{" "}
-        {imagery.attribution}
+        {t("caption", {
+          dates: imagery.dates.map(formatDate).join(" + "),
+          attribution: imagery.attribution,
+        })}
       </p>
     </section>
   );

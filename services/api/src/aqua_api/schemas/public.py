@@ -356,3 +356,45 @@ class PublicRecordVariant(BaseModel):
 
 
 PublicProjectDetail.model_rebuild()
+
+
+# ---------------------------------------------------------------- landing-page stats
+
+
+class CreditTotals(BaseModel):
+    """Whole credits summed from indexed AquaCredit events (CreditsIssued, CreditsRetired,
+    ReversalReplaced) on the configured chain."""
+
+    vintages: int
+    issued: int
+    retired: int
+    replaced: int
+    outstanding: int
+
+
+class IndexerStatus(BaseModel):
+    """How fresh the chain-derived numbers are. All null when nothing has been indexed."""
+
+    chain_id: int
+    last_indexed_block: int | None  # highest block the indexer has scanned (any contract)
+    last_indexed_at: datetime | None  # when the indexer last advanced its cursor
+    last_event_block_time: datetime | None  # block timestamp of the newest indexed event
+
+
+class PublicStats(BaseModel):
+    """Platform-wide aggregates for the landing page (no personal data, no per-project rows).
+
+    Projects count when public (not draft or rejected), the same set `GET /public/projects`
+    lists; `registered` and `monitoring` are project lifecycle statuses, `registered_on_chain`
+    counts those with an indexed ProjectRegistered event."""
+
+    projects: int
+    area_ha: float  # sum of public project areas (geodesic, ha), 2 decimals
+    projects_by_status: dict[str, int]
+    registered: int
+    monitoring: int
+    registered_on_chain: int
+    credits: dict[CreditTypeName, CreditTotals]  # temporary (tCCC) / long_term (lCCC)
+    credits_total: CreditTotals
+    retirements: int
+    chain: IndexerStatus

@@ -26,6 +26,11 @@ GEOFENCE_EXTRA_M = 10.0  # on top of the reported GPS accuracy
 PHASH_DUPLICATE_MAX = 6  # Hamming distance (64-bit pHash): near-identical image
 PHASH_SIMILAR_MAX = 10
 WARN_PENALTY = 20
+# A pre-issued (batch) nonce only proves the photo was taken after the batch was issued, up to
+# CAPTURE_NONCE_BATCH_TTL_H (72 h) earlier, not minutes before the shot. It still binds the
+# photo to this agent + period and is single-use, so a valid one is a *lower-weight* warning:
+# half the standard penalty (100 → 90), visible to the verifier as `nonce_mode: batch`.
+BATCH_NONCE_WEIGHT = 0.5
 
 
 @dataclass(frozen=True)
@@ -35,11 +40,14 @@ class Check:
     reason: str
     hard: bool = False
     details: dict[str, Any] | None = None  # machine-readable evidence (e.g. model outputs)
+    weight: float = 1.0  # share of WARN_PENALTY a warning costs
 
     def to_dict(self) -> dict[str, Any]:
         out = asdict(self)
         if self.details is None:
             del out["details"]
+        if self.weight == 1.0:
+            del out["weight"]
         return out
 
 
@@ -167,7 +175,12 @@ def check_nonce(
     captured_at: datetime,
     submission_id: str,
 ) -> Check:
-    """`nonce` row as dict (or None). `used_by` = submission id that consumed it."""
+    """`nonce` row as dict (or None). `used_by` = submission id that consumed it; `mode` = "live"
+    (default) or "batch" (pre-issued for offline capture).
+
+    The window rules are the same for both modes (captured after issue, before expiry, ± clock
+    skew) and any violation is a hard failure. A valid live nonce passes; a valid batch nonce is a
+    lower-weight warning (`BATCH_NONCE_WEIGHT`), because its window is days, not minutes."""
     if nonce is None:
         return Check(
             "capture_nonce",
@@ -175,22 +188,51 @@ def check_nonce(
             "No valid capture nonce: photo not taken live in the app",
             hard=True,
         )
+    mode = str(nonce.get("mode") or "live")
+    details = {"nonce_mode": mode}
     if nonce["user_id"] != user_id or nonce["period_id"] != period_id:
         return Check(
-            "capture_nonce", "fail", "Nonce was issued to another user or period", hard=True
+            "capture_nonce",
+            "fail",
+            "Nonce was issued to another user or period",
+            hard=True,
+            details=details,
         )
     if nonce.get("used_by") not in (None, submission_id):
-        return Check("capture_nonce", "fail", "Nonce already used by another submission", hard=True)
+        return Check(
+            "capture_nonce",
+            "fail",
+            "Nonce already used by another submission",
+            hard=True,
+            details=details,
+        )
     if captured_at < nonce["issued_at"] - NONCE_CLOCK_SKEW:
         return Check(
             "capture_nonce",
             "fail",
             "Photo claims a capture time before the nonce existed",
             hard=True,
+            details=details,
         )
     if captured_at > nonce["expires_at"] + NONCE_CLOCK_SKEW:
-        return Check("capture_nonce", "fail", "Capture happened after the nonce expired", hard=True)
-    return Check("capture_nonce", "pass", "Captured live within the nonce window")
+        return Check(
+            "capture_nonce",
+            "fail",
+            "Capture happened after the nonce expired",
+            hard=True,
+            details=details,
+        )
+    if mode == "batch":
+        window_h = (nonce["expires_at"] - nonce["issued_at"]).total_seconds() / 3600
+        return Check(
+            "capture_nonce",
+            "warn",
+            f"Captured with a pre-issued offline nonce: proves only that the photo was taken "
+            f"after {nonce['issued_at']:%Y-%m-%d %H:%M} UTC (window {window_h:.0f} h)",
+            details={**details, "window_h": round(window_h, 1)},
+            weight=BATCH_NONCE_WEIGHT,
+        )
+    return Check("capture_nonce", "pass", "Captured live within the nonce window", details=details)
 
 
 def check_geofence(distance_outside_m: float, accuracy_m: float) -> Check:
@@ -282,9 +324,10 @@ def not_yet_available(name: str, why: str) -> Check:
 
 
 def score(checks: list[Check]) -> tuple[int, bool]:
-    """(trust score 0-100, rejected?). Hard failures reject; warnings cost WARN_PENALTY each."""
+    """(trust score 0-100, rejected?). Hard failures reject; warnings cost WARN_PENALTY each,
+    scaled by the check's weight (a batch-nonce warning costs half)."""
     if any(c.outcome == "fail" and c.hard for c in checks):
         return 0, True
-    warns = sum(c.outcome == "warn" for c in checks)
+    warn_penalty = sum(WARN_PENALTY * c.weight for c in checks if c.outcome == "warn")
     fails = sum(c.outcome == "fail" for c in checks)
-    return max(0, 100 - WARN_PENALTY * warns - 40 * fails), False
+    return max(0, round(100 - warn_penalty - 40 * fails)), False
