@@ -42,6 +42,17 @@ Tokens never reach browser JavaScript or `localStorage`:
 
 Client components use `browserClient()` (the typed client pointed at `/bff`, holding no tokens).
 
+## Registry, blockchain and marketplace
+
+- Console: `/console/registry` (list, `/new`, `/[id]`), `/console/chain`, `/console/marketplace`
+  (listings, trades and prices, forward funding). Client components call the API through the BFF.
+- Public, no login, light surfaces: `/registry` (projects, `/projects/[id]`, `/vintages`,
+  `/retirements`, `/retirements/[id]`, `/verify`) and `/marketplace`. Registry pages are server
+  rendered from `AQUA_API_URL`; if it is unset or unreachable they say so instead of showing data.
+- Buying, listing and retiring need the user's own wallet: shown as "Connect wallet (coming soon)".
+- The `mocked` Playwright project drives these pages against `e2e/mock-api.mjs` (`E2E_MOCKED_PORT`,
+  `E2E_REGISTRY_API_PORT`). `SCREENSHOT_DIR=… pnpm e2e` saves screenshots.
+
 ## Internationalisation (English, Hindi, Odia)
 
 `next-intl` 4.14.9 (pinned) **without locale URL prefixes**: the language is the `aq_locale` cookie
@@ -66,8 +77,10 @@ were: `force-dynamic`).
 
 ## End-to-end tests
 
-`pnpm e2e` starts three processes: the app (no API), `e2e/fixtures/mock-api.mjs` and a second app
-instance pointed at it with `FEATURE_DEMO=1`. The mock API is a **test fixture** with obviously
+`pnpm e2e` starts five processes (ports and roles are listed at the top of `playwright.config.ts`):
+the app with no API (smoke); `e2e/fixtures/mock-api.mjs` plus a second app instance pointed at it with
+`FEATURE_DEMO=1` (console tests); and `e2e/mock-api.mjs` plus a third app instance (the `mocked` project:
+registry, chain and marketplace pages). The mock API is a **test fixture** with obviously
 synthetic records ("Fixture ..."); it exists so the console can be driven without Postgres and must
 never be used for real or promotional screenshots. `SCREENSHOT_DIR=... pnpm e2e` writes screenshots.
 
