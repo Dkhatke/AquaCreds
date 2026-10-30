@@ -5,10 +5,13 @@
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-const require = createRequire(fileURLToPath(new URL("../../apps/web/package.json", import.meta.url)));
+const require = createRequire(
+  fileURLToPath(new URL("../../apps/web/package.json", import.meta.url)),
+);
 const { chromium } = require("@playwright/test");
 const [base, email, password] = process.argv.slice(2);
-if (!base || !email || !password) throw new Error("usage: smoke-web-browser.mjs <url> <email> <password>");
+if (!base || !email || !password)
+  throw new Error("usage: smoke-web-browser.mjs <url> <email> <password>");
 
 const problems = [];
 const browser = await chromium.launch();
@@ -16,7 +19,8 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true });
 const page = await context.newPage();
 page.on("console", (m) => {
   const t = m.text();
-  if (m.type() === "error" || /content security policy|refused to/i.test(t)) problems.push(`console: ${t}`);
+  if (m.type() === "error" || /content security policy|refused to/i.test(t))
+    problems.push(`console: ${t}`);
 });
 page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
 // Next aborts in-flight RSC prefetches on navigation: not a failure.
@@ -28,7 +32,9 @@ page.on("requestfailed", (r) => {
 await page.addInitScript(() => {
   window.__csp = [];
   document.addEventListener("securitypolicyviolation", (e) =>
-    window.__csp.push(`${e.violatedDirective} blocked ${e.blockedURI} (${e.sourceFile}:${e.lineNumber} ${e.sample})`),
+    window.__csp.push(
+      `${e.violatedDirective} blocked ${e.blockedURI} (${e.sourceFile}:${e.lineNumber} ${e.sample})`,
+    ),
   );
 });
 
@@ -41,7 +47,8 @@ if (csp.length) problems.push(...csp.map((c) => `CSP violation: ${c}`));
 console.log(`CSP violations on landing: ${csp.length}`);
 
 await page.goto(base + "/console", { waitUntil: "load" });
-if (!/\/console\/login/.test(page.url())) throw new Error(`/console did not redirect to login: ${page.url()}`);
+if (!/\/console\/login/.test(page.url()))
+  throw new Error(`/console did not redirect to login: ${page.url()}`);
 console.log(`/console -> ${new URL(page.url()).pathname}`);
 
 await page.getByLabel(/email/i).fill(email);
@@ -50,7 +57,8 @@ await page.getByRole("button", { name: /sign in|log in/i }).click();
 await page.waitForURL((u) => !u.pathname.startsWith("/console/login"), { timeout: 15000 });
 const cookies = await context.cookies();
 const at = cookies.find((c) => c.name === "aq_at");
-if (!at || !at.httpOnly || !at.secure) throw new Error("aq_at cookie missing or not httpOnly+Secure");
+if (!at || !at.httpOnly || !at.secure)
+  throw new Error("aq_at cookie missing or not httpOnly+Secure");
 console.log(`login via BFF OK -> ${new URL(page.url()).pathname}; aq_at httpOnly+Secure`);
 await page.waitForLoadState("networkidle");
 const csp2 = await page.evaluate(() => window.__csp);
