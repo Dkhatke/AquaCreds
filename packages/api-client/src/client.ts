@@ -3,13 +3,18 @@ import { ApiError, unwrap } from "./errors";
 import { memoryTokenStore, type TokenSet, type TokenStore } from "./tokens";
 import type {
   AlertsQuery,
+  EvidencePointsQuery,
+  MeasurementCreate,
+  MeasurementsQuery,
   MfaChallenge,
+  ModelFamily,
   ProjectCreate,
   ProjectListQuery,
   ProjectUpdate,
   paths,
   Schema,
   SubmissionCreate,
+  SubmissionsQuery,
   TimeseriesQuery,
   TokenPair,
 } from "./types";
@@ -36,6 +41,16 @@ const AUTH_PATH = "/api/v1/auth/";
 const NO_REFRESH = ["login", "refresh", "register", "logout", "mfa/verify"].map(
   (p) => `${AUTH_PATH}${p}`,
 );
+
+/** Options for create calls the field app retries (see `Idempotency-Key` in the API docs). */
+export interface IdempotentOptions {
+  /** A UUID per logical request, persisted with the queued item: a retry within 24 h with the
+   *  same key returns the original response instead of a 409. */
+  idempotencyKey?: string;
+}
+
+const idemHeader = (o?: IdempotentOptions) =>
+  o?.idempotencyKey ? { header: { "Idempotency-Key": o.idempotencyKey } } : {};
 
 function toTokenSet(pair: TokenPair): TokenSet {
   return { accessToken: pair.access_token, refreshToken: pair.refresh_token };
@@ -230,6 +245,17 @@ export function createAquaClient(options: AquaClientOptions) {
       /** Single-use capture nonce; request it when the camera opens, before the shot. */
       issueNonce: (periodId: string) =>
         unwrap(api.POST("/api/v1/periods/{period_id}/nonces", perid(periodId))),
+      /**
+       * Pre-issue up to 20 single-use nonces for offline capture (valid 72 h by default, bound
+       * to this user and period). Photos taken with one score a lower-weight nonce check.
+       */
+      issueNonceBatch: (periodId: string, count = 10) =>
+        unwrap(
+          api.POST("/api/v1/periods/{period_id}/nonces/batch", {
+            ...perid(periodId),
+            body: { count },
+          }),
+        ),
       photoUploadUrl: (periodId: string, contentType: "image/jpeg" | "image/png") =>
         unwrap(
           api.POST("/api/v1/periods/{period_id}/photos/upload-url", {
@@ -237,8 +263,13 @@ export function createAquaClient(options: AquaClientOptions) {
             body: { content_type: contentType },
           }),
         ),
-      createSubmission: (periodId: string, body: SubmissionCreate) =>
-        unwrap(api.POST("/api/v1/periods/{period_id}/submissions", { ...perid(periodId), body })),
+      createSubmission: (periodId: string, body: SubmissionCreate, options?: IdempotentOptions) =>
+        unwrap(
+          api.POST("/api/v1/periods/{period_id}/submissions", {
+            params: { path: { period_id: periodId }, ...idemHeader(options) },
+            body,
+          }),
+        ),
       /** Presigned photo upload, then create the geotagged submission with the hash. */
       uploadPhotoSubmission: (
         periodId: string,
@@ -246,6 +277,7 @@ export function createAquaClient(options: AquaClientOptions) {
         contentType: "image/jpeg" | "image/png",
         meta: Omit<SubmissionCreate, "object_key" | "sha256">,
         signal?: AbortSignal,
+        options?: IdempotentOptions,
       ) =>
         upload(
           () =>
@@ -259,7 +291,7 @@ export function createAquaClient(options: AquaClientOptions) {
           ({ objectKey, sha256 }) =>
             unwrap(
               api.POST("/api/v1/periods/{period_id}/submissions", {
-                ...perid(periodId),
+                params: { path: { period_id: periodId }, ...idemHeader(options) },
                 body: { ...meta, object_key: objectKey, sha256 },
               }),
             ),
@@ -271,8 +303,60 @@ export function createAquaClient(options: AquaClientOptions) {
             params: { path: { submission_id: submissionId } },
           }),
         ),
-      listSubmissions: (periodId: string) =>
-        unwrap(api.GET("/api/v1/periods/{period_id}/submissions", perid(periodId))),
+      /** One page (default 100, max 500) in arrival order; filter by `sha256` to find a photo. */
+      listSubmissions: (periodId: string, query: SubmissionsQuery = {}) =>
+        unwrap(
+          api.GET("/api/v1/periods/{period_id}/submissions", {
+            params: { path: { period_id: periodId }, query },
+          }),
+        ),
+      /**
+       * Field photos as GeoJSON map points. `snapped` (default): plot centre or a ~0.5 km grid
+       * cell, never the photo GPS. `raw` is for the field team and staff only (403 otherwise).
+       */
+      evidencePoints: (projectId: string, query: EvidencePointsQuery = {}) =>
+        unwrap(
+          api.GET("/api/v1/projects/{project_id}/evidence-points", {
+            params: { path: { project_id: projectId }, query },
+          }),
+        ),
+      listPlots: (projectId: string) =>
+        unwrap(api.GET("/api/v1/projects/{project_id}/plots", pid(projectId))),
+      recordMeasurement: (
+        periodId: string,
+        plotId: string,
+        body: MeasurementCreate,
+        options?: IdempotentOptions,
+      ) =>
+        unwrap(
+          api.POST("/api/v1/periods/{period_id}/plots/{plot_id}/measurements", {
+            params: { path: { period_id: periodId, plot_id: plotId }, ...idemHeader(options) },
+            body,
+          }),
+        ),
+      /** Measurements recorded in a period (optionally `{ plot_id }`), oldest first. */
+      listMeasurements: (periodId: string, query: MeasurementsQuery = {}) =>
+        unwrap(
+          api.GET("/api/v1/periods/{period_id}/measurements", {
+            params: { path: { period_id: periodId }, query },
+          }),
+        ),
+    },
+
+    public: {
+      /** Landing-page aggregates (projects, area, credits, indexer freshness) in one call. */
+      stats: () => unwrap(api.GET("/api/v1/public/stats")),
+    },
+
+    models: {
+      list: () => unwrap(api.GET("/api/v1/models")),
+      family: (family: ModelFamily) =>
+        unwrap(api.GET("/api/v1/models/{family}", { params: { path: { family } } })),
+      /** Held-out metrics + model card of one version, e.g. a classification's `model_version`. */
+      version: (family: ModelFamily, version: string) =>
+        unwrap(
+          api.GET("/api/v1/models/{family}/{version}", { params: { path: { family, version } } }),
+        ),
     },
 
     analysis: {

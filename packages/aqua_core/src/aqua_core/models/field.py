@@ -12,7 +12,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from aqua_core.db import Base
 from aqua_core.models._types import Timestamps, UUIDPk, str_enum
-from aqua_core.models.enums import PeriodKind, PeriodStatus, SubmissionKind, SubmissionStatus
+from aqua_core.models.enums import (
+    NonceMode,
+    PeriodKind,
+    PeriodStatus,
+    SubmissionKind,
+    SubmissionStatus,
+)
 
 
 class MonitoringPeriod(UUIDPk, Timestamps, Base):
@@ -33,7 +39,9 @@ class MonitoringPeriod(UUIDPk, Timestamps, Base):
 
 class CaptureNonce(UUIDPk, Base):
     """Single-use token fetched by the app right before a capture. Proves the photo was taken
-    live (after the nonce was issued), by this user, for this project."""
+    live (after the nonce was issued), by this user, for this project. `batch` nonces are
+    pre-issued for offline capture with a longer window, so they prove less (see
+    aqua_worker.evidence.check_nonce)."""
 
     __tablename__ = "capture_nonces"
 
@@ -45,6 +53,9 @@ class CaptureNonce(UUIDPk, Base):
     issued_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+    mode: Mapped[NonceMode] = mapped_column(
+        str_enum(NonceMode, "nonce_mode"), default=NonceMode.LIVE, server_default="live"
+    )
 
 
 class Plot(UUIDPk, Timestamps, Base):
@@ -132,3 +143,22 @@ class FieldSubmission(UUIDPk, Base):
     checks: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
     trust_score: Mapped[int | None]
     checked_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
+
+
+class IdempotencyRecord(Base):
+    """The first successful response to a create request sent with an `Idempotency-Key` header,
+    replayed for the same user + key (and the same request) for `IDEMPOTENCY_TTL_H` hours."""
+
+    __tablename__ = "idempotency_records"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    key: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    scope: Mapped[str] = mapped_column(sa.String(60))  # e.g. "submission.create"
+    request_sha256: Mapped[str] = mapped_column(sa.String(64))  # method + path + canonical body
+    status_code: Mapped[int] = mapped_column(sa.SmallInteger)
+    response: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.DateTime(timezone=True), server_default=sa.func.now(), index=True
+    )

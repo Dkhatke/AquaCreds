@@ -22,9 +22,11 @@ from aqua_api.schemas.public import (
     AlertCounts,
     CertificateVerification,
     ChainRef,
+    CreditTotals,
     CreditTypeName,
     EvidenceStats,
     HashMatch,
+    IndexerStatus,
     IssuanceOut,
     MonthlyIndexValue,
     OnChainReport,
@@ -32,6 +34,7 @@ from aqua_api.schemas.public import (
     ProjectRegistration,
     PublicOrg,
     PublicProjectSummary,
+    PublicStats,
     ReportChainStatus,
     RetirementOut,
     SatelliteIndicators,
@@ -39,6 +42,7 @@ from aqua_api.schemas.public import (
 )
 from aqua_chain.encoding import project_id_bytes32, to_hex
 from aqua_core.models import (
+    ChainCursor,
     ChainEvent,
     ChainTransaction,
     ChainTxStatus,
@@ -614,4 +618,72 @@ async def alert_counts(session: AsyncSession, project_id: uuid.UUID) -> AlertCou
         medium=row.medium,
         high=row.high,
         latest_observed_on=row.latest,
+    )
+
+
+# ---------------------------------------------------------------- landing-page stats
+
+
+def _totals(vintages_: Sequence[VintageOut]) -> CreditTotals:
+    return CreditTotals(
+        vintages=len(vintages_),
+        issued=sum(v.issued for v in vintages_),
+        retired=sum(v.retired for v in vintages_),
+        replaced=sum(v.replaced for v in vintages_),
+        outstanding=sum(v.outstanding for v in vintages_),
+    )
+
+
+async def stats(session: AsyncSession, chain_id: int) -> PublicStats:
+    """Aggregates over public projects and indexed chain events (see `PublicStats`)."""
+    by_status_rows = await session.execute(
+        select(Project.status, func.count(), func.coalesce(func.sum(Project.area_ha), 0.0))
+        .where(Project.status.not_in(HIDDEN_STATUSES))
+        .group_by(Project.status)
+    )
+    by_status: dict[str, int] = {}
+    area = 0.0
+    for status_, count, area_ha in by_status_rows:
+        by_status[ProjectStatus(status_).value] = int(count)
+        area += float(area_ha)
+    public_keys = [
+        project_key(pid)
+        for pid in await session.scalars(
+            select(Project.id).where(Project.status.not_in(HIDDEN_STATUSES))
+        )
+    ]
+    on_chain = await registered_keys(session, chain_id, public_keys)
+    all_vintages = await vintages(session, chain_id)
+    retirement_count = await session.scalar(
+        select(func.count())
+        .select_from(ChainEvent)
+        .where(ChainEvent.chain_id == chain_id, ChainEvent.event == "CreditsRetired")
+    )
+    cursor = (
+        await session.execute(
+            select(func.max(ChainCursor.last_block), func.max(ChainCursor.updated_at)).where(
+                ChainCursor.chain_id == chain_id
+            )
+        )
+    ).one()
+    last_event_time = await session.scalar(
+        select(func.max(ChainEvent.block_time)).where(ChainEvent.chain_id == chain_id)
+    )
+    credit_types: tuple[CreditTypeName, ...] = ("temporary", "long_term")
+    return PublicStats(
+        projects=sum(by_status.values()),
+        area_ha=round(area, 2),
+        projects_by_status=by_status,
+        registered=by_status.get(ProjectStatus.REGISTERED.value, 0),
+        monitoring=by_status.get(ProjectStatus.MONITORING.value, 0),
+        registered_on_chain=len(on_chain),
+        credits={t: _totals([v for v in all_vintages if v.credit_type == t]) for t in credit_types},
+        credits_total=_totals(all_vintages),
+        retirements=int(retirement_count or 0),
+        chain=IndexerStatus(
+            chain_id=chain_id,
+            last_indexed_block=cursor[0],
+            last_indexed_at=cursor[1],
+            last_event_block_time=last_event_time,
+        ),
     )

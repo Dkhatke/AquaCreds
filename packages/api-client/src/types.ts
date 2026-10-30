@@ -33,7 +33,22 @@ export type ListingOut = Schema<"ListingOut">;
 export type TileJSON = Schema<"TileJSON">;
 export type ClassificationLegend = Schema<"ClassificationLegend">;
 
+export type PublicStats = Schema<"PublicStats">;
+export type ModelCardSummary = Schema<"ModelCardSummary">;
+export type ModelFamilyOut = Schema<"ModelFamilyOut">;
+export type ModelFamily = paths["/api/v1/models/{family}"]["get"]["parameters"]["path"]["family"];
+/** GeoJSON FeatureCollection of field photos for the map (snapped unless `precision=raw`). */
+export type EvidencePoints = Schema<"EvidencePoints">;
+export type NonceOut = Schema<"NonceOut">;
+export type NonceBatchOut = Schema<"NonceBatchOut">;
+export type MeasurementCreate = Schema<"MeasurementCreate">;
+export type MeasurementOut = Schema<"MeasurementOut">;
+export type PlotOut = Schema<"PlotOut">;
+
 export type ProjectListQuery = GetQuery<"/api/v1/projects">;
+export type SubmissionsQuery = GetQuery<"/api/v1/periods/{period_id}/submissions">;
+export type EvidencePointsQuery = GetQuery<"/api/v1/projects/{project_id}/evidence-points">;
+export type MeasurementsQuery = GetQuery<"/api/v1/periods/{period_id}/measurements">;
 export type TimeseriesQuery = GetQuery<"/api/v1/projects/{project_id}/timeseries">;
 export type AlertsQuery = GetQuery<"/api/v1/projects/{project_id}/alerts">;
 export type TileJSONQuery = GetQuery<"/api/v1/projects/{project_id}/tilejson">;

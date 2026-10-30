@@ -86,6 +86,52 @@ def test_nonce_rules(nonce: dict[str, object] | None, captured: datetime, outcom
     assert check.hard == (outcome == "fail")
 
 
+def _batch(**over: object) -> dict[str, object]:
+    base = _nonce(
+        mode="batch", issued_at=NOW - timedelta(hours=30), expires_at=NOW + timedelta(hours=42)
+    )
+    return base | over
+
+
+def test_batch_nonce_is_a_lower_weight_warning() -> None:
+    check = ev.check_nonce(
+        _batch(), user_id="u1", period_id="p1", captured_at=NOW, submission_id="s1"
+    )
+    assert (check.outcome, check.hard, check.weight) == ("warn", False, ev.BATCH_NONCE_WEIGHT)
+    assert check.details == {"nonce_mode": "batch", "window_h": 72.0}
+    assert "pre-issued offline nonce" in check.reason
+    out = check.to_dict()
+    assert out["weight"] == 0.5
+    assert out["details"]["nonce_mode"] == "batch"
+    assert ev.score([check, ev.Check("a", "pass", "")]) == (90, False)
+
+    live = ev.check_nonce(
+        _nonce(), user_id="u1", period_id="p1", captured_at=NOW, submission_id="s1"
+    )
+    assert live.details == {"nonce_mode": "live"}
+    assert "weight" not in live.to_dict()
+
+
+@pytest.mark.parametrize(
+    ("nonce", "captured"),
+    [
+        (_batch(), NOW - timedelta(hours=31)),  # before the batch was issued
+        (_batch(), NOW + timedelta(hours=43)),  # after the 72 h window
+        (_batch(used_by="s9"), NOW),  # single use
+        (_batch(user_id="u2"), NOW),  # bound to the agent
+        (_batch(period_id="p2"), NOW),  # ... and the period
+    ],
+)
+def test_batch_nonce_window_and_binding_are_hard(
+    nonce: dict[str, object], captured: datetime
+) -> None:
+    check = ev.check_nonce(
+        nonce, user_id="u1", period_id="p1", captured_at=captured, submission_id="s1"
+    )
+    assert (check.outcome, check.hard) == ("fail", True)
+    assert check.details == {"nonce_mode": "batch"}
+
+
 def test_geofence_uses_gps_accuracy_buffer() -> None:
     assert ev.check_geofence(0.0, 5.0).outcome == "pass"
     assert ev.check_geofence(12.0, 5.0).outcome == "warn"  # within 5 m accuracy + 10 m

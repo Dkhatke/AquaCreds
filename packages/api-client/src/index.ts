@@ -2,6 +2,7 @@ export {
   type AquaClient,
   type AquaClientOptions,
   createAquaClient,
+  type IdempotentOptions,
   type LogoutReason,
 } from "./client";
 export { ApiError, UploadError, unwrap } from "./errors";

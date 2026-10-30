@@ -151,6 +151,11 @@ class SubmissionStatus(StrEnum):
     REJECTED = "rejected"  # a hard check failed (outside boundary, duplicate, bad nonce)
 
 
+class NonceMode(StrEnum):
+    LIVE = "live"  # fetched right before the shot (minutes-long window)
+    BATCH = "batch"  # pre-issued for offline capture (hours-long window, weaker evidence)
+
+
 class AnalysisKind(StrEnum):
     BACKFILL = "backfill"  # all scenes since the backfill start date (once, at registration)
     INCREMENTAL = "incremental"  # nightly: only scenes newer than the latest observation

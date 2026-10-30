@@ -1,10 +1,10 @@
 import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from aqua_core.models import PeriodKind, PeriodStatus, SubmissionKind, SubmissionStatus
+from aqua_core.models import NonceMode, PeriodKind, PeriodStatus, SubmissionKind, SubmissionStatus
 
 
 class PeriodCreate(BaseModel):
@@ -31,8 +31,36 @@ class PeriodOut(BaseModel):
 
 
 class NonceOut(BaseModel):
+    """A single-use capture nonce. `server_time` lets the app estimate its clock offset (the
+    worker compares the app's `captured_at` against `issued_at`/`expires_at`)."""
+
     nonce: str
     expires_at: datetime
+    issued_at: datetime
+    server_time: datetime
+    mode: NonceMode = NonceMode.LIVE
+
+
+class NonceBatchRequest(BaseModel):
+    count: int = Field(default=10, ge=1, le=20)
+
+
+class NonceBatchItem(BaseModel):
+    nonce: str
+    expires_at: datetime
+
+
+class NonceBatchOut(BaseModel):
+    """Pre-issued nonces for offline capture: each single-use, bound to the caller and the
+    period, valid from `issued_at` to `expires_at`. Photos taken with one get a lower-weight
+    `capture_nonce` check (`nonce_mode: batch`): they prove only capture after `issued_at`."""
+
+    mode: Literal[NonceMode.BATCH] = NonceMode.BATCH
+    period_id: uuid.UUID
+    issued_at: datetime
+    expires_at: datetime
+    server_time: datetime
+    nonces: list[NonceBatchItem]
 
 
 class PhotoUploadRequest(BaseModel):
@@ -114,6 +142,56 @@ class MeasurementOut(BaseModel):
     id: uuid.UUID
     plot_id: uuid.UUID
     period_id: uuid.UUID
+    measured_by: uuid.UUID
     measured_on: date
     trees: list[dict[str, Any]]
     notes: str
+    created_at: datetime
+
+
+# ---------------------------------------------------------------- evidence points (map)
+
+EvidencePrecision = Literal["snapped", "raw"]
+SnapRule = Literal["plot_centre", "grid", "raw"]
+
+
+class PointGeometry(BaseModel):
+    type: Literal["Point"] = "Point"
+    coordinates: tuple[float, float]  # [lon, lat]
+
+
+class EvidencePointProperties(BaseModel):
+    """Only what the map needs. `id` and `captured_at` are present for `precision=raw` only;
+    snapped points carry no identifier, so they cannot be joined back to a raw location."""
+
+    snap: SnapRule
+    status: SubmissionStatus
+    trust_score: int | None
+    kind: SubmissionKind
+    period_id: uuid.UUID
+    plot_code: str | None = None
+    id: uuid.UUID | None = None
+    captured_at: datetime | None = None
+    gps_accuracy_m: float | None = None
+
+
+class EvidencePointFeature(BaseModel):
+    type: Literal["Feature"] = "Feature"
+    geometry: PointGeometry
+    properties: EvidencePointProperties
+
+
+class EvidencePoints(BaseModel):
+    """GeoJSON FeatureCollection of a project's field photos for the map.
+
+    `precision=snapped` (default, any project viewer): a plot photo sits on its plot centre, any
+    other photo on the centre of a `grid_deg` grid cell; never the photo's own GPS fix.
+    `precision=raw` (organisation admins and field agents of the project, and staff): the
+    app-reported GPS fix."""
+
+    type: Literal["FeatureCollection"] = "FeatureCollection"
+    precision: EvidencePrecision
+    grid_deg: float
+    features: list[EvidencePointFeature]
+    total: int
+    truncated: bool

@@ -92,6 +92,7 @@ async def run_checks(
                     "issued_at": nonce.issued_at,
                     "expires_at": nonce.expires_at,
                     "used_by": str(sub.id),  # consumed by this submission at upload time
+                    "mode": nonce.mode.value,
                 },
                 user_id=str(sub.submitted_by),
                 period_id=str(sub.period_id),

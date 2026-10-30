@@ -30,122 +30,27 @@ import hashlib
 import os
 import sys
 import threading
-from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from aqua_core.logging import get_logger
+
+# The manifests (pinned hashes + model-card metrics) live in aqua_core so the API can show them;
+# re-exported here for the worker and its tests.
+from aqua_core.ml_models import CURRENT_ECOSYSTEM_CLASSIFIER as CURRENT_ECOSYSTEM_CLASSIFIER
+from aqua_core.ml_models import ECOSYSTEM_CLASSIFIER_V1 as ECOSYSTEM_CLASSIFIER_V1
+from aqua_core.ml_models import ECOSYSTEM_CLASSIFIER_V1_1 as ECOSYSTEM_CLASSIFIER_V1_1
+from aqua_core.ml_models import MANIFESTS as MANIFESTS
+from aqua_core.ml_models import MAX_MODEL_FILE_BYTES as MAX_MODEL_FILE_BYTES
+from aqua_core.ml_models import ModelManifest as ModelManifest
+from aqua_core.ml_models import manifest_for as manifest_for
 from aqua_core.storage import ObjectStorage
 from aqua_geo.classify import ModelSpec
 
 log = get_logger("aqua_worker.model_store")
-
-MAX_MODEL_FILE_BYTES = 64 * 1024 * 1024
-
-
-@dataclass(frozen=True)
-class ModelManifest:
-    """Everything the worker needs to know about one published model version."""
-
-    version: str
-    prefix: str  # object-storage key prefix (ends with "/")
-    model_file: str
-    features_file: str
-    sha256: Mapping[str, str]  # file name → SHA-256 (hex)
-    # Scene stack the model was trained on (features_extract.py config); satellite models only.
-    season_months: tuple[int, ...] = ()
-    max_scenes: int = 0
-    max_tile_cloud_pct: float = 0.0
-    # Held-out (Gulf of Kutch) metrics from the model card, quoted in MRV reports.
-    heldout_metrics: Mapping[str, Any] = field(default_factory=dict)
-    model_card: str = ""
-    # Largest file `fetch` will download for this model (bounded read from object storage).
-    max_file_bytes: int = MAX_MODEL_FILE_BYTES
-
-    @property
-    def files(self) -> tuple[str, ...]:
-        return tuple(self.sha256)
-
-
-# v1 is kept for provenance only: classifications stored with model_version
-# "ecosystem_classifier_v1" refer to these pins and metrics. Its files are UNAVAILABLE (the DVC
-# outputs were never pushed to a remote and are lost), so no worker can load it; v1.1 replaces it.
-ECOSYSTEM_CLASSIFIER_V1 = ModelManifest(
-    version="ecosystem_classifier_v1",
-    prefix="models/ecosystem_classifier/v1/",
-    model_file="model.onnx",
-    features_file="features.json",
-    sha256={
-        "model.onnx": "0ae00736ae70770c4a2ee5f9a2e649d0ad246f909036054a93d434717c063ed7",
-        "features.json": "d492251ff3197c34268802b2503ea934db0fab16644196ca01b51faa04f84895",
-    },
-    season_months=(11, 12, 1, 2, 3),
-    max_scenes=12,
-    max_tile_cloud_pct=80.0,
-    # Copied from ml/model_cards/ecosystem_classifier_v1_metrics.json (models.lightgbm.heldout,
-    # rounded to 4 decimals); test_model_store checks they still match that file.
-    heldout_metrics={
-        "region": "Gulf of Kutch (68.0-70.8 E, 22-24 N), never used for training or tuning",
-        "points": 1133,
-        "macro_f1": 0.6378,
-        "accuracy": 0.7546,
-        "mangrove_precision": 0.9825,
-        "mangrove_recall": 0.9106,
-        "mangrove_f1": 0.9451,
-        "brier": 0.3144,
-        "ece": 0.0807,
-        "label_note": "agreement with map-derived labels, not a manually checked gold set",
-    },
-    model_card="ml/model_cards/ecosystem_classifier_v1.md",
-)
-
-# v1.1: the same training configuration retrained on re-extracted (byte-identical) features after
-# the v1 files were lost; every metric equals v1's to 4 decimals, but the bytes are new, hence a
-# new version. Classifications by v1 and v1.1 are never compared with each other (area-loss
-# alerts and stewardship comparisons match on model_version).
-ECOSYSTEM_CLASSIFIER_V1_1 = ModelManifest(
-    version="ecosystem_classifier_v1.1",
-    prefix="models/ecosystem_classifier/v1.1/",
-    model_file="model.onnx",
-    features_file="features.json",
-    sha256={
-        "model.onnx": "bcdd2297fe0caec6d6c66f775a8d01d9387dc7d9e12c81c03ebef80cbb4f7542",
-        "features.json": "9c16c74d383c4a0bd5275ba8bb68259df91925588828ae478ba82e5a42c42311",
-    },
-    season_months=(11, 12, 1, 2, 3),
-    max_scenes=12,
-    max_tile_cloud_pct=80.0,
-    # Copied from ml/model_cards/ecosystem_classifier_v1_1_metrics.json (models.lightgbm.heldout,
-    # rounded to 4 decimals); test_model_store checks they still match that file.
-    heldout_metrics={
-        "region": "Gulf of Kutch (68.0-70.8 E, 22-24 N), never used for training or tuning",
-        "points": 1133,
-        "macro_f1": 0.6378,
-        "accuracy": 0.7546,
-        "mangrove_precision": 0.9825,
-        "mangrove_recall": 0.9106,
-        "mangrove_f1": 0.9451,
-        "brier": 0.3144,
-        "ece": 0.0807,
-        "label_note": "agreement with map-derived labels, not a manually checked gold set",
-    },
-    model_card="ml/model_cards/ecosystem_classifier_v1_1.md",
-)
-
-# The model new classifications use. Change it only together with a new manifest above.
-CURRENT_ECOSYSTEM_CLASSIFIER = ECOSYSTEM_CLASSIFIER_V1_1
-
-MANIFESTS: Mapping[str, ModelManifest] = {
-    m.version: m for m in (ECOSYSTEM_CLASSIFIER_V1, ECOSYSTEM_CLASSIFIER_V1_1)
-}
-
-
-def manifest_for(version: str) -> ModelManifest | None:
-    """The manifest a stored `model_version` refers to, or None for an unknown version."""
-    return MANIFESTS.get(version)
 
 
 class ModelUnavailableError(RuntimeError):

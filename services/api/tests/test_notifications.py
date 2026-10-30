@@ -11,7 +11,7 @@ from api_testlib import project_payload
 from conftest import FakeStorage
 from reports_testlib import make_verifier, request_and_build, setup_project
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from test_field import FAR_OUTSIDE, _check, _photo, _submit, field  # noqa: F401 (fixture)
+from test_field import FAR_OUTSIDE, _check, _photo, _submit
 from test_projects import ALL_FOREST_DOCS, _attach
 
 from aqua_core import notifications
@@ -148,7 +148,7 @@ async def test_project_submission_notifies_independent_registry_admins(
 
 
 async def test_rejected_submission_notifies_the_field_agent(
-    field: Any,  # noqa: F811
+    field: Any,
     storage: FakeStorage,
     database_url: str,
 ) -> None:
