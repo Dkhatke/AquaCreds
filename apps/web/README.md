@@ -42,6 +42,17 @@ Tokens never reach browser JavaScript or `localStorage`:
 
 Client components use `browserClient()` (the typed client pointed at `/bff`, holding no tokens).
 
+## Registry, blockchain and marketplace
+
+- Console: `/console/registry` (list, `/new`, `/[id]`), `/console/chain`, `/console/marketplace`
+  (listings, trades and prices, forward funding). Client components call the API through the BFF.
+- Public, no login, light surfaces: `/registry` (projects, `/projects/[id]`, `/vintages`,
+  `/retirements`, `/retirements/[id]`, `/verify`) and `/marketplace`. Registry pages are server
+  rendered from `AQUA_API_URL`; if it is unset or unreachable they say so instead of showing data.
+- Buying, listing and retiring need the user's own wallet: shown as "Connect wallet (coming soon)".
+- Playwright has a second `mocked` project: `e2e/mock-api.mjs` serves fixtures and a second Next
+  server points at it (`E2E_MOCKED_PORT`, `MOCK_API_PORT`). `SCREENSHOT_DIR=… pnpm e2e` saves screenshots.
+
 ## Imagery
 
 `public/imagery/*.webp` are Sentinel-2 L2A composites of Bhitarkanika rendered by

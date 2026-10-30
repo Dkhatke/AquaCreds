@@ -152,11 +152,11 @@ export function ListingCard({
             />
           </dd>
         </div>
-        <p>
-          Credit units are estimated, pending accredited verification; testnet registry units.
-          Trades are demonstration transactions.
-        </p>
       </dl>
+      <p className="mt-2 text-xs text-fg-muted">
+        Credit units are estimated, pending accredited verification; testnet registry units. Trades
+        are demonstration transactions.
+      </p>
       {children && <div className="mt-4">{children}</div>}
     </article>
   );
