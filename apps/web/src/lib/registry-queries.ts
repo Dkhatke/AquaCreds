@@ -196,3 +196,6 @@ export function useProjectForwardFund(projectId: string | null) {
       ),
   });
 }
+
+/** One row of the public listings response (derived from the query so it always matches). */
+export type ListingRow = NonNullable<ReturnType<typeof useListings>["data"]>["items"][number];

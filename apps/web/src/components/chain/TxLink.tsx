@@ -8,12 +8,19 @@ export function TxLink({
   txHash,
   explorerUrl,
 }: {
-  chainId: number;
+  chainId: number | null;
   txHash: string | null | undefined;
   /** Explorer URL from the API when it sent one (still only used for chain 80002). */
   explorerUrl?: string | null | undefined;
 }) {
   if (!txHash) return <span className="text-fg-muted">Not broadcast yet</span>;
+  if (chainId === null) {
+    return (
+      <code className="tabular text-xs" title={txHash}>
+        {shortHash(txHash, 8, 6)}
+      </code>
+    );
+  }
   const href = chainId === 80002 ? (explorerUrl ?? explorerTxUrl(chainId, txHash)) : null;
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
