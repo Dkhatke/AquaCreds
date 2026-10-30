@@ -350,6 +350,21 @@ async def test_submission_idempotency_key_replays_the_original_response(
     assert len(enqueued) == 1
     assert (await sql("SELECT count(*) FROM field_submissions"))[0][0] == 1
 
+    # The app may have re-uploaded the photo (new presigned key) before retrying: still a replay.
+    ticket2 = (
+        await field.agent.post(
+            f"/periods/{field.period_id}/photos/upload-url", json={"content_type": "image/jpeg"}
+        )
+    ).json()
+    storage.put(ticket2["object_key"], photo, "image/jpeg")
+    reupload = await field.agent.client.post(
+        url,
+        json={**body, "object_key": ticket2["object_key"]},
+        headers={**field.agent.headers, "Idempotency-Key": key},
+    )
+    assert reupload.status_code == 202
+    assert reupload.json() == first.json()
+
     # Without the key the retry still gets the old 409.
     assert (await field.agent.post(url, json=body)).status_code == 409
     # Same key, different request → 422, never a silent replay of something else.

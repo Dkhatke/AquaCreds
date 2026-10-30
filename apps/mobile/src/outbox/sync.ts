@@ -69,9 +69,10 @@ async function sendPhoto(deps: SyncDeps, item: PhotoItem): Promise<SubmissionOut
     // A previous attempt may have succeeded server-side with the response lost (signal dropped).
     // The nonce is then consumed; find our submission by its hash instead of failing.
     if (err instanceof ApiError && err.status === 409 && err.detail === NONCE_USED) {
-      const mine = (await deps.client.field.listSubmissions(item.periodId)).find(
-        (s) => s.sha256 === payload.sha256,
-      );
+      // Filter by hash server-side: the list is paginated (100 per page by default).
+      const mine = (
+        await deps.client.field.listSubmissions(item.periodId, { sha256: payload.sha256 })
+      ).find((s) => s.sha256 === payload.sha256);
       if (mine) return mine;
       throw new LocalItemError(t("errors.nonceUsed"));
     }

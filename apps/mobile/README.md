@@ -162,13 +162,47 @@ until they are a day old, so bump them in a later PR. TypeScript 7 is the repo s
 ## Known limitations / next steps
 
 - **A nonce needs a connection at capture time.** The app explains this when offline. Uploads can
-  wait, but the shot cannot (see API gaps).
+  wait, but the shot cannot. The API now offers pre-issued offline nonces (see "Offline capture"
+  below); the app does not use them yet.
 - There is no background sync (expo-background-task): sync runs only while the app is open.
 - Not yet built: the boundary walk / KML import, the map preview (MapLibre RN), GPS averaging at
   plot centres, the sample-size calculator, tide awareness, and Hindi strings.
 - `done` items are not pruned from the outbox list yet.
 
+## Offline capture: pre-issued nonces (API ready, app not yet)
+
+`POST /api/v1/periods/{period_id}/nonces/batch` with `{"count": N}` (N <= 20; field agents and org
+admins of the project) returns N single-use nonces, all bound to the caller and the period and
+valid for `CAPTURE_NONCE_BATCH_TTL_H` (default **72 h**). An agent may hold at most
+`CAPTURE_NONCE_BATCH_MAX_OUTSTANDING` (40) unused, unexpired batch nonces per period (409 above
+that). Fetch a batch while there is signal (e.g. at the boat jetty), store it in SecureStore, and
+use one per shot exactly like a live nonce.
+
+**Trade-off.** A live nonce (15 min) proves the photo was taken in the minutes after the server
+issued it, so a photo taken earlier (gallery, another trip) is caught. A batch nonce proves only
+that the photo was taken *after the batch was issued*, up to 72 h before; within that window an
+agent could reuse a photo taken earlier on the same trip. It still prevents photos from before the
+batch, photos used twice (single use, plus the SHA-256 and pHash duplicate checks), and use by
+another agent or period. So the worker scores it as a separate, **lower-weight** result:
+`capture_nonce` = `warn` with `weight: 0.5` and `details.nonce_mode: "batch"` (trust score 90
+instead of 100 when everything else passes), and the verifier sees why. A capture before issue or
+after expiry, or a reused/foreign nonce, is still a hard failure in either mode. Keep batches small
+and TTLs short: a lost phone exposes at most the unused nonces of its own agent and period, until
+they expire.
+
+Live nonces now also return `issued_at`, `server_time` and `mode`, so the clock offset no longer
+needs the HTTP `Date` header.
+
 ## API gaps found while building this
+
+Status after the API-gaps PR: 1 and 2 resolved in the API (batch nonces, `issued_at` /
+`server_time`); 5, 6 and 7 resolved (`Idempotency-Key` on submission and measurement creates,
+replayed for 24 h, the submission replay ignoring `object_key` so a re-upload is fine;
+`GET /periods/{id}/plots/{plot_id}/measurements` and `GET /periods/{id}/measurements` read-backs;
+`listPlots` / `recordMeasurement` / `listMeasurements` / `issueNonceBatch` helpers;
+`GET /periods/{id}/submissions` is paginated, `limit` <= 500 default 100, `X-Total-Count`, with a
+`sha256` filter, which the outbox now uses for lost-response recovery). 3 and 4 are still open.
+The app itself does not send idempotency keys or use batch nonces yet.
 
 1. **No offline nonces.** `POST /periods/{id}/nonces` requires signal at the moment of capture,
    which is exactly what coastal sites lack. Options: pre-issue a short batch of longer-TTL nonces

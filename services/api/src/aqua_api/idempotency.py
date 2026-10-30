@@ -8,6 +8,9 @@ Contract (submission create, plot-measurement create):
   that stored response back (same status code and body, header `Idempotent-Replayed: true`)
   instead of `409 Capture nonce already used` / `409 already measured`. Nothing is re-done: no
   second row, no second worker task.
+* Submissions ignore `object_key` in that comparison: an app that lost the response may upload
+  the photo again (new presigned key) before retrying, and the photo is identified by `sha256`
+  anyway. The replay then returns the original submission; the second upload stays unused.
 * The same key with a different request (another path or body) is refused with 422
   `idempotency_key_reused`; error responses are never stored, so a failed request can be retried
   with the same key.
@@ -47,8 +50,13 @@ KEY_REUSED = {
 }
 
 
-def request_fingerprint(request: Request, body: BaseModel) -> str:
-    canonical = json.dumps(body.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+def request_fingerprint(
+    request: Request, body: BaseModel, *, ignore: frozenset[str] = frozenset()
+) -> str:
+    """SHA-256 over method, path and the canonical JSON body (minus `ignore`d fields)."""
+    canonical = json.dumps(
+        body.model_dump(mode="json", exclude=set(ignore)), sort_keys=True, separators=(",", ":")
+    )
     return hashlib.sha256(f"{request.method} {request.url.path}\n{canonical}".encode()).hexdigest()
 
 

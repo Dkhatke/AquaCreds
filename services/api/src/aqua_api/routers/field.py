@@ -349,7 +349,7 @@ async def create_submission(
     within 24 h returns the original 202 response instead of `409 Capture nonce already used`."""
     period, project = await _period(session, period_id, user, settings)
     _require(user, project, FIELD_ROLES)
-    fingerprint = idempotency.request_fingerprint(request, body)
+    fingerprint = idempotency.request_fingerprint(request, body, ignore=frozenset({"object_key"}))
     if idempotency_key is not None:
         replayed = await idempotency.replay(
             session,

@@ -51,10 +51,22 @@ shown wherever the imagery appears.
 
 ## Model metrics
 
-The API does not expose classifier validation metrics yet, so held-out metrics are copied from
-`ml/model_cards/<version>_metrics.json` (v1 and v1.1, the production model) by `pnpm sync:model-card`;
-a unit test fails if a copy drifts. They are shown only for a classification whose `model_version`
-matches a card.
+Held-out metrics are copied from `ml/model_cards/<version>_metrics.json` (v1 and v1.1, the
+production model) by `pnpm sync:model-card`; a unit test fails if a copy drifts. They are shown only
+for a classification whose `model_version` matches a card.
+
+The API now serves the same numbers (checked against the same JSON files in the API tests):
+`ClassificationOut.model_card` on every classification (null for a version the API has no
+manifest for) and `GET /api/v1/models`, `/models/{family}`, `/models/{family}/{version}` (public,
+cacheable; families `ecosystem-classifier` and `photo-verifier`). Switching the web app to them and
+dropping the copied JSON is a follow-up.
+
+Other endpoints added for the web app: `GET /api/v1/public/stats` (landing-page counts in one
+cacheable call: public projects, area, by status, credits issued/retired/replaced from indexed
+chain events, indexer freshness) and `GET /api/v1/projects/{id}/evidence-points` (GeoJSON for the
+monitoring map; snapped to the plot centre or a 0.005° grid cell unless `precision=raw`, which only
+the project's field team and staff may request). Typed helpers: `public.stats()`, `models.*`,
+`field.evidencePoints()`.
 
 ## Maps
 

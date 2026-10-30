@@ -415,6 +415,64 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/models": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Models
+     * @description Every model family with all its published versions.
+     */
+    get: operations["list_models_api_v1_models_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/models/{family}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Model Family */
+    get: operations["get_model_family_api_v1_models__family__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/models/{family}/{version}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Model Version
+     * @description One version's model card summary (`version` as stored on results, e.g.
+     *     `ecosystem_classifier_v1.1`). 404 for a version this API does not know.
+     */
+    get: operations["get_model_version_api_v1_models__family___version__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/notifications": {
     parameters: {
       query?: never;
@@ -581,6 +639,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/periods/{period_id}/measurements": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Measurements
+     * @description Plot measurements recorded in a period (optionally one plot's), oldest first.
+     */
+    get: operations["list_measurements_api_v1_periods__period_id__measurements_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/periods/{period_id}/nonces": {
     parameters: {
       query?: never;
@@ -592,6 +670,31 @@ export interface paths {
     put?: never;
     /** Issue Nonce */
     post: operations["issue_nonce_api_v1_periods__period_id__nonces_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/periods/{period_id}/nonces/batch": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Issue Nonce Batch
+     * @description Pre-issue up to 20 single-use nonces for offline capture (field agents and org admins).
+     *
+     *     Valid for `CAPTURE_NONCE_BATCH_TTL_H` (default 72 h), bound to the caller and this period.
+     *     A photo taken with one gets a lower-weight `capture_nonce` check (`nonce_mode: batch`): it
+     *     proves only that the photo was taken after the batch was issued. An agent may hold at most
+     *     `CAPTURE_NONCE_BATCH_MAX_OUTSTANDING` unused, unexpired batch nonces per period (409).
+     */
+    post: operations["issue_nonce_batch_api_v1_periods__period_id__nonces_batch_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -622,9 +725,19 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    /**
+     * List Plot Measurements
+     * @description Read-back of one plot's measurement in the period: `[]` or one item (a plot is measured
+     *     once per period). Lets the app confirm a record after a lost response.
+     */
+    get: operations["list_plot_measurements_api_v1_periods__period_id__plots__plot_id__measurements_get"];
     put?: never;
-    /** Record Measurement */
+    /**
+     * Record Measurement
+     * @description Record a plot's tree measurements for the period (one per plot and period). With an
+     *     `Idempotency-Key`, a retry within 24 h returns the original 201 response instead of
+     *     `409 already measured`.
+     */
     post: operations["record_measurement_api_v1_periods__period_id__plots__plot_id__measurements_post"];
     delete?: never;
     options?: never;
@@ -661,10 +774,18 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List Submissions */
+    /**
+     * List Submissions
+     * @description Submissions of a period in arrival order, `limit`/`offset` paginated; the total (after
+     *     the optional `sha256` filter) is in the `X-Total-Count` header.
+     */
     get: operations["list_submissions_api_v1_periods__period_id__submissions_get"];
     put?: never;
-    /** Create Submission */
+    /**
+     * Create Submission
+     * @description Create a photo submission (checks run in the worker). With an `Idempotency-Key`, a retry
+     *     within 24 h returns the original 202 response instead of `409 Capture nonce already used`.
+     */
     post: operations["create_submission_api_v1_periods__period_id__submissions_post"];
     delete?: never;
     options?: never;
@@ -931,6 +1052,32 @@ export interface paths {
     put?: never;
     /** Request Document Upload */
     post: operations["request_document_upload_api_v1_projects__project_id__documents_upload_url_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{project_id}/evidence-points": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Evidence Points
+     * @description Field photos as map points with status and trust score only (GeoJSON).
+     *
+     *     `snapped` (default; anyone who can see the project): a photo linked to a plot is placed on
+     *     the plot centre; any other photo on the centre of its `EVIDENCE_GRID_DEG` grid cell (0.005°,
+     *     ~0.5 km). The photo's own GPS fix is never returned, and snapped points carry no submission id
+     *     or capture time. `raw` (field team and staff only, else 403): the app-reported fix, id and
+     *     capture time. At most 5000 points, newest first (`truncated` says if more exist).
+     */
+    get: operations["evidence_points_api_v1_projects__project_id__evidence_points_get"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1380,6 +1527,28 @@ export interface paths {
      * @description QR code of the public certificate URL (`PUBLIC_BASE_URL/registry/retirements/{id}`).
      */
     get: operations["retirement_qr_api_v1_public_retirements__retirement_id__qr__fmt__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/public/stats": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Public Stats
+     * @description Landing-page aggregates in one call: public project count, total public area, projects
+     *     by status, credits issued / retired / replaced (from indexed chain events) and indexer
+     *     freshness. Aggregates only, never per-user or per-submission data. Cacheable (60 s + ETag).
+     */
+    get: operations["public_stats_api_v1_public_stats_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -2032,6 +2201,7 @@ export interface components {
       mangrove_ha: number;
       /** Mangrove Mean Confidence */
       mangrove_mean_confidence: number | null;
+      model_card?: components["schemas"]["ModelCardSummary"] | null;
       /** Model Sha256 */
       model_sha256: string;
       /** Model Version */
@@ -2134,6 +2304,7 @@ export interface components {
       mangrove_ha: number;
       /** Mangrove Mean Confidence */
       mangrove_mean_confidence: number | null;
+      model_card?: components["schemas"]["ModelCardSummary"] | null;
       /** Model Sha256 */
       model_sha256: string;
       /** Model Version */
@@ -2211,6 +2382,23 @@ export interface components {
       min: number;
       /** Stops */
       stops: components["schemas"]["LegendRampStop"][];
+    };
+    /**
+     * CreditTotals
+     * @description Whole credits summed from indexed AquaCredit events (CreditsIssued, CreditsRetired,
+     *     ReversalReplaced) on the configured chain.
+     */
+    CreditTotals: {
+      /** Issued */
+      issued: number;
+      /** Outstanding */
+      outstanding: number;
+      /** Replaced */
+      replaced: number;
+      /** Retired */
+      retired: number;
+      /** Vintages */
+      vintages: number;
     };
     /** DeliveryOut */
     DeliveryOut: {
@@ -2305,6 +2493,76 @@ export interface components {
       /** Note */
       note?: string | null;
     };
+    /** EvidencePointFeature */
+    EvidencePointFeature: {
+      geometry: components["schemas"]["PointGeometry"];
+      properties: components["schemas"]["EvidencePointProperties"];
+      /**
+       * Type
+       * @default Feature
+       * @constant
+       */
+      type: "Feature";
+    };
+    /**
+     * EvidencePointProperties
+     * @description Only what the map needs. `id` and `captured_at` are present for `precision=raw` only;
+     *     snapped points carry no identifier, so they cannot be joined back to a raw location.
+     */
+    EvidencePointProperties: {
+      /** Captured At */
+      captured_at?: string | null;
+      /** Gps Accuracy M */
+      gps_accuracy_m?: number | null;
+      /** Id */
+      id?: string | null;
+      kind: components["schemas"]["SubmissionKind"];
+      /**
+       * Period Id
+       * Format: uuid
+       */
+      period_id: string;
+      /** Plot Code */
+      plot_code?: string | null;
+      /**
+       * Snap
+       * @enum {string}
+       */
+      snap: "plot_centre" | "grid" | "raw";
+      status: components["schemas"]["SubmissionStatus"];
+      /** Trust Score */
+      trust_score: number | null;
+    };
+    /**
+     * EvidencePoints
+     * @description GeoJSON FeatureCollection of a project's field photos for the map.
+     *
+     *     `precision=snapped` (default, any project viewer): a plot photo sits on its plot centre, any
+     *     other photo on the centre of a `grid_deg` grid cell; never the photo's own GPS fix.
+     *     `precision=raw` (organisation admins and field agents of the project, and staff): the
+     *     app-reported GPS fix.
+     */
+    EvidencePoints: {
+      /** Features */
+      features: components["schemas"]["EvidencePointFeature"][];
+      /** Grid Deg */
+      grid_deg: number;
+      /**
+       * Precision
+       * @enum {string}
+       */
+      precision: "snapped" | "raw";
+      /** Total */
+      total: number;
+      /** Truncated */
+      truncated: boolean;
+      /**
+       * Type
+       * @default FeatureCollection
+       * @constant
+       */
+      type: "FeatureCollection";
+    };
     /**
      * EvidenceStats
      * @description Aggregate field-evidence statistics. Individual submissions are never public.
@@ -2365,6 +2623,20 @@ export interface components {
        * @enum {string}
        */
       status: "submitted" | "approved" | "rejected";
+    };
+    /**
+     * IndexerStatus
+     * @description How fresh the chain-derived numbers are. All null when nothing has been indexed.
+     */
+    IndexerStatus: {
+      /** Chain Id */
+      chain_id: number;
+      /** Last Event Block Time */
+      last_event_block_time: string | null;
+      /** Last Indexed At */
+      last_indexed_at: string | null;
+      /** Last Indexed Block */
+      last_indexed_block: number | null;
     };
     /** IssuanceOut */
     IssuanceOut: {
@@ -2480,10 +2752,20 @@ export interface components {
     /** MeasurementOut */
     MeasurementOut: {
       /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
        * Id
        * Format: uuid
        */
       id: string;
+      /**
+       * Measured By
+       * Format: uuid
+       */
+      measured_by: string;
       /**
        * Measured On
        * Format: date
@@ -2613,6 +2895,57 @@ export interface components {
       /** Mfa Token */
       mfa_token: string;
     };
+    /**
+     * ModelCardSummary
+     * @description What a client needs to show a model's validation next to its output. Every number is
+     *     copied from the model card's metrics JSON (`metrics_file`) and checked against it in tests.
+     *     `heldout_metrics` is the clean estimate (a region never used for training or tuning).
+     */
+    ModelCardSummary: {
+      /** Algorithm */
+      algorithm: string;
+      /** Current */
+      current: boolean;
+      /** Cv Metrics */
+      cv_metrics: {
+        [key: string]: unknown;
+      };
+      /** Family */
+      family: string;
+      /** Files Available */
+      files_available: boolean;
+      /** Heldout Metrics */
+      heldout_metrics: {
+        [key: string]: unknown;
+      };
+      /** Heldout Per Class */
+      heldout_per_class: {
+        [key: string]: {
+          [key: string]: number;
+        };
+      };
+      /** Metrics File */
+      metrics_file: string;
+      /** Model Card */
+      model_card: string;
+      /** Model Card Url */
+      model_card_url: string;
+      /** Sha256 */
+      sha256: {
+        [key: string]: string;
+      };
+      /** Version */
+      version: string;
+    };
+    /** ModelFamilyOut */
+    ModelFamilyOut: {
+      /** Current Version */
+      current_version: string;
+      /** Family */
+      family: string;
+      /** Versions */
+      versions: components["schemas"]["ModelCardSummary"][];
+    };
     /** MonthlyIndexValue */
     MonthlyIndexValue: {
       /** Median P50 */
@@ -2646,8 +2979,8 @@ export interface components {
        */
       type: "MultiPolygon";
     };
-    /** NonceOut */
-    NonceOut: {
+    /** NonceBatchItem */
+    NonceBatchItem: {
       /**
        * Expires At
        * Format: date-time
@@ -2655,6 +2988,81 @@ export interface components {
       expires_at: string;
       /** Nonce */
       nonce: string;
+    };
+    /**
+     * NonceBatchOut
+     * @description Pre-issued nonces for offline capture: each single-use, bound to the caller and the
+     *     period, valid from `issued_at` to `expires_at`. Photos taken with one get a lower-weight
+     *     `capture_nonce` check (`nonce_mode: batch`): they prove only capture after `issued_at`.
+     */
+    NonceBatchOut: {
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Issued At
+       * Format: date-time
+       */
+      issued_at: string;
+      /**
+       * Mode
+       * @default batch
+       * @constant
+       */
+      mode: "batch";
+      /** Nonces */
+      nonces: components["schemas"]["NonceBatchItem"][];
+      /**
+       * Period Id
+       * Format: uuid
+       */
+      period_id: string;
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
+    };
+    /** NonceBatchRequest */
+    NonceBatchRequest: {
+      /**
+       * Count
+       * @default 10
+       */
+      count: number;
+    };
+    /**
+     * NonceMode
+     * @enum {string}
+     */
+    NonceMode: "live" | "batch";
+    /**
+     * NonceOut
+     * @description A single-use capture nonce. `server_time` lets the app estimate its clock offset (the
+     *     worker compares the app's `captured_at` against `issued_at`/`expires_at`).
+     */
+    NonceOut: {
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Issued At
+       * Format: date-time
+       */
+      issued_at: string;
+      /** @default live */
+      mode: components["schemas"]["NonceMode"];
+      /** Nonce */
+      nonce: string;
+      /**
+       * Server Time
+       * Format: date-time
+       */
+      server_time: string;
     };
     /**
      * NotificationKind
@@ -3100,6 +3508,17 @@ export interface components {
       /** Stratum */
       stratum: string;
     };
+    /** PointGeometry */
+    PointGeometry: {
+      /** Coordinates */
+      coordinates: [number, number];
+      /**
+       * Type
+       * @default Point
+       * @constant
+       */
+      type: "Point";
+    };
     /**
      * Polygon
      * @description Polygon Model
@@ -3541,6 +3960,38 @@ export interface components {
       tree_stock_tco2e: number;
       /** Version */
       version: number;
+    };
+    /**
+     * PublicStats
+     * @description Platform-wide aggregates for the landing page (no personal data, no per-project rows).
+     *
+     *     Projects count when public (not draft or rejected), the same set `GET /public/projects`
+     *     lists; `registered` and `monitoring` are project lifecycle statuses, `registered_on_chain`
+     *     counts those with an indexed ProjectRegistered event.
+     */
+    PublicStats: {
+      /** Area Ha */
+      area_ha: number;
+      chain: components["schemas"]["IndexerStatus"];
+      /** Credits */
+      credits: {
+        [key: string]: components["schemas"]["CreditTotals"];
+      };
+      credits_total: components["schemas"]["CreditTotals"];
+      /** Monitoring */
+      monitoring: number;
+      /** Projects */
+      projects: number;
+      /** Projects By Status */
+      projects_by_status: {
+        [key: string]: number;
+      };
+      /** Registered */
+      registered: number;
+      /** Registered On Chain */
+      registered_on_chain: number;
+      /** Retirements */
+      retirements: number;
     };
     /** PublicTimeseries */
     PublicTimeseries: {
@@ -5231,6 +5682,89 @@ export interface operations {
       };
     };
   };
+  list_models_api_v1_models_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ModelFamilyOut"][];
+        };
+      };
+    };
+  };
+  get_model_family_api_v1_models__family__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family: "ecosystem-classifier" | "photo-verifier";
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ModelFamilyOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_model_version_api_v1_models__family___version__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        family: "ecosystem-classifier" | "photo-verifier";
+        version: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ModelCardSummary"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   list_notifications_api_v1_notifications_get: {
     parameters: {
       query?: {
@@ -5570,6 +6104,39 @@ export interface operations {
       };
     };
   };
+  list_measurements_api_v1_periods__period_id__measurements_get: {
+    parameters: {
+      query?: {
+        plot_id?: string | null;
+      };
+      header?: never;
+      path: {
+        period_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeasurementOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   issue_nonce_api_v1_periods__period_id__nonces_post: {
     parameters: {
       query?: never;
@@ -5588,6 +6155,41 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["NonceOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  issue_nonce_batch_api_v1_periods__period_id__nonces_batch_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        period_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NonceBatchRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NonceBatchOut"];
         };
       };
       /** @description Validation Error */
@@ -5636,10 +6238,45 @@ export interface operations {
       };
     };
   };
-  record_measurement_api_v1_periods__period_id__plots__plot_id__measurements_post: {
+  list_plot_measurements_api_v1_periods__period_id__plots__plot_id__measurements_get: {
     parameters: {
       query?: never;
       header?: never;
+      path: {
+        period_id: string;
+        plot_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeasurementOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  record_measurement_api_v1_periods__period_id__plots__plot_id__measurements_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description UUID chosen by the client per logical request; a retry within 24 h with the same key and body returns the original response. */
+        "Idempotency-Key"?: string | null;
+      };
       path: {
         period_id: string;
         plot_id: string;
@@ -5740,7 +6377,11 @@ export interface operations {
   };
   list_submissions_api_v1_periods__period_id__submissions_get: {
     parameters: {
-      query?: never;
+      query?: {
+        sha256?: string | null;
+        limit?: number;
+        offset?: number;
+      };
       header?: never;
       path: {
         period_id: string;
@@ -5772,7 +6413,10 @@ export interface operations {
   create_submission_api_v1_periods__period_id__submissions_post: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description UUID chosen by the client per logical request; a retry within 24 h with the same key and body returns the original response. */
+        "Idempotency-Key"?: string | null;
+      };
       path: {
         period_id: string;
       };
@@ -6436,6 +7080,40 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["UploadTicket"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  evidence_points_api_v1_projects__project_id__evidence_points_get: {
+    parameters: {
+      query?: {
+        precision?: "snapped" | "raw";
+        period_id?: string | null;
+      };
+      header?: never;
+      path: {
+        project_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EvidencePoints"];
         };
       };
       /** @description Validation Error */
@@ -7273,6 +7951,26 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  public_stats_api_v1_public_stats_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PublicStats"];
         };
       };
     };
