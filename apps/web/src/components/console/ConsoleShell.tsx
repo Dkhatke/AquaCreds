@@ -11,6 +11,7 @@ import { SECTIONS } from "@/lib/console-nav";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 import { Providers } from "./Providers";
 
+const PROJECT_SCOPED = new Set(["monitoring", "reports", "verification"]);
 const PROJECT_PATH = /^\/console\/projects\/([^/]+)/;
 
 export function currentProjectId(pathname: string): string | null {
@@ -18,12 +19,14 @@ export function currentProjectId(pathname: string): string | null {
 }
 
 function sectionHref(slug: string, href: string, projectId: string | null) {
-  return slug === "monitoring" && projectId ? `/console/projects/${projectId}/monitoring` : href;
+  return PROJECT_SCOPED.has(slug) && projectId ? `/console/projects/${projectId}/${slug}` : href;
 }
 
 function isActive(slug: string, href: string, pathname: string) {
   if (slug === "overview") return pathname === "/console";
-  if (slug === "monitoring") return pathname === href || /\/monitoring$/.test(pathname);
+  if (PROJECT_SCOPED.has(slug)) {
+    return pathname === href || new RegExp(`^/console/projects/[^/]+/${slug}$`).test(pathname);
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
