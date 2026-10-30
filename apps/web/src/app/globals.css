@@ -23,8 +23,12 @@
   --color-failed-ink: #a83b33;
   --color-failed-glow: #f08a80;
 
-  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    var(--font-space-grotesk), var(--font-devanagari), var(--font-oriya), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-sans:
+    var(--font-inter), var(--font-devanagari), var(--font-oriya), ui-sans-serif, system-ui,
+    sans-serif;
 
   --radius-card: 0.875rem;
 }

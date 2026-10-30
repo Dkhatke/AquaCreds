@@ -57,22 +57,7 @@ export const SECTIONS: ConsoleSection[] = [
       api: ["GET /api/v1/public/marketplace/listings", "GET /api/v1/forward-fund/requests"],
     },
   },
-  {
-    slug: "community",
-    label: "Community portal",
-    href: "/console/community",
-    intro: {
-      title: "Stewardship and notifications",
-      body: [
-        "Organisations see their stewardship score (verification continuity, satellite-confirmed survival and evidence quality) with every input it was computed from, and manage members and notification preferences.",
-      ],
-      api: [
-        "GET /api/v1/orgs/{org_id}/stewardship",
-        "GET /api/v1/orgs/{org_id}/members",
-        "GET /api/v1/notifications",
-      ],
-    },
-  },
+  { slug: "community", label: "Community portal", href: "/console/community" },
 ];
 
 export const PLACEHOLDER_SLUGS = SECTIONS.filter((s) => s.intro).map((s) => s.slug);
