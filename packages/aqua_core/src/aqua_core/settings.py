@@ -74,6 +74,19 @@ class Settings(BaseSettings):
     upload_max_bytes: int = 25 * 1024 * 1024
     upload_url_ttl_s: int = 900
     capture_nonce_ttl_min: int = 15  # a photo must be captured within this window
+    # Offline capture: pre-issued ("batch") nonces for crews without signal at the shutter. Each
+    # is single-use and bound to the agent + period, but only proves the photo was taken after
+    # the batch was issued, so it counts as a weaker (lower-weight) liveness check
+    # (aqua_worker.evidence.check_nonce; trade-off in apps/mobile/README.md "Offline capture").
+    capture_nonce_batch_ttl_h: int = Field(default=72, ge=1, le=168)
+    capture_nonce_batch_max: int = Field(default=20, ge=1, le=100)  # per request
+    # Unused, unexpired batch nonces one agent may hold for one period (limits hoarding).
+    capture_nonce_batch_max_outstanding: int = Field(default=40, ge=1, le=500)
+    # Idempotency-Key replays (submission + plot-measurement create) are honoured this long.
+    idempotency_ttl_h: int = Field(default=24, ge=1, le=168)
+    # Evidence points for the map: photos not linked to a plot are snapped to the centre of a
+    # grid cell of this size (degrees; 0.005 deg ~ 550 m N-S, ~520 m E-W at 20 N).
+    evidence_grid_deg: float = Field(default=0.005, ge=0.001, le=0.1)
 
     # ---------------------------------------------------------------- map tiles
     # XYZ tiles rendered from the classification COGs (aqua_api.tiles). TileJSON hands out tile
