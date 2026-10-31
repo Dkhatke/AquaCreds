@@ -3,8 +3,14 @@
 # scripts) on a developer machine. Contacts no cloud provider: S3 is a throwaway SeaweedFS
 # (compose.smoke.yaml), TLS is Caddy's internal CA for `localhost`, secrets are random per run.
 #
-#   infra/scripts/smoke-prod-local.sh            # builds the api/worker images, runs, tears down
-#   SMOKE_SKIP_BUILD=1 SMOKE_TAG=mytag ...       # reuse images aquacreds-{api,worker}:mytag
+#   infra/scripts/smoke-prod-local.sh            # builds the api/worker/web images, runs, tears down
+#   SMOKE_SKIP_BUILD=1 SMOKE_TAG=mytag ...       # reuse images aquacreds-{api,worker,web}:mytag
+#
+# The web app is served at https://web.localhost:$HTTPS_PORT (the API at https://localhost). Demo mode
+# stays OFF here: `aqua-api seed-demo` refuses APP_ENV=production, so the demo cannot be seeded in this
+# stack (FEATURE_DEMO / DEMO_MODE_ENABLED are therefore unset). Browser checks need Playwright's
+# Chromium (pnpm install + `pnpm exec playwright install chromium`); otherwise they fall back to
+# curl + header assertions (SMOKE_REQUIRE_BROWSER=1 makes the fallback an error).
 #
 # Uses compose project `aquacreds-prodtest` and host ports 18080/18443 so it cannot collide with
 # the dev stack. Everything (containers, volumes, temp files) is removed on exit.
@@ -32,11 +38,12 @@ cleanup() {
 trap cleanup EXIT
 
 if [[ "${SMOKE_SKIP_BUILD:-0}" != "1" ]]; then
-  step "build images (api, worker) -> aquacreds-{api,worker}:$SMOKE_TAG"
+  step "build images (api, worker, web) -> aquacreds-{api,worker,web}:$SMOKE_TAG"
   for target in api worker; do
     docker build -q -f "$REPO/infra/docker/python.Dockerfile" --target "$target" \
       -t "aquacreds-$target:$SMOKE_TAG" "$REPO" >/dev/null
   done
+  docker build -q -f "$REPO/apps/web/Dockerfile" -t "aquacreds-web:$SMOKE_TAG" "$REPO" >/dev/null
 fi
 
 step "generate throwaway secrets in $TMP"
@@ -58,12 +65,15 @@ cat > "$ENV_FILE" <<EOF
 IMAGE_TAG=$SMOKE_TAG
 API_IMAGE=aquacreds-api
 WORKER_IMAGE=aquacreds-worker
+WEB_IMAGE=aquacreds-web
 API_DOMAIN=localhost
+WEB_DOMAIN=web.localhost
 ACME_EMAIL=smoke@example.org
 EXPOSE_API_DOCS=false
 HTTP_PORT=$HTTP_PORT
 HTTPS_PORT=$HTTPS_PORT
-CORS_ORIGINS=https://app.example.org
+CORS_ORIGINS=https://web.localhost:$HTTPS_PORT
+FEATURE_TILES=1
 JWT_SECRET=$(rnd 32)
 MFA_ENCRYPTION_KEY=$mfa_key
 RELAYER_MNEMONIC=$relayer_mnemonic
@@ -90,6 +100,7 @@ step "deploy.sh $SMOKE_TAG (first deploy)"
 "$REPO/infra/scripts/deploy.sh" "$SMOKE_TAG"
 
 base="https://localhost:$HTTPS_PORT"
+web="https://web.localhost:$HTTPS_PORT"
 step "checks through Caddy at $base"
 curl -fsSk "$base/readyz" | tee "$TMP/readyz.json"; echo
 grep -q '"status":"ready"' "$TMP/readyz.json" || fail "/readyz not ready"
@@ -115,6 +126,58 @@ for _ in $(seq 1 10); do
   sleep 3
 done
 [[ "${ok:-0}" == "1" ]] || fail "API -> queue -> worker round trip failed"
+
+step "web app through Caddy at $web"
+resolve=(--resolve "web.localhost:$HTTPS_PORT:127.0.0.1")
+page="$(curl -fsSk "${resolve[@]}" "$web/")"
+grep -q 'verifiable carbon evidence' <<<"$page" || fail "landing page did not render"
+echo "landing page renders"
+loc="$(curl -sk "${resolve[@]}" -o /dev/null -w '%{http_code} %{redirect_url}' "$web/console")"
+[[ "$loc" == 307\ *"/console/login"* || "$loc" == 30[78]\ *"/console/login"* ]] || fail "/console did not redirect to login: $loc"
+echo "/console -> $loc"
+whead="$(curl -sSk "${resolve[@]}" -D - -o /dev/null "$web/")"
+for h in strict-transport-security content-security-policy x-content-type-options referrer-policy x-frame-options permissions-policy; do
+  grep -qi "^$h:" <<<"$whead" || fail "web: missing header $h"
+done
+grep -qi '^server:\|^x-powered-by:' <<<"$whead" && fail "web: Server/X-Powered-By leaked"
+csp="$(grep -i '^content-security-policy:' <<<"$whead" | tr -d '\r')"
+for d in "default-src 'self'" "worker-src 'self' blob:" "tiles.openfreemap.org" "frame-ancestors 'none'" "object-src 'none'"; do
+  grep -qF "$d" <<<"$csp" || fail "web CSP lacks: $d"
+done
+grep -q "unsafe-eval" <<<"$csp" && fail "web CSP allows unsafe-eval"
+echo "web security headers + CSP present"
+code="$(curl -sk "${resolve[@]}" -o /dev/null -w '%{http_code}' "$web/vendor/maplibre-gl-worker.mjs")"
+[[ "$code" == "200" ]] || fail "MapLibre worker /vendor/maplibre-gl-worker.mjs returned $code"
+echo "MapLibre worker served from /vendor"
+# CORS: the API must allow the web origin (map tiles are fetched cross-origin from the API).
+acao="$(curl -sSk -D - -o /dev/null -H "Origin: $web" "$base/healthz" | tr -d '\r' | grep -i '^access-control-allow-origin:' || true)"
+grep -qF "$web" <<<"$acao" || fail "API CORS does not allow $web (got: ${acao:-none})"
+echo "API CORS allows $web"
+
+step "smoke user via CLI + login through the BFF"
+smoke_email="smoke-user@example.org"; smoke_pw="$(rnd 12)"
+printf '%s\n' "$smoke_pw" | docker compose --env-file "$ENV_FILE" exec -T api aqua-api create-user --email "$smoke_email" --name "Smoke User" --role user >/dev/null \
+  || fail "aqua-api create-user failed"
+jar="$TMP/cookies.txt"
+code="$(curl -sk "${resolve[@]}" -c "$jar" -o "$TMP/login.json" -w '%{http_code}' -X POST "$web/bff/auth/login" \
+  -H 'content-type: application/json' -H 'x-aquacreds-csrf: 1' -H "Origin: $web" \
+  --data "{\"email\":\"$smoke_email\",\"password\":\"$smoke_pw\"}")"
+[[ "$code" == "200" ]] || fail "BFF login returned $code: $(cat "$TMP/login.json")"
+grep -q 'aq_at' "$jar" && grep -E 'HttpOnly' "$jar" | grep -q aq_at || fail "aq_at cookie missing or not HttpOnly"
+echo "BFF login OK (aq_at httpOnly cookie set)"
+code="$(curl -sk "${resolve[@]}" -b "$jar" -o /dev/null -w '%{http_code}' "$web/console")"
+[[ "$code" == "200" ]] || fail "/console with session returned $code"
+echo "/console with session -> 200"
+
+step "browser: landing page CSP + login (headless Chromium)"
+if (cd "$REPO/apps/web" && node -e 'require.resolve("@playwright/test")' 2>/dev/null) \
+   && node "$REPO/infra/scripts/smoke-web-browser.mjs" "$web" "$smoke_email" "$smoke_pw"; then
+  :
+elif [[ "${SMOKE_REQUIRE_BROWSER:-0}" == "1" ]]; then
+  fail "browser checks failed or Playwright unavailable"
+else
+  echo "note: Playwright/Chromium unavailable or failed; header assertions above are the fallback"
+fi
 
 step "container states + memory"
 docker ps --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" --format '{{.Names}}\t{{.Status}}'

@@ -25,7 +25,9 @@ backups go to Cloudflare R2. Images are pulled from GHCR, where CI builds them f
 ## 1. Architecture
 
 ```
- Internet ──443/80──▶ OCI Security List ──▶ VM iptables ──▶ caddy ──(edge net)──▶ api:8000
+ Internet ──443/80──▶ OCI Security List ──▶ VM iptables ──▶ caddy ──(edge net)──▶ api:8000   (API_DOMAIN)
+                                                              └──────────────▶ web:3000   (WEB_DOMAIN)
+                                                                  web ──(edge net)──▶ api:8000 (BFF)
                                                                                      │
                      worker-default (default,ml,reports)   worker-geo (geo, c=1)     │ (data net,
                      worker-chain (chain, c=1)   beat        migrate (one-shot)      │  internal)
@@ -36,6 +38,11 @@ backups go to Cloudflare R2. Images are pulled from GHCR, where CI builds them f
 
 - Only Caddy publishes ports (80, 443). `db` and `valkey` sit on an `internal` network with no
   internet route and no host port. Valkey requires a password.
+- `web` is the Next.js standalone server (site + backend-for-frontend). Browsers talk only to
+  `WEB_DOMAIN` for pages and `/bff/...`; the BFF holds the session in httpOnly cookies and calls the API
+  at `http://api:8000` over the internal edge network. It must stay a **single replica** (its token
+  refresh de-duplication is in process memory). It runs as the non-root `node` user with a read-only
+  root filesystem, no capabilities, and holds no secrets.
 - `migrate` runs `aqua-api migrate && aqua-api bootstrap` and must exit 0 before the API starts.
 - `APP_ENV=production` is fixed in compose, so the API refuses to start with the development JWT
   secret or the development S3 secret (`Settings.assert_production_safe`).
@@ -49,6 +56,7 @@ stack is sized for 2/12. If you get 4/24, raise `worker-geo` and `db` first.
 | Service | `mem_limit` | `cpus` cap | `cpu_shares` | Idle RSS (smoke test) | Notes |
 |---|---:|---:|---:|---:|---|
 | caddy | 128 MB | 0.5 | 1024 | 16 MB | TLS + proxy |
+| web (Next.js) | 512 MB | 1.0 | 1024 | 77 MB | single replica, `--max-old-space-size=384`; image ~330 MB |
 | api | 768 MB | 1.5 | 1024 | 260 MB | 2 uvicorn workers |
 | worker-default | 1.5 GB | 1.0 | 512 | 160 MB | `default,ml,reports`, concurrency 2 (ONNX photo checks) |
 | worker-geo | 3 GB | 1.5 | 256 | 105 MB | `geo`, concurrency 1, recycled after each task |
@@ -56,11 +64,12 @@ stack is sized for 2/12. If you get 4/24, raise `worker-geo` and `db` first.
 | beat | 192 MB | 0.25 | 256 | 89 MB | exactly one instance |
 | db (PostGIS 17) | 2.5 GB | 1.5 | 1024 | 62 MB | `shared_buffers=640MB`, `work_mem=16MB`, `max_connections=100` |
 | valkey | 384 MB | 0.5 | 512 | 13 MB | `maxmemory 256mb`, `noeviction`, AOF |
-| **always-on total** | **8.84 GB** | | | **~0.8 GB** | |
+| **always-on total** | **9.34 GB** | | | **~0.8 GB** | |
 | migrate (one-shot) | 512 MB | 1.0 | | | runs only during deploys |
 | uptime-kuma (optional) | 256 MB | 0.25 | 256 | | profile `monitoring` |
 
-- **Memory:** the hard limits add up to about 9.1 GB with everything on, which leaves about 3 GB for
+- **Memory:** the hard limits add up to about 9.6 GB with everything on (9.34 GB always-on + the 256 MB optional
+  Uptime Kuma; `migrate` only runs during deploys), which leaves about 2.4 GB for
   the kernel, Docker and the page cache (Postgres relies on it). The 4 GB swap file is only a safety
   net. A runaway geo job gets OOM-killed inside its own 3 GB limit and doesn't take down the API or
   the database.
@@ -123,15 +132,20 @@ logins with no root, adds fail2ban, and enables unattended security upgrades.
 `AUTO_REBOOT=true` lets the upgrades reboot at 04:30 UTC for kernel fixes. Every service restarts
 automatically after a reboot.
 
-### 3.5 Domain: DuckDNS (free)
-1. Sign in at <https://www.duckdns.org>, create a subdomain such as `aquacreds-demo`, and set its IP
-   to the VM's public IP.
-2. Check it: `dig +short aquacreds-demo.duckdns.org` must return the VM IP **before** the first
+### 3.5 Domains: two hostnames (DuckDNS is free)
+The web app and the API are served on **two separate hostnames**, `WEB_DOMAIN` (the site) and
+`API_DOMAIN` (the API, also used directly by the browser for classification map tiles). Both need a
+DNS A record pointing at the VM's public IP, and Caddy obtains a certificate for each.
+1. Sign in at <https://www.duckdns.org>, create two subdomains such as `aquacreds-demo` (web) and
+   `aquacreds-demo-api` (API), and set both IPs to the VM's public IP. With a real domain, add two
+   A records instead (for example `aquacreds.example.org` and `api.aquacreds.example.org`).
+2. Check both: `dig +short <WEB_DOMAIN>` and `dig +short <API_DOMAIN>` must return the VM IP **before** the first
    deploy. Otherwise Caddy's certificate request fails, and repeated failures hit Let's Encrypt rate
    limits.
 3. Oracle keeps an instance's ephemeral public IP until the instance is terminated. To be safe across
    rebuilds, promote it to a *reserved* public IP (*Networking → IP Management*).
-4. To use a real domain later, change `API_DOMAIN` and run the deploy again.
+4. To use a real domain later, change `WEB_DOMAIN`, `API_DOMAIN` and `CORS_ORIGINS` (it must be
+   `https://<WEB_DOMAIN>`) and run the deploy again.
 
 ### 3.6 Cloudflare R2 (object storage + backups)
 1. In the Cloudflare dashboard, go to **R2** and enable it. A card is required; the free tier covers
@@ -145,7 +159,7 @@ automatically after a reboot.
 4. Phones and browsers upload straight to R2 with presigned URLs, so add a **CORS policy** to
    `aquacreds-prod` (*Settings → CORS policy*):
    ```json
-   [{"AllowedOrigins": ["https://app.example.org"], "AllowedMethods": ["PUT", "GET"],
+   [{"AllowedOrigins": ["https://<WEB_DOMAIN>"], "AllowedMethods": ["PUT", "GET"],
      "AllowedHeaders": ["content-type"], "MaxAgeSeconds": 3600}]
    ```
 5. **Publish the ecosystem classifier** (once per model version; production runs
@@ -176,7 +190,7 @@ cd /opt/aquacreds
 cp .env.prod.example .env.prod && chmod 600 .env.prod
 openssl rand -hex 32    # -> JWT_SECRET
 openssl rand -hex 24    # -> POSTGRES_PASSWORD, and again for VALKEY_PASSWORD
-nano .env.prod          # replace EVERY placeholder (API_DOMAIN, ACME_EMAIL, R2 keys, CORS_ORIGINS, ...)
+nano .env.prod          # replace EVERY placeholder (API_DOMAIN, WEB_DOMAIN, ACME_EMAIL, R2 keys, CORS_ORIGINS, ...)
 ```
 Never commit `.env.prod`; it's git-ignored. Back it up in a password manager, because without it the
 backups can't be used with a new VM.
@@ -245,7 +259,7 @@ get.
 
 ## 4. First deploy
 
-CI pushes `ghcr.io/dkhatke/aquacreds-{api,worker}` with tags `main` and `sha-<7 chars>` on every
+CI pushes `ghcr.io/dkhatke/aquacreds-{api,worker,web}` (all `linux/amd64` + `linux/arm64`) with tags `main` and `sha-<7 chars>` on every
 commit to `main`. Deploy an immutable `sha-…` tag. `main` moves, so it's not a good tag to roll back
 to.
 
@@ -259,9 +273,9 @@ variables → Actions*):
 | `DEPLOY_SSH_KEY` | a **new** ed25519 private key used only for CI (`ssh-keygen -t ed25519 -f ci_deploy -N ''`); append `ci_deploy.pub` to `/home/deploy/.ssh/authorized_keys` |
 | `DEPLOY_KNOWN_HOSTS` | `ssh-keyscan -t ed25519 <VM_IP>`. Compare the fingerprint with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` run on the VM through the OCI console's serial connection or your first SSH session |
 
-Optional variables: `DEPLOY_DIR` (default `/opt/aquacreds`) and `API_DOMAIN`, which enables a
-public `/readyz` check after the deploy. Then push a tag (`git tag v0.1.0 && git push origin v0.1.0`)
-or run **Actions → Deploy → Run workflow**. The workflow waits until both images exist with a
+Optional variables: `DEPLOY_DIR` (default `/opt/aquacreds`), `API_DOMAIN` (enables a public
+`/readyz` check after the deploy) and `WEB_DOMAIN` (a public check that the site answers). Then push a tag (`git tag v0.1.0 && git push origin v0.1.0`)
+or run **Actions → Deploy → Run workflow**. The workflow waits until all three images exist with a
 `linux/arm64` variant. It then copies `infra/compose` and `infra/scripts` to the VM and runs
 `deploy.sh sha-<commit>`. Until all four secrets exist, the workflow just ends with a notice.
 
@@ -273,13 +287,16 @@ infra/scripts/deploy.sh sha-1a2b3c4
 ```
 `deploy.sh` pulls the images, takes a pre-deploy `pg_dump` (the 3 most recent are kept in
 `/opt/aquacreds/backups`), runs `migrate`, then runs `up -d`. It waits up to 5 minutes until
-`/readyz` passes inside the API container **and** through Caddy, and every container is healthy. If
+`/readyz` passes inside the API container **and** through Caddy, the web app answers on
+`WEB_DOMAIN`, and every container is healthy. If
 any of that fails, it redeploys the previous tag and exits non-zero. The tag history is in
 `/opt/aquacreds/.deploy/history.log`.
 
 Check it:
 ```bash
 curl -fsS https://<API_DOMAIN>/readyz          # {"status":"ready", "checks": {database, redis, storage}}
+curl -fsSI https://<WEB_DOMAIN>/               # 200, with HSTS and a Content-Security-Policy header
+curl -sI https://<WEB_DOMAIN>/console | head -1  # 307 -> /console/login (no session)
 infra/scripts/compose.sh ps                      # all (healthy)
 ```
 
@@ -288,7 +305,44 @@ infra/scripts/compose.sh ps                      # all (healthy)
 infra/scripts/compose.sh exec api aqua-api create-user --email admin@example.org
 # (equivalent to: docker compose exec api aqua-api create-user --email ..., with the prod env/compose files)
 ```
-It prompts for a password of at least 10 characters.
+It prompts for a password of at least 10 characters. Then open `https://<WEB_DOMAIN>/console/login`
+and sign in. Staff accounts with MFA enrol TOTP on first login.
+
+**Publish the models to R2** before the first classification (section 3.6, step 5; same bucket the
+workers read from). Without them the web console works but classifications fail with a clear error.
+
+### 4.1 Web app: CSP, feature flags, trusted proxies
+- **CSP** (Caddy, `WEB_DOMAIN` block): `default-src 'self'`; `script-src`/`style-src` `'self'
+  'unsafe-inline'` (Next.js inline bootstrap, no `unsafe-eval`); `img-src`/`connect-src` add
+  `https://tiles.openfreemap.org` (OpenFreeMap basemap style, tiles, glyphs, sprites) and
+  `https://<API_DOMAIN>` (classification tiles, signed URLs); `worker-src 'self' blob:` (MapLibre
+  worker is served from `/vendor`); `font-src 'self' data:` (next/font self-hosts); `object-src 'none'`;
+  `frame-ancestors 'none'`. If you add an external asset (analytics, another basemap), extend the
+  header in `infra/compose/Caddyfile`, never loosen `default-src`.
+- **Flags** (`.env.prod`, read at request time, no rebuild): `FEATURE_TILES=1` shows classification
+  tiles, `FEATURE_DEMO=1` enables the Explore Demo page. Apply with
+  `infra/scripts/deploy.sh $(cat .deploy/current_tag)`.
+- **Trusted proxies:** the API and web containers share the compose `edge` network (a Docker bridge
+  inside `172.16.0.0/12`). The default `TRUSTED_PROXY_IPS=172.16.0.0/12` therefore already trusts both
+  Caddy and the web BFF to forward the real client IP, so login rate limits are per user rather than
+  per web server. If you change Docker's `default-address-pools`, put the `edge` subnet
+  (`docker network inspect aquacreds-prod_edge`) in `TRUSTED_PROXY_IPS`.
+- **CORS:** `CORS_ORIGINS` must be `https://<WEB_DOMAIN>` exactly: the browser fetches map tiles
+  cross-origin from the API.
+
+### 4.2 Enabling the Explore Demo (SIH judging)
+Demo mode is off by default. Needs the API side (`docs/DEMO.md`: `DEMO_MODE_ENABLED=true` plus
+`DEMO_ORG_ID`/`DEMO_ORG_SLUG` of a seeded synthetic organisation) **and** `FEATURE_DEMO=1` for the web
+app. `aqua-api seed-demo` refuses `APP_ENV=production`, so the production stack (and the local smoke
+test, which therefore leaves demo off) cannot seed the organisation itself; getting a seeded demo
+organisation into the production database is an open item tracked in `docs/DEMO.md`. Once it exists:
+set the four variables in `.env.prod`, redeploy, check `https://<API_DOMAIN>/api/v1/demo/status`
+returns `{"enabled": true, ...}`, and set both flags back to off after judging.
+
+### 4.3 Rollback
+`infra/scripts/deploy.sh --rollback` redeploys the previous tag for **all** services (api, worker and
+web share one tag), and an automatic rollback happens if a deploy fails to become ready (including
+the web check). Migrations are not reversed (see section 7).
 
 ## 5. Backups and restore
 
@@ -394,6 +448,10 @@ infra/scripts/smoke-prod-local.sh     # ~3 min; builds images, runs, verifies, t
 ```
 This runs `compose.prod.yaml` plus the test-only `compose.smoke.yaml` (a throwaway SeaweedFS in place
 of R2) as project `aquacreds-prodtest` on ports 18080/18443, with random secrets and Caddy's internal
-CA for `localhost`. It checks: `deploy.sh`, `/readyz` through Caddy, blocked docs, security headers,
+CA for `localhost`. The web image is built too and served at `https://web.localhost:18443`. It checks: `deploy.sh`, `/readyz` through Caddy, blocked docs, security headers,
 the HTTP→HTTPS redirect, an API → queue → worker round trip, `backup.sh` → S3, `restore.sh` into a
-fresh DB, and an automatic rollback after a broken deploy. Nothing contacts Oracle or Cloudflare.
+fresh DB, and an automatic rollback after a broken deploy. For the web app: the landing page renders,
+`/console` redirects to login, the MapLibre worker is served from `/vendor`, API CORS allows the web
+origin, a smoke user created with `aqua-api create-user` logs in through the BFF (httpOnly `aq_at`
+cookie), and headless Chromium (apps/web's Playwright; header assertions only if it is not installed)
+loads the landing page and the console with zero CSP violations. Demo mode stays off (see 4.2). Nothing contacts Oracle or Cloudflare.

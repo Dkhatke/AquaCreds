@@ -5,8 +5,8 @@
 #   infra/scripts/deploy.sh --rollback      # redeploy the previously deployed tag
 #
 # Steps: pull images -> pre-deploy pg_dump -> run `migrate` (one-shot) -> `up -d` -> wait for /readyz
-# (inside the API container AND through Caddy) and for every container to be healthy.
-# If anything after the migration fails, the previous tag is redeployed and the script exits non-zero.
+# (inside the API container AND through Caddy; also the web app on WEB_DOMAIN) and for every container to be healthy.
+# One tag covers api, worker AND web. If anything after the migration fails, the previous tag is redeployed and the script exits non-zero.
 # A failed pull or migration leaves the running version untouched.
 # NOTE: migrations are not reversed by a rollback. Write backwards-compatible (expand/contract)
 # migrations; the pre-deploy dump in $BACKUP_DIR is the last resort (see restore.sh).
@@ -59,6 +59,13 @@ edge_ready() {
   port="$(env_get HTTPS_PORT 443)"
   curl -fsS -k --max-time 10 --resolve "$domain:$port:127.0.0.1" "https://$domain:$port/readyz" >/dev/null 2>&1
 }
+# The web app answers through Caddy (WEB_DOMAIN) too.
+web_ready() {
+  local domain port
+  domain="$(env_get WEB_DOMAIN)"
+  port="$(env_get HTTPS_PORT 443)"
+  curl -fsS -k --max-time 10 --resolve "$domain:$port:127.0.0.1" "https://$domain:$port/" >/dev/null 2>&1
+}
 # Every running container of the project is healthy (none starting / unhealthy / restarting).
 all_healthy() {
   local project statuses
@@ -73,7 +80,7 @@ all_healthy() {
 wait_ready() {
   local deadline=$((SECONDS + READY_TIMEOUT))
   log "waiting up to ${READY_TIMEOUT}s for /readyz and healthy containers"
-  until api_ready && edge_ready && all_healthy; do
+  until api_ready && edge_ready && web_ready && all_healthy; do
     if ((SECONDS >= deadline)); then
       log "not ready in time; container states:"
       docker ps -a --filter "label=com.docker.compose.project=$(project_name)" \
@@ -82,7 +89,7 @@ wait_ready() {
     fi
     sleep 5
   done
-  log "ready: /readyz OK (container + edge), all containers healthy"
+  log "ready: /readyz OK (container + edge), web OK, all containers healthy"
 }
 
 start_stack() {
@@ -92,7 +99,7 @@ start_stack() {
 rollback() {
   local reason="$1"
   log "deploy of $TAG failed: $reason"
-  dc logs --no-color --tail 80 api migrate >&2 || true
+  dc logs --no-color --tail 80 api web migrate >&2 || true
   if [[ -z "$PREV_TAG" || "$PREV_TAG" == "$TAG" ]]; then
     record "$TAG" "FAILED(no-rollback-target)"
     die "no previous tag to roll back to"

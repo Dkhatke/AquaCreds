@@ -14,8 +14,23 @@ export function csrfProblem(req: NextRequest): NextResponse | null {
   if (req.method === "GET" || req.method === "HEAD") return null;
   if (req.headers.get(CSRF_HEADER) !== "1") return problem(403, "Missing CSRF header");
   const origin = req.headers.get("origin");
-  if (origin && origin !== req.nextUrl.origin) return problem(403, "Cross-origin request refused");
+  if (origin && !publicOrigins(req).includes(origin))
+    return problem(403, "Cross-origin request refused");
   return null;
+}
+
+/**
+ * Origins this server is reachable at. Behind the reverse proxy (Caddy) the server itself only sees
+ * plain http on its container address, so `nextUrl.origin` is not what the browser used; the proxy
+ * passes the public scheme and host in X-Forwarded-Proto/Host. A cross-site page cannot forge
+ * those, and a mismatch only ever makes the check stricter than the browser's Origin.
+ */
+function publicOrigins(req: NextRequest): string[] {
+  const origins = [req.nextUrl.origin];
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (host && (proto === "https" || proto === "http")) origins.push(`${proto}://${host}`);
+  return origins;
 }
 
 export function problem(status: number, detail: string): NextResponse {

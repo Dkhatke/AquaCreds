@@ -116,9 +116,10 @@ MapLibre GL 6 with the free OpenFreeMap `dark` style (no key). MapLibre locates 
 own module, which breaks once bundled, so `scripts/copy-maplibre-worker.mjs` copies it to
 `public/vendor/` before `dev`/`build` and the map calls `setWorkerUrl()`.
 
-## Deployment (proposal)
+## Deployment
 
-`apps/web/Dockerfile` builds a standalone Node server (≈330 MB, multi-arch, runs as `node`). On the
-Oracle VM: add a `web` service to `infra/compose/compose.prod.yaml` with `AQUA_API_URL=http://api:8000`,
-and a second Caddy site block (`{$WEB_DOMAIN}` → `reverse_proxy web:3000`) with a page-appropriate CSP
-(the API block's `default-src 'none'` would break the site).
+`apps/web/Dockerfile` builds a standalone Node server (about 330 MB, multi-arch, runs as `node`). CI
+publishes `ghcr.io/dkhatke/aquacreds-web`; `infra/compose/compose.prod.yaml` runs it (single replica,
+512 MB, read-only root fs, `AQUA_API_URL=http://api:8000`) behind a Caddy `WEB_DOMAIN` block with the
+CSP. Behind the TLS proxy the BFF's CSRF check compares `Origin` with the forwarded public origin.
+Runbook: [`docs/DEPLOYMENT.md`](../../docs/DEPLOYMENT.md).

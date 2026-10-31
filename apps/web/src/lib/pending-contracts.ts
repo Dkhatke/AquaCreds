@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Zod otherwise probes `new Function("")` to enable its JIT, which the production CSP (no
+// 'unsafe-eval') reports as a violation even though the probe is caught. These payloads are tiny.
+z.config({ jitless: true });
+
 /*
  * Contracts that other workers are adding to the API in parallel; they are not in
  * `@aquacreds/api-client` yet. Responses are validated at runtime so a contract change fails
